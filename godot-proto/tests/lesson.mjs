@@ -104,6 +104,14 @@ try {
     console.log("ready ms", Date.now() - t0);
     if (s.targets.exit) throw new Error("letters: на главном экране не должно быть крестика"); }
   await sleep(500); await shot("letters-home");
+  { const s = await bk(); const [ax, ay] = s.targets.letter_a;   // кубик «А»: левый верхний (36,50), 124×124 → центр (98,112)
+    if (Math.abs(ax - 98) > 3 || Math.abs(ay - 112) > 3) throw new Error(`letters: кубик «А» не на месте (${ax}, ${ay})`); }
+  // широкий экран 16:9: сетка кубиков по центру
+  await page.setViewport({ width: 1366, height: 768, hasTouch: TOUCH, isMobile: false }); await sleep(1200);
+  await shot("letters-home-wide");
+  { const s = await bk(); const [ax, ay] = s.targets.letter_a;
+    if (Math.abs(ax - (98 + 171)) > 3 || Math.abs(ay - 112) > 3) throw new Error(`letters 16:9: сетка не по центру (${ax}, ${ay})`); }
+  await page.setViewport({ width: 1024, height: 768, hasTouch: TOUCH, isMobile: false }); await sleep(1200);
   passed.push("boot→letters_menu");
   // первый вход в «А» за сессию → памятка взрослому s00 (с крестиком)
   await tap("letter_a");
