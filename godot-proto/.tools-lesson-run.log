@@ -1,0 +1,33 @@
+ready ms 4557
+s03: «Далее» появилась только после третьей картинки
+s09 9.1: замечено дуг горящими: 1,2
+s09 карточка 1: sound, красных пикселей 11.92 %
+s09 карточка 2: pic_aist, красных пикселей 0.02 %
+s09 карточка 3: pic_alya_card, красных пикселей 0.00 %
+s09 карточка 4: letter_big, красных пикселей 14.44 %
+s10 альбом: красно-оранжевых точек обложки 0.00 из 4
+журнал событий (записей): 19
+субтитры без debug: ни разу не показаны; текст на экране ребёнка — только А/а
+debug=1: субтитры показаны
+passed: s01_intro → s02_sing → s03_words → s04_hear → s05_letter → s06_write → s07_find → s08_sort → s09_say → s10_end
+LOG lines:
+log: LOG {"kind":"start","step":"s00_parent_note","t":1792601058.313}
+log: LOG {"kind":"end_ok","step":"s03_words","t":1792601074.658,"word":"Аля"}
+log: LOG {"junior":true,"kind":"write_mode","step":"s06_write","t":1792601086.518,"tol":60.0}
+log: LOG {"fails":1,"kind":"stroke_ok","step":"s06_write","stroke":0,"t":1792601091.743}
+log: LOG {"fails":0,"kind":"stroke_ok","step":"s06_write","stroke":1,"t":1792601094.175}
+log: LOG {"fails":0,"kind":"stroke_ok","step":"s06_write","stroke":2,"t":1792601096.174}
+log: LOG {"ch":"а","errors":1,"kind":"tile","step":"s08_sort","t":1792601115.156}
+log: LOG {"ch":"А","errors":0,"kind":"tile","step":"s08_sort","t":1792601117.207}
+log: LOG {"ch":"а","errors":0,"kind":"tile","step":"s08_sort","t":1792601119.608}
+log: LOG {"ch":"А","errors":0,"kind":"tile","step":"s08_sort","t":1792601121.641}
+log: LOG {"ch":"а","errors":0,"kind":"tile","step":"s08_sort","t":1792601123.675}
+log: LOG {"ch":"А","errors":0,"kind":"tile","step":"s08_sort","t":1792601125.707}
+log: LOG {"answer":"ok","kind":"parent_button","step":"s09_say","t":1792601129.807,"task":1,"try":1}
+log: LOG {"answer":"retry","kind":"parent_button","step":"s09_say","t":1792601132.54,"task":2,"try":1}
+log: LOG {"answer":"ok","kind":"parent_button","step":"s09_say","t":1792601134.474,"task":2,"try":2}
+log: LOG {"answer":"ok","kind":"parent_button","step":"s09_say","t":1792601137.108,"task":3,"try":1}
+log: LOG {"answer":"retry","kind":"parent_button","step":"s09_say","t":1792601139.828,"task":4,"try":1}
+log: LOG {"answer":"retry","kind":"parent_button","step":"s09_say","t":1792601141.741,"task":4,"try":2}
+log: LOG {"kind":"lesson_end","minutes":1,"stars":["first_try","first_try","first_try","second_try"],"step":"s10_end","t":1792601145.377}
+OK: no JS errors

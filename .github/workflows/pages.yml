@@ -1,0 +1,82 @@
+name: Deploy Godot web export
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download Godot 4.7.2-stable and export templates
+        run: |
+          set -euo pipefail
+          RELEASE="4.7.2-stable"
+          VERSION="4.7.2.stable"
+          BASE="https://github.com/godotengine/godot/releases/download/${RELEASE}"
+          mkdir -p "$HOME/godot" "$HOME/.local/share/godot/export_templates/${VERSION}"
+          curl -fL --retry 5 --retry-delay 5 \
+            -o /tmp/godot.zip \
+            "${BASE}/Godot_v${RELEASE}_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d "$HOME/godot"
+          chmod +x "$HOME/godot/Godot_v${RELEASE}_linux.x86_64"
+          "$HOME/godot/Godot_v${RELEASE}_linux.x86_64" --version
+          curl -fL --retry 5 --retry-delay 5 \
+            -o /tmp/templates.tpz \
+            "${BASE}/Godot_v${RELEASE}_export_templates.tpz"
+          mkdir -p /tmp/godot-templates
+          unzip -q /tmp/templates.tpz -d /tmp/godot-templates
+          mv /tmp/godot-templates/templates/* "$HOME/.local/share/godot/export_templates/${VERSION}/"
+          test -s "$HOME/.local/share/godot/export_templates/${VERSION}/web_nothreads_release.zip"
+          test -s "$HOME/.local/share/godot/export_templates/${VERSION}/version.txt"
+          rm -rf /tmp/godot.zip /tmp/templates.tpz /tmp/godot-templates
+
+      - name: Import project
+        working-directory: godot-proto
+        run: |
+          set -euo pipefail
+          "$HOME/godot/Godot_v4.7.2-stable_linux.x86_64" --headless --path . --import
+
+      - name: Export Web preset
+        working-directory: godot-proto
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          "$HOME/godot/Godot_v4.7.2-stable_linux.x86_64" --headless --path . --export-release "Web" build/index.html
+          touch build/.nojekyll
+          test -s build/index.html
+          test -s build/index.wasm
+          test -s build/index.pck
+          echo "Export contents:"
+          find build -type f -printf '%s\t%p\n' | sort -k2
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: godot-proto/build
+          include-hidden-files: true
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

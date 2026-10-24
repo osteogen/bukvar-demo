@@ -1,0 +1,12 @@
+# Godot 4 editor cache and imported-resource intermediates
+.godot/
+
+# Export output (web build is produced in CI, not committed)
+build/
+
+# Local editor binaries
+.godot-bin/
+
+# OS junk
+.DS_Store
+Thumbs.db

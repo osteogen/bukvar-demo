@@ -1,0 +1,297 @@
+{
+ "id": "a",
+ "title": "Звук [а], буква А",
+ "big": "А",
+ "small": "а",
+ "host": "alya",
+ "steps": [
+  "s00_parent_note",
+  "s01_intro",
+  "s02_sing",
+  "s03_words",
+  "s04_hear",
+  "s05_letter",
+  "s06_write",
+  "s07_find",
+  "s08_sort",
+  "s09_say",
+  "s10_end"
+ ],
+ "intro": {
+  "host": "alya",
+  "bunny": "bunny",
+  "bg": "bg_room_day",
+  "lines": [
+   "a_start_01",
+   "a_intro_01",
+   "a_intro_02",
+   "a_intro_03"
+  ],
+  "song": "a_intro_02",
+  "after_tap": "a_intro_04",
+  "rock_pose_has_bunny": false,
+  "sing_pose": "sing_crib",
+  "shh_pose": "shh"
+ },
+ "sing": {
+  "bg": "bg_room_day",
+  "face": "alya_closeup",
+  "lines": [
+   "a_sing_01",
+   "a_sing_02",
+   "a_sing_03"
+  ],
+  "loop": "a_sing_loop",
+  "hold_goal_sec": 2.0,
+  "after_hold": "a_sing_04",
+  "circle": "ui_circle_flat",
+  "waves": "ui_sound_waves"
+ },
+ "words": {
+  "bg": "bg_meadow",
+  "intro": "a_word_01",
+  "slot_hint": "a_word_06",
+  "summary": "a_word_05",
+  "items": [
+   {
+    "pic": "pic_aist",
+    "word": "аист",
+    "voice": "a_word_02",
+    "pos": 0,
+    "end_ok": false
+   },
+   {
+    "pic": "pic_alya_card",
+    "word": "Аля",
+    "voice": "a_word_03",
+    "pos": 0,
+    "end_ok": true
+   },
+   {
+    "pic": "pic_astra",
+    "word": "астра",
+    "voice": "a_word_04",
+    "pos": 0,
+    "end_ok": false
+   }
+  ],
+  "track": [
+   "ui_train_engine",
+   "ui_train_mid",
+   "ui_train_end"
+  ],
+  "end_ok_line": "a_words_end_ok",
+  "track_size": [
+   100,
+   77
+  ],
+  "track_window": [
+   [
+    0.726,
+    0.457
+   ],
+   [
+    0.5,
+    0.457
+   ],
+   [
+    0.5,
+    0.457
+   ]
+  ]
+ },
+ "hear": {
+  "bg": "bg_meadow",
+  "intro": "a_hear_01",
+  "no_line": "a_hear_10",
+  "done": "p_ok_04",
+  "items": [
+   {
+    "pic": "pic_mak",
+    "word": "мак",
+    "voice": "a_hear_02",
+    "has": true,
+    "stretch": "a_hear_07"
+   },
+   {
+    "pic": "pic_kot",
+    "word": "кот",
+    "voice": "a_hear_03",
+    "has": false
+   },
+   {
+    "pic": "pic_shar",
+    "word": "шар",
+    "voice": "a_hear_04",
+    "has": true,
+    "stretch": "a_hear_08"
+   },
+   {
+    "pic": "pic_dom",
+    "word": "дом",
+    "voice": "a_hear_05",
+    "has": false
+   },
+   {
+    "pic": "pic_lampa",
+    "word": "лампа",
+    "voice": "a_hear_06",
+    "has": true,
+    "stretch": "a_hear_09"
+   }
+  ]
+ },
+ "letter": {
+  "bg": "bg_desk",
+  "shape_pic": "pic_lesenka",
+  "lines": [
+   "a_letter_01",
+   "a_letter_02",
+   "a_letter_03",
+   "a_letter_04"
+  ],
+  "portrait": "pic_alya_card"
+ },
+ "write": {
+  "bg": "bg_desk",
+  "lines": [
+   "a_write_01",
+   "a_write_02",
+   "a_write_03",
+   "a_write_04"
+  ],
+  "done": "a_write_05",
+  "strokes": [
+   [
+    [
+     512,
+     150
+    ],
+    [
+     372,
+     600
+    ]
+   ],
+   [
+    [
+     512,
+     150
+    ],
+    [
+     652,
+     600
+    ]
+   ],
+   [
+    [
+     407,
+     488
+    ],
+    [
+     617,
+     488
+    ]
+   ]
+  ],
+  "tolerance": 40,
+  "min_progress": 0.8,
+  "tolerance_junior": 60
+ },
+ "find": {
+  "bg": "bg_sky",
+  "intro": "a_find_01",
+  "hit": "a_find_03",
+  "near_miss_line": "a_find_02",
+  "targets": [
+   "А",
+   "А",
+   "А",
+   "а",
+   "а",
+   "а"
+  ],
+  "rise_sec": 25.0,
+  "balloon_colors": [
+   "beige",
+   "grey",
+   "sand",
+   "cream"
+  ],
+  "pop_frames": 3,
+  "shapes": [
+   "triangle",
+   "circle",
+   "square",
+   "star"
+  ],
+  "near_miss_shape": "triangle",
+  "counter_empty": "ui_counter_star_empty",
+  "counter_full": "ui_counter_star_gold"
+ },
+ "sort": {
+  "bg": "bg_desk",
+  "intro": "a_sort_01",
+  "fill_pic": "pic_grib",
+  "tiles": [
+   "А",
+   "а",
+   "А",
+   "а",
+   "А",
+   "а"
+  ]
+ },
+ "say": {
+  "bg": "bg_room_day",
+  "host": "alya",
+  "intro": "a_say_01",
+  "retry_line": "a_say_06",
+  "giveup_line": "r_try_05",
+  "parent_hint": "h_parent_01",
+  "button_delay_sec": 2.0,
+  "parent_idle_sec": 8.0,
+  "tasks": [
+   {
+    "card": "sound",
+    "prompt": "a_say_02",
+    "model": "a_intro_02"
+   },
+   {
+    "card": "pic_aist",
+    "prompt": "a_say_03",
+    "model": "a_word_02"
+   },
+   {
+    "card": "pic_alya_card",
+    "prompt": "a_say_04",
+    "model": "a_word_03"
+   },
+   {
+    "card": "letter_big",
+    "prompt": "a_say_05",
+    "model": "a_find_03"
+   }
+  ],
+  "star": "reward_star",
+  "sound_waves": "ui_sound_waves",
+  "sound_dot_frac": 0.42
+ },
+ "end": {
+  "bg": "bg_room_evening",
+  "host": "alya",
+  "bunny": "bunny",
+  "lines": [
+   "a_end_01",
+   "a_end_02",
+   "a_end_03"
+  ],
+  "next_letter_stub": "",
+  "stub_pic": "ui_door_locked",
+  "parent_icon": "ui_parent_info",
+  "parent_hold_sec": 2.0,
+  "sticker": "reward_sticker_aist",
+  "album": "reward_album"
+ },
+ "card_frame": "ui_card_frame",
+ "sound_dot": "ui_circle_flat"
+}
