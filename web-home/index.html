@@ -11,10 +11,15 @@
      после тапа по «А» — на странице lesson-a/. Сетка, палитра и цвета — как в letters_menu.gd. -->
 <style>
 @font-face { font-family: "DejaVuBk"; src: url("assets/dejavu-sans-bold-cyr.woff2") format("woff2"); font-weight: 700; font-display: block; }
-html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #ECE3D0; }
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #ECE3D0; }
 body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-select: none; user-select: none;
   -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
-#stage { position: absolute; inset: 0; visibility: hidden; }
+/* #stage — ровно видимая область (размер ставит layout() по visualViewport), всё внутри; ничего не выходит за край */
+#stage { position: fixed; left: 0; top: 0; width: 100%; height: 100%; height: 100dvh; overflow: hidden; visibility: hidden; }
+/* зонд: видимая высота (dvh) и вырезы экрана (safe-area: «чёлка», полоска «домой» на iPhone/iPad) */
+#vp { position: fixed; left: 0; top: 0; width: 100%; height: 100%; height: 100dvh; visibility: hidden; pointer-events: none;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  box-sizing: border-box; }
 /* полосы экрана: верх (меню, пока пустое) · кубики · черта · ряд круглых кнопок. Размеры задаёт layout() в JS. */
 #topbar { position: absolute; left: 0; right: 0; top: 0; }
 .cube { position: absolute; width: 124px; height: 124px; padding: 0; margin: 0; border: 0; outline: none; cursor: pointer;
@@ -47,6 +52,7 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
 </style>
 </head>
 <body>
+<div id="vp" aria-hidden="true"></div>
 <div id="stage">
   <div id="topbar" aria-hidden="true"></div>
   <div id="letters" role="group" aria-label="Буквы"></div>
@@ -63,7 +69,8 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
   var COL = { v: "#D93A2B", c: "#2F6DB5", s: "#3C3228" }, COL_LOCK = { v: "#E3998C", c: "#97B0CA", s: "#9D968B" };
   // кубик 124 → шаг 138×136 (пропорции letters_menu.gd); остальное — в единицах «сцены» 1024×768, см. layout()
   var W = 1024, H = 768, SX = 138 / 124, SY = 136 / 124;
-  var TOP_BAR = 72, BTN = 88, BTN_MIN = 64, BTN_GAP = 40, BAR_PAD_T = 14, BAR_PAD_B = 20, DIV_H = 4, DIV_GAP = 14, SIDE = 28;
+  var TOP_BAR = 72, BTN = 88, BTN_MIN = 64, BTN_FLOOR = 44, BTN_GAP = 40, BAR_PAD_T = 14, BAR_PAD_B = 20, DIV_H = 4, DIV_GAP = 14, SIDE = 28;
+  var EDGE_X = 12, EDGE_B = 10;   // минимум от боковых краёв и от низа видимой области (px)
   var BTN_COLORS = ["#F6B9C0", "#F9CB9C", "#F6E08E", "#CDE9DC", "#BEDCEE", "#C9CAF0"];   // «мягкая радуга», без красного
   var BTN_DEPTH = ["#D9949C", "#DDA877", "#D4BC62", "#A6CDBB", "#94BCD6", "#A3A4D6"];
   var IDLE_HINT_SEC = 20, HINT_SHOW = 2;
@@ -145,21 +152,50 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
     var rows = Math.ceil(ALPHABET.length / n);
     return Math.min(aw / ((n - 1) * SX + 1), ah / ((rows - 1) * SY + 1));
   }
+  // видимая область: минимум из всех источников (visualViewport — без панелей браузера; dvh-зонд; innerHeight; clientHeight),
+  // чтобы ничего не ушло под адресную строку / нижнюю панель Safari / системную навигацию Android
+  var probe = document.getElementById("vp");
+  function viewport() {
+    var vv = window.visualViewport, de = document.documentElement, pr = probe.getBoundingClientRect();
+    var ws = [window.innerWidth, de.clientWidth || 1e9, pr.width || 1e9], hs = [window.innerHeight, de.clientHeight || 1e9, pr.height || 1e9];
+    if (vv && vv.width > 0) { var z = vv.scale > 1 ? vv.scale : 1; ws.push(vv.width * z); hs.push(vv.height * z); }
+    var cs = getComputedStyle(probe), px = function (v) { return parseFloat(v) || 0; };
+    return { w: Math.floor(Math.min.apply(null, ws)), h: Math.floor(Math.min.apply(null, hs)),
+      it: px(cs.paddingTop), ir: px(cs.paddingRight), ib: px(cs.paddingBottom), il: px(cs.paddingLeft) };
+  }
+  var lastKey = "", vpInfo = null;
   function layout() {
-    var vw = window.innerWidth, vh = window.innerHeight;
-    s = Math.min(vw / W, vh / H);
-    var top = Math.round(TOP_BAR * s), btn = Math.round(Math.max(BTN_MIN, BTN * s));
-    var barH = Math.round(btn + (BAR_PAD_T + BAR_PAD_B) * s), divH = Math.max(3, Math.round(DIV_H * s)), gap = Math.round(DIV_GAP * s);
-    var side = Math.round(SIDE * s), areaTop = top, areaH = vh - top - barH - divH - 2 * gap, areaW = vw - 2 * side;
-    // выбор сетки
-    // 7×5 остаётся, если другая сетка не даёт кубик крупнее хотя бы на 12 % (так 4:3 и iPad Air 1180×820 — всегда 7×5)
+    var V = viewport(); vpInfo = V;
+    var vw = V.w, vh = V.h;
+    stage.style.width = vw + "px"; stage.style.height = vh + "px";
+    // рабочая область внутри вырезов экрана
+    var L0 = V.il, R0 = vw - V.ir, T0 = V.it, B0 = vh - V.ib, aw = R0 - L0, ah = B0 - T0;
+    s = Math.min(aw / W, ah / H);
+    // кнопки: 88·s (не меньше 64), но ряд из 6 обязан влезть по ширине (поля ≥ 12 px) и занимать не больше ~17 % высоты
+    var sideB = Math.max(EDGE_X, Math.round(SIDE * s)), gapK = 0.36;
+    var rowW = aw - 2 * sideB, btnW = rowW / (6 + 5 * gapK);      // предел по ширине; на узких — промежутки уже
+    if (btnW < 52) btnW = rowW / (6 + 5 * 0.2);
+    if (btnW < BTN_FLOOR) btnW = (rowW - 5 * 6) / 6;
+    var btn = Math.max(BTN_MIN, BTN * s);
+    btn = Math.min(btn, btnW, Math.max(BTN_FLOOR, ah * 0.17));
+    btn = Math.floor(Math.max(Math.min(BTN_FLOOR, btnW), btn));   // ≥ 44, если ширина позволяет; иначе — сколько влезает
+    var bgap = Math.floor(Math.min(Math.max(BTN_GAP * s, btn * 0.3), (aw - 2 * sideB - 6 * btn) / 5));
+    var depth = Math.max(3, Math.round(btn * 0.055));
+    // вертикальные полосы; на низких экранах верх и зазоры ужимаются
+    var tight = Math.min(1, ah / 600);
+    var top = Math.round(TOP_BAR * s * (0.6 + 0.4 * tight));
+    var padT = Math.round(Math.max(6, BAR_PAD_T * s)), padB = Math.round(Math.max(EDGE_B, BAR_PAD_B * s)) + depth;
+    var barH = btn + padT + padB, divH = Math.max(3, Math.round(DIV_H * s)), gap = Math.round(Math.max(6, DIV_GAP * s));
+    var side = Math.max(EDGE_X, Math.round(SIDE * s)), areaTop = T0 + top;
+    var areaH = B0 - top - T0 - barH - divH - 2 * gap, areaW = aw - 2 * side;
+    // выбор сетки: 7×5 остаётся, если другая сетка не даёт кубик крупнее хотя бы на 12 % (4:3 и iPad Air — всегда 7×5)
     var c7 = gridFit(7, areaW, areaH), best = 7, bestC = c7;
-    (vw >= vh ? [9, 11] : [5]).forEach(function (n) { var c = gridFit(n, areaW, areaH); if (c > bestC) { best = n; bestC = c; } });
+    (aw >= ah ? [9, 11] : [5, 4]).forEach(function (n) { var c = gridFit(n, areaW, areaH); if (c > bestC) { best = n; bestC = c; } });
     if (bestC < c7 * 1.12) { best = 7; bestC = c7; }
-    cols = best; cube = Math.floor(Math.min(bestC, 124 * s * 1.35));
+    cols = best; cube = Math.max(20, Math.floor(Math.min(bestC, 124 * s * 1.35)));
     var rows = Math.ceil(ALPHABET.length / cols), stx = cube * SX, sty = cube * SY;
     var gw = (cols - 1) * stx + cube, gh = (rows - 1) * sty + cube;
-    gx = Math.round((vw - gw) / 2); gy = Math.round(areaTop + (areaH - gh) / 2);
+    gx = Math.round(L0 + (aw - gw) / 2); gy = Math.round(areaTop + (areaH - gh) / 2);
     var lastN = ALPHABET.length - (rows - 1) * cols, lastOff = (cols - lastN) / 2;
     var fs = cube * 52 / 124;
     for (var i = 0; i < cubes.length; i++) {
@@ -169,31 +205,41 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
       b.firstChild.style.fontSize = fs.toFixed(1) + "px";
     }
     ax0 = gx; ay0 = gy;
-    topbar.style.height = top + "px";
-    // черта: по ширине сетки (без тени кубика справа), сразу под областью кубиков
-    var dTop = vh - barH - gap - divH, dw = Math.round(gw - cube * 0.08);
-    divider.style.left = Math.round((vw - dw) / 2) + "px"; divider.style.width = dw + "px";
+    topbar.style.top = T0 + "px"; topbar.style.height = top + "px";
+    // черта: по ширине сетки (без тени кубика справа), между кубиками и кнопками
+    var barTop = B0 - barH, dTop = barTop - gap - divH, dw = Math.round(Math.min(gw - cube * 0.08, aw - 2 * side));
+    divider.style.left = Math.round(L0 + (aw - dw) / 2) + "px"; divider.style.width = dw + "px";
     divider.style.top = dTop + "px"; divider.style.height = divH + "px";
     // кнопки: по центру, равные промежутки
-    var bgap = Math.round(Math.max(BTN_GAP * s, btn * 0.3)), rw = 6 * btn + 5 * bgap, bx = Math.round((vw - rw) / 2);
-    var by = Math.round(vh - barH + BAR_PAD_T * s - 2 * s);
-    bar.style.top = (vh - barH) + "px"; bar.style.height = barH + "px";
-    var ring = Math.max(5, Math.round(btn * 0.085)), ink = Math.max(2, Math.round(btn * 0.028)), depth = Math.max(3, Math.round(btn * 0.055));
+    var rw = 6 * btn + 5 * bgap, bx = Math.round(L0 + (aw - rw) / 2);
+    bar.style.top = barTop + "px"; bar.style.height = barH + "px";
+    var ring = Math.max(3, Math.round(btn * 0.085)), ink = Math.max(1.5, Math.round(btn * 0.028));
     for (var j = 0; j < btns.length; j++) {
       var r = btns[j];
       r.style.width = r.style.height = btn + "px";
-      r.style.left = (bx + j * (btn + bgap)) + "px"; r.style.top = (by - (vh - barH)) + "px";
+      r.style.left = (bx + j * (btn + bgap)) + "px"; r.style.top = padT + "px";
       r.style.borderWidth = ink + "px";
       r.style.boxShadow = "inset 0 0 0 " + ring + "px " + BTN_COLORS[j] + ", inset 0 " + (-Math.round(ring * 0.5)) + "px 0 " + ring + "px " + BTN_DEPTH[j] +
-        ", 0 " + depth + "px 0 0 " + BTN_DEPTH[j] + ", 0 " + depth + "px 0 " + ink + "px #4A3F33, 0 " + (depth + 4) + "px " + Math.round(depth * 2) + "px rgba(60,50,40,.2)";
+        ", 0 " + depth + "px 0 0 " + BTN_DEPTH[j] + ", 0 " + depth + "px 0 " + ink + "px #4A3F33, 0 " + (depth + 3) + "px " + Math.round(depth * 1.6) + "px rgba(60,50,40,.2)";
     }
     var hs = cube * 96 / 124; hand.style.width = hand.style.height = hs.toFixed(1) + "px";
     stage.style.visibility = "visible";
+    lastKey = [vw, vh, V.it, V.ir, V.ib, V.il].join(",");
     if (showing) placeHand();
   }
   layout();
-  window.addEventListener("resize", layout);
-  window.addEventListener("orientationchange", function () { setTimeout(layout, 100); });
+  // пересчёт: поворот, панели браузера появились/спрятались, зум, возврат на страницу; плюс сторож раз в 0,4 с —
+  // на iOS после поворота размеры иногда приходят с опозданием и без события resize
+  function relayout() { layout(); if (typeof publish === "function") publish(); }
+  window.addEventListener("resize", relayout);
+  if (window.visualViewport) { visualViewport.addEventListener("resize", relayout); visualViewport.addEventListener("scroll", relayout); }
+  window.addEventListener("orientationchange", function () { [50, 200, 500, 1000].forEach(function (t) { setTimeout(relayout, t); }); });
+  window.addEventListener("pageshow", relayout);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayout);
+  setInterval(function () { var V = viewport(); if ([V.w, V.h, V.it, V.ir, V.ib, V.il].join(",") !== lastKey) relayout(); }, 400);
+  // страница не должна прокручиваться ни при каких условиях (iOS может сдвинуть её при «резиновом» скролле)
+  document.addEventListener("touchmove", function (e) { e.preventDefault(); }, { passive: false });
+  window.addEventListener("scroll", function () { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); });
 
   // рука-подсказка: hintSec без касаний → рука над «А» на 2 с; любое касание сбрасывает отсчёт
   var idle = 0, showing = false, last = performance.now(), handTimer = 0, frameTimer = 0;
@@ -232,7 +278,7 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
     var t = { letter_a: center(cubeA), letter_locked: center(cubeLocked), buttons: btns.map(center) };
     if (showing) t.hint_hand = [Math.round(cubeA.offsetLeft + cube / 2), Math.round(cubeA.offsetTop + cube / 2)];
     window.__home = { step: "home", state: state, hint_sec: hintSec, hint_shown: hintShown, targets: t, lesson_href: lessonHref,
-      scale: s, cube: cube, cols: cols, button: btns[0].offsetWidth };
+      scale: s, cube: cube, cols: cols, button: btns[0].offsetWidth, viewport: vpInfo };
   }
   publish(); setInterval(publish, 250);
 

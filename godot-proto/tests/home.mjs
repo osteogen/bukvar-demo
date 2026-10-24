@@ -75,9 +75,13 @@ try {
         fs: parseFloat(getComputedStyle(document.querySelector(".cube span")).fontSize), home: window.__home };
     });
     const where = `${w}×${h}`, inside = (r) => r.l >= 0 && r.t >= 0 && r.r <= L.vw + 0.5 && r.b <= L.vh + 0.5;
+    ok(L.vw === w && L.vh === h, `${where}: окно ${L.vw}×${L.vh}`);
+    const cubesSorted = L.cubes;   // кубики не налезают друг на друга
+    for (let i = 0; i < cubesSorted.length; i++) for (let j = i + 1; j < cubesSorted.length; j++) {
+      const a = cubesSorted[i], b = cubesSorted[j]; ok(a.r <= b.l + 0.5 || b.r <= a.l + 0.5 || a.b <= b.t + 0.5 || b.b <= a.t + 0.5, `${where}: кубики ${i} и ${j} налезают`); }
     ok(L.cubes.length === 33 && L.cubes.every(inside), `${where}: кубики за краем окна`);
     const cubesTop = Math.min(...L.cubes.map((c) => c.t)), cubesBot = Math.max(...L.cubes.map((c) => c.b));
-    ok(cubesTop >= L.top.h - 1 && L.top.h >= Math.min(72, 72 * L.home.scale) - 1, `${where}: нет места под верхнее меню (полоса ${L.top.h}, кубики с ${cubesTop})`);
+    ok(cubesTop >= L.top.h - 1 && L.top.h >= Math.min(72, 72 * L.home.scale * 0.6) - 1, `${where}: нет места под верхнее меню (полоса ${L.top.h}, кубики с ${cubesTop})`);
     ok(L.div && inside(L.div) && L.div.h >= 3 && L.div.h <= Math.max(5, 4 * L.home.scale + 1) && L.div.t >= cubesBot, `${where}: черта не под кубиками ${JSON.stringify(L.div)}`);
     ok(!/rgb\((2[0-9]{2}), ([0-9]{1,2}), /.test(L.divColor), `${where}: черта красная? ${L.divColor}`);
     const gl = Math.min(...L.cubes.map((c) => c.l)), gr = Math.max(...L.cubes.map((c) => c.r));
@@ -86,8 +90,10 @@ try {
     L.btns.forEach((b, i) => {
       ok(b.slot === String(i + 1) && b.label && !b.text.trim() && !b.kids, `${where}: кнопка ${i + 1} не пустая / без data-slot`);
       ok(inside(b) && b.t > L.div.b, `${where}: кнопка ${i + 1} вне окна или над чертой ${JSON.stringify(b)}`);
-      ok(Math.abs(b.w - b.h) < 1 && b.w >= 64, `${where}: кнопка ${i + 1} ${b.w}×${b.h} (меньше 64 или не круг)`);
-      if (i) ok(b.l - L.btns[i - 1].r > 8 && Math.abs((b.l - L.btns[i - 1].r) - (L.btns[1].l - L.btns[0].r)) < 1.5 && Math.abs(b.t - L.btns[0].t) < 1, `${where}: кнопки неровно`);
+      ok(Math.abs(b.w - b.h) < 1 && b.w >= 44, `${where}: кнопка ${i + 1} ${b.w}×${b.h} (меньше 44 или не круг)`);
+      ok(b.l >= 12 - 0.5 && b.r <= L.vw - 12 + 0.5, `${where}: кнопка ${i + 1} ближе 12 px к боковому краю (${b.l.toFixed(1)}…${b.r.toFixed(1)} из ${L.vw})`);
+      ok(b.b <= L.vh - 8 - b.w * 0.06, `${where}: кнопка ${i + 1} ближе 8 px к низу (низ с «толщиной» ${(b.b + b.w * 0.055).toFixed(1)} из ${L.vh})`);
+      if (i) ok(b.l - L.btns[i - 1].r >= 5 && Math.abs((b.l - L.btns[i - 1].r) - (L.btns[1].l - L.btns[0].r)) < 1.5 && Math.abs(b.t - L.btns[0].t) < 1, `${where}: кнопки неровно`);
     });
     const rowC = (L.btns[0].l + L.btns[5].r) / 2; ok(Math.abs(rowC - L.vw / 2) < 2, `${where}: ряд кнопок не по центру`);
     ok(L.fs / L.home.cube > 0.4, `${where}: буквы мелкие`);
@@ -101,12 +107,30 @@ try {
   { const L = await checkLayout(1280, 800); }
   await shot("home-16x10");
   const sizes = [];
-  for (const [w, h] of [[1024, 768], [1180, 820], [2048, 1536], [1366, 768], [1280, 800], [1920, 1200], [1920, 1080], [820, 1180], [915, 412], [844, 390], [740, 360]]) {
+  const SIZES = [
+    // прежние
+    [1024, 768], [1180, 820], [2048, 1536], [1366, 768], [1280, 800], [1920, 1200], [1920, 1080], [820, 1180], [915, 412], [844, 390], [740, 360],
+    // видимая область с панелями браузера: iPad Safari (альб./порт.)
+    [1180, 740], [1024, 690], [1366, 950], [820, 1100], [768, 950],
+    // Android-планшет Chrome
+    [1280, 680], [1280, 720], [800, 1180], [960, 540], [1340, 750],
+    // телефоны: альбомная / портретная
+    [844, 340], [740, 300], [915, 370], [390, 660], [360, 620], [320, 560]];
+  for (const [w, h] of SIZES) {
     const L = await checkLayout(w, h);
+    if (Math.min(w, h) >= 600) ok(L.btns[0].w >= 64, `${w}×${h}: на планшете кнопка ${L.btns[0].w} < 64`);
     if (Math.abs(w / h - 4 / 3) < 0.12) ok(L.home.cols === 7, `${w}×${h}: на 4:3 должно быть 7×5, а ${L.home.cols}`);
     sizes.push(`${w}×${h}: ${L.home.cols} стлб, кубик ${L.home.cube}, кнопка ${L.btns[0].w}`);
   }
   console.log("раскладка (без прокрутки, черта и 6 кнопок в окне):\n    " + sizes.join("\n    "));
+  // скриншоты тесных случаев
+  for (const [w, h, n] of [[1180, 740, "home-ipad-safari"], [1280, 680, "home-android-chrome"], [844, 340, "home-phone"], [360, 620, "home-portrait-phone"]]) {
+    await checkLayout(w, h); await sleep(300); await shot(n); }
+  // живой пересчёт: панели браузера показались (1180×820 → 1180×740) и поворот (→ 820×1180) без перезагрузки
+  for (const [w, h] of [[1180, 820], [1180, 740], [820, 1180], [360, 620], [1024, 768]]) {
+    await page.setViewport({ width: w, height: h, hasTouch: true, isMobile: false }); await sleep(250);
+    const L = await checkLayout(w, h); }
+  console.log("пересчёт при смене размера окна без перезагрузки: 1180×820 → 1180×740 → 820×1180 → 360×620 → 1024×768");
   passed.push("home: раскладка с чертой и кнопками");
   // 3) круглые кнопки: нажимаются (сжатие), но никуда не ведут
   await view(1024, 768);
