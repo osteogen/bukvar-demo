@@ -24,6 +24,7 @@ var caption_ever_visible := false
 var info := {}
 var hand: TextureRect
 var unlock_layer: Control
+var parent_note_seen := false     # памятка s00 уже была в этой сессии
 var test_mode := false
 var log_entries: Array = []
 var _targets: Dictionary = {}       # имя -> Control (для автотеста)
@@ -73,17 +74,15 @@ func _ready() -> void:
 	_build_overlay()
 	Voice.caption.connect(_on_caption)
 	_ios_audio_session()
-	var start := 0
+	# Главный экран — все буквы. ?step=... (s00…s10 или номер) — сразу в урок, ?step=letters_menu — то же, что без параметра.
 	var want := String(Assets.params.get("step", ""))
-	if want == "letters_menu":
+	var i := steps.find(want)
+	if i < 0 and want.is_valid_int():
+		i = int(want)
+	if want == "" or want == "letters_menu" or i < 0:
 		show_letters()
-	elif want != "":
-		var i := steps.find(want)
-		if i < 0 and want.is_valid_int():
-			i = int(want)
-		start = clampi(i, 0, steps.size() - 1)
-	if want != "letters_menu":
-		goto(start)
+	else:
+		goto(clampi(i, 0, steps.size() - 1))
 	if test_mode:
 		var t := Timer.new()
 		t.wait_time = 0.25
@@ -176,9 +175,11 @@ func goto(i: int) -> void:
 	_leave_current()
 	index = clampi(i, 0, steps.size() - 1)
 	screen = String(steps[index])
+	if index == 0:
+		parent_note_seen = true
 	_enter("res://steps/%s.tscn" % screen)
 	back_btn.visible = index > 1
-	exit_btn.visible = index >= 1            # s01–s10; на памятке взрослому s00 крестика нет
+	exit_btn.visible = true                  # s00–s10: везде в уроке — выход на главный экран букв
 	expose("exit", exit_btn if exit_btn.visible else null)
 	current.call_deferred("run")
 
@@ -190,6 +191,10 @@ func show_letters() -> void:
 	back_btn.visible = false
 	exit_btn.visible = false
 	current.call_deferred("run")
+
+## Вход в урок «А» с экрана букв: памятка взрослому s00 — только в первый раз за сессию (загрузку страницы), потом сразу s01.
+func start_lesson() -> void:
+	goto(1 if parent_note_seen else 0)
 
 func exit_to_letters() -> void:
 	if screen == "letters_menu":
@@ -322,7 +327,8 @@ func _input(event: InputEvent) -> void:
 		_hint_count = 0
 
 # ---------- iOS: звук ----------
-## Godot сам возобновляет AudioContext по первому касанию (поэтому s00 начинается с кнопки «Начнём!»).
+## Godot сам возобновляет AudioContext по первому касанию/клику (слушает touchend/mousedown/keydown в самом движке).
+## Первое касание теперь — на экране букв (тап по «А» или по любой плитке): оно и включает звук, дальше s00/s01 уже со звуком.
 ## Дополнительно: на iOS 17+ просим Safari играть звук даже при беззвучном режиме.
 func _ios_audio_session() -> void:
 	if OS.has_feature("web"):

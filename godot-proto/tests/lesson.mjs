@@ -99,9 +99,16 @@ try {
   const t0 = Date.now();
   const q = "test=1&fast=1" + (process.env.URLQ ? "&" + process.env.URLQ : "");
   await page.goto(`http://127.0.0.1:${PORT}/index.html?${q}`, { waitUntil: "load" });
-  // s00
-  await waitFor(state("wait_start"), "s00 ready", 120000);
-  console.log("ready ms", Date.now() - t0);
+  // запуск без ?step → главный экран букв (без крестика)
+  { const s = await waitFor((s) => s.step === "letters_menu" && s.state === "wait_letter", "boot → letters_menu", 120000);
+    console.log("ready ms", Date.now() - t0);
+    if (s.targets.exit) throw new Error("letters: на главном экране не должно быть крестика"); }
+  await sleep(500); await shot("letters-home");
+  passed.push("boot→letters_menu");
+  // первый вход в «А» за сессию → памятка взрослому s00 (с крестиком)
+  await tap("letter_a");
+  await waitFor((s) => s.step === "s00_parent_note" && s.state === "wait_start", "«А» → s00 (первый раз)", 30000);
+  await checkExit("s00_parent_note");
   await sleep(400); await shot("s00-parent-note");
   await tap("junior"); await sleep(300);   // младший режим (4 года): допуск ±60 px в сцене 6
   await tap("start");
@@ -237,16 +244,19 @@ try {
   await sleep(500); await shot("letters-menu");
   await tap("letter_locked"); await sleep(600);
   if ((await bk()).step !== "letters_menu") throw new Error("letters: закрытая буква «Б» открыла урок");
-  await tap("letter_a"); await waitFor((s) => s.step === "s01_intro", "letters «А» → s01");
+  await tap("letter_a");
+  { const s = await waitFor((s) => s.step && s.step !== "letters_menu", "letters «А» → урок");
+    if (s.step !== "s01_intro") throw new Error("второй вход в «А»: ожидался s01, а открылся " + s.step); }
+  console.log("второй вход в «А» за сессию: сразу s01 (без памятки)");
   passed.push("s10_end");
   // крестик посреди урока: s01 → экран букв → «А» → снова s01
   await waitFor((s) => s.step === "s01_intro" && s.state === "wait_alya", "s01 again");
   await checkExit("s01_intro"); await shot("s01-intro-exit");
   await tap("exit"); await waitFor((s) => s.step === "letters_menu" && s.state === "wait_letter", "exit → letters");
   await tap("letter_a"); await waitFor((s) => s.step === "s01_intro" && s.state === "wait_alya", "letters → s01 (после крестика)");
-  { const miss = ["s01_intro","s02_sing","s03_words","s04_hear","s05_letter","s06_write","s07_find","s08_sort","s09_say","s10_end"].filter((n) => !exitSeen.has(n));
+  { const miss = ["s00_parent_note","s01_intro","s02_sing","s03_words","s04_hear","s05_letter","s06_write","s07_find","s08_sort","s09_say","s10_end"].filter((n) => !exitSeen.has(n));
     if (miss.length) throw new Error("нет крестика на: " + miss.join(", ")); }
-  console.log("крестик: виден на s01–s10 без перекрытий; выход → экран букв → «А» → s01 — ок");
+  console.log("крестик: виден на s00–s10 без перекрытий; выход → экран букв → «А» → s01 — ок");
   passed.push("exit→letters→А→s01");
   const log = await page.evaluate(() => (window.__bk || {}).log);
   console.log("журнал событий (записей):", log);
@@ -254,6 +264,8 @@ try {
   console.log("субтитры без debug: ни разу не показаны; текст на экране ребёнка — только А/а");
   // с ?debug=1 субтитры появляются
   await page.goto(`http://127.0.0.1:${PORT}/index.html?test=1&fast=1&debug=1&step=s01_intro`, { waitUntil: "load" });
+  await waitFor((s) => s.step === "s01_intro", "deep link ?step=s01_intro → s01", 60000);
+  console.log("deep link ?step=s01_intro: сразу s01");
   await waitFor((s) => s.caption_visible, "debug: субтитр виден", 60000);
   await shot("debug-subtitles-s01");
   console.log("debug=1: субтитры показаны");
