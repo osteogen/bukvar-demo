@@ -1,7 +1,7 @@
 // Тест HTML-главной (web-home/ в корне сайта) + переход в урок lesson-a/ и обратно, в headless Chrome касаниями.
 // Сайт собирается как в CI:  bash tests/assemble_site.sh   (корень = web-home/, lesson-a/ = build/)
-// Проверяет: главная не тянет Godot (*.wasm/*.pck/index.js), её вес; раскладка 4:3 и 16:9 без прокрутки, совпадение
-// с экраном букв Godot (попиксельно); закрытая буква качается и никуда не ведёт; рука-подсказка; тап «А» → мгновенный
+// Проверяет: главная не тянет Godot (*.wasm/*.pck/index.js), её вес; раскладка (место под меню, кубики, черта, 6 пустых
+// круглых кнопок) на 4:3, 16:10, 16:9 и телефонах без прокрутки и наложений; кнопки только «нажимаются»; закрытая буква качается и никуда не ведёт; рука-подсказка; тап «А» → мгновенный
 // отклик → lesson-a/ с параметрами → s00 → s01; крестик и «?step=» → обратно на главную.
 // Запуск: PORT=<свободный> node tests/home.mjs [папка-сайта, по умолчанию ../site]
 import { createRequire } from "module"; import { spawn } from "child_process"; import path from "path"; import fs from "fs"; import { fileURLToPath } from "url";
@@ -63,30 +63,63 @@ try {
     ok(total < 1.5e6, "главная тяжелее 1,5 МБ");
     const s = await home(); ok(s.hint_sec === 20, "подсказка по умолчанию не 20 с: " + s.hint_sec); }
   passed.push("home: без Godot");
-  // 2) раскладка: 4:3 и 16:9, без прокрутки, «А» на месте
-  await sleep(1400); await noScroll("4:3");
-  { const s = await home(); const [ax, ay] = s.targets.letter_a; ok(Math.abs(ax - 98) <= 2 && Math.abs(ay - 112) <= 2, `4:3: «А» не на месте (${ax},${ay})`); }
-  await shot("home-4x3");
-  await view(1366, 768); await sleep(300); await noScroll("16:9");
-  { const s = await home(); const [ax, ay] = s.targets.letter_a; ok(Math.abs(ax - 269) <= 2 && Math.abs(ay - 112) <= 2, `16:9: сетка не по центру (${ax},${ay})`); }
-  await shot("home-16x9");
-  for (const [w, h] of [[1180, 820], [820, 1180], [915, 412], [1920, 1080]]) {   // iPad Air альб./порт., телефон Android альб., FullHD
+  // 2) раскладка: верхняя полоса под меню, кубики, черта, 6 круглых кнопок — всё в окне, без прокрутки и наложений
+  async function checkLayout(w, h) {
     await view(w, h); await noScroll(`${w}×${h}`);
-    const s = await home(); const k = Math.min(w / 1024, h / 768); const [ax, ay] = s.targets.letter_a;
-    const ex = (w - 1024 * k) / 2 + 98 * k, ey = (h - 768 * k) / 2 + 112 * k;
-    ok(Math.abs(ax - ex) <= 2 && Math.abs(ay - ey) <= 2, `${w}×${h}: «А» (${ax},${ay}) вместо (${ex.toFixed(0)},${ey.toFixed(0)})`);
+    const L = await page.evaluate(() => {
+      const R = (e) => { const r = e.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height }; };
+      return { vw: innerWidth, vh: innerHeight, top: R(document.getElementById("topbar")),
+        cubes: [...document.querySelectorAll(".cube")].map(R), div: document.getElementById("divider") && R(document.getElementById("divider")),
+        divColor: getComputedStyle(document.getElementById("divider")).backgroundColor,
+        btns: [...document.querySelectorAll("#bottombar .rb")].map((e) => ({ ...R(e), slot: e.dataset.slot, label: e.getAttribute("aria-label"), text: e.textContent, kids: e.children.length })),
+        fs: parseFloat(getComputedStyle(document.querySelector(".cube span")).fontSize), home: window.__home };
+    });
+    const where = `${w}×${h}`, inside = (r) => r.l >= 0 && r.t >= 0 && r.r <= L.vw + 0.5 && r.b <= L.vh + 0.5;
+    ok(L.cubes.length === 33 && L.cubes.every(inside), `${where}: кубики за краем окна`);
+    const cubesTop = Math.min(...L.cubes.map((c) => c.t)), cubesBot = Math.max(...L.cubes.map((c) => c.b));
+    ok(cubesTop >= L.top.h - 1 && L.top.h >= Math.min(72, 72 * L.home.scale) - 1, `${where}: нет места под верхнее меню (полоса ${L.top.h}, кубики с ${cubesTop})`);
+    ok(L.div && inside(L.div) && L.div.h >= 3 && L.div.h <= Math.max(5, 4 * L.home.scale + 1) && L.div.t >= cubesBot, `${where}: черта не под кубиками ${JSON.stringify(L.div)}`);
+    ok(!/rgb\((2[0-9]{2}), ([0-9]{1,2}), /.test(L.divColor), `${where}: черта красная? ${L.divColor}`);
+    const gl = Math.min(...L.cubes.map((c) => c.l)), gr = Math.max(...L.cubes.map((c) => c.r));
+    ok(L.div.w > (gr - gl) * 0.8 && L.div.w <= (gr - gl) + 1, `${where}: ширина черты ${L.div.w} не по сетке ${gr - gl}`);
+    ok(L.btns.length === 6, `${where}: кнопок ${L.btns.length}, нужно 6`);
+    L.btns.forEach((b, i) => {
+      ok(b.slot === String(i + 1) && b.label && !b.text.trim() && !b.kids, `${where}: кнопка ${i + 1} не пустая / без data-slot`);
+      ok(inside(b) && b.t > L.div.b, `${where}: кнопка ${i + 1} вне окна или над чертой ${JSON.stringify(b)}`);
+      ok(Math.abs(b.w - b.h) < 1 && b.w >= 64, `${where}: кнопка ${i + 1} ${b.w}×${b.h} (меньше 64 или не круг)`);
+      if (i) ok(b.l - L.btns[i - 1].r > 8 && Math.abs((b.l - L.btns[i - 1].r) - (L.btns[1].l - L.btns[0].r)) < 1.5 && Math.abs(b.t - L.btns[0].t) < 1, `${where}: кнопки неровно`);
+    });
+    const rowC = (L.btns[0].l + L.btns[5].r) / 2; ok(Math.abs(rowC - L.vw / 2) < 2, `${where}: ряд кнопок не по центру`);
+    ok(L.fs / L.home.cube > 0.4, `${where}: буквы мелкие`);
+    return L;
   }
-  console.log("раскладка: 1024×768, 1366×768, 1180×820, 820×1180, 915×412, 1920×1080 — по центру, без прокрутки");
-  passed.push("home: 4:3/16:9");
-  // 3) сравнение с экраном букв Godot (lesson-a/?step=letters_menu) в 1024×768
+  await sleep(1400);
+  { const L = await checkLayout(1024, 768); ok(L.home.cols === 7 && L.btns[0].w === 88, `4:3: сетка ${L.home.cols} столбцов, кнопка ${L.btns[0].w} (нужно 7 и 88)`); }
+  await sleep(600); await shot("home-4x3");
+  { const L = await checkLayout(1366, 768); ok(L.home.cols >= 7, "16:9: сетка"); }
+  await shot("home-16x9");
+  { const L = await checkLayout(1280, 800); }
+  await shot("home-16x10");
+  const sizes = [];
+  for (const [w, h] of [[1024, 768], [1180, 820], [2048, 1536], [1366, 768], [1280, 800], [1920, 1200], [1920, 1080], [820, 1180], [915, 412], [844, 390], [740, 360]]) {
+    const L = await checkLayout(w, h);
+    if (Math.abs(w / h - 4 / 3) < 0.12) ok(L.home.cols === 7, `${w}×${h}: на 4:3 должно быть 7×5, а ${L.home.cols}`);
+    sizes.push(`${w}×${h}: ${L.home.cols} стлб, кубик ${L.home.cube}, кнопка ${L.btns[0].w}`);
+  }
+  console.log("раскладка (без прокрутки, черта и 6 кнопок в окне):\n    " + sizes.join("\n    "));
+  passed.push("home: раскладка с чертой и кнопками");
+  // 3) круглые кнопки: нажимаются (сжатие), но никуда не ведут
   await view(1024, 768);
-  await page.goto(`${BASE}/lesson-a/index.html?test=1&step=letters_menu`, { waitUntil: "load" });
-  await until(bk, (s) => s.step === "letters_menu" && s.state === "wait_letter", "godot letters_menu", 120000);
-  await sleep(2000); await shot("godot-letters-ref");
-  { const d = await diffPng(path.join(SHOTS, "home-4x3.png"), path.join(SHOTS, "godot-letters-ref.png"));
-    console.log(`сходство с Godot-экраном букв: средняя разница ${d.mean.toFixed(2)}/255, пикселей с разницей >40: ${(d.bigShare * 100).toFixed(2)} %`);
-    ok(d.mean < 4 && d.bigShare < 0.01, "главная заметно отличается от экрана букв Godot"); }
-  passed.push("home ≈ godot letters");
+  { const u0 = page.url(), s = await home(); const [x, y] = s.targets.buttons[2];
+    await page.touchscreen.touchStart(x, y);
+    await sleep(150);
+    const pressed = await page.evaluate(() => { const b = document.querySelector('.rb[data-slot="3"]'); return b.classList.contains("press") && getComputedStyle(b).transform; });
+    await page.touchscreen.touchEnd(); await sleep(500);
+    const sc = pressed && /matrix\(([-\d.e]+)/.exec(pressed); ok(sc && +sc[1] < 0.95, "кнопка не сжалась при нажатии: " + pressed);
+    ok(page.url() === u0 && (await home()).state === "wait_letter", "пустая кнопка что-то сделала");
+    ok(!(await page.evaluate(() => document.querySelector(".rb.press"))), "кнопка осталась нажатой");
+    console.log("кнопка 3: сжатие при касании (" + pressed + "), действий нет"); }
+  passed.push("home: кнопки — только отклик");
   // 4) закрытая буква и рука-подсказка (укороченный таймер — только с test/debug)
   reqs.length = 0;
   await page.goto(`${BASE}/?hint_sec=2`, { waitUntil: "load" });

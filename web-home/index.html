@@ -14,10 +14,13 @@
 html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #ECE3D0; }
 body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-select: none; user-select: none;
   -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
-#stage { position: absolute; left: 0; top: 0; width: 1024px; height: 768px; transform-origin: 0 0; visibility: hidden; }
+#stage { position: absolute; inset: 0; visibility: hidden; }
+/* полосы экрана: верх (меню, пока пустое) · кубики · черта · ряд круглых кнопок. Размеры задаёт layout() в JS. */
+#topbar { position: absolute; left: 0; right: 0; top: 0; }
 .cube { position: absolute; width: 124px; height: 124px; padding: 0; margin: 0; border: 0; outline: none; cursor: pointer;
   background: transparent center / 100% 100% no-repeat; -webkit-appearance: none; appearance: none; }
-.cube span { position: absolute; left: 9.7px; top: 19.4px; width: 93px; height: 93px; display: flex; align-items: center;
+/* лицевая грань кубика: 9.7/19.4/93 из 124 (как в letters_menu.gd); шрифт 52/124 от кубика — задаётся в JS */
+.cube span { position: absolute; left: 7.823%; top: 15.645%; width: 75%; height: 75%; display: flex; align-items: center;
   justify-content: center; font: 700 52px/normal "DejaVuBk", "DejaVu Sans", sans-serif; pointer-events: none; }
 .cube.locked { cursor: default; }
 .cube.wobble { animation: wobble .35s linear; }
@@ -29,14 +32,27 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
 #cube-a.press { animation: none; transform: scale(.92); transition: transform .08s; }
 #cube-a.go { animation: go .7s ease-in-out infinite; }
 @keyframes go { 0% { transform: scale(.92) } 35% { transform: scale(1.14) } 100% { transform: scale(1.06) } }
-#stage.leaving .cube.locked { opacity: .55; transition: opacity .3s; }
-#hand { position: absolute; width: 96px; height: 96px; transform-origin: 20px 4px; pointer-events: none; display: none; z-index: 5; }
+#stage.leaving .cube.locked, #stage.leaving .rb { opacity: .55; transition: opacity .3s; }
+/* черта под алфавитом — тёплая бежевая, скруглённые концы */
+#divider { position: absolute; height: 4px; border-radius: 99px; background: #CDBFA6; pointer-events: none; }
+/* ряд круглых кнопок (пока пустые): светлая грань, пастельный ободок, тёмный контур и «толщина» снизу — как у кубиков */
+#bottombar { position: absolute; left: 0; right: 0; }
+.rb { position: absolute; box-sizing: border-box; padding: 0; margin: 0; border-radius: 50%; cursor: pointer; outline: none;
+  -webkit-appearance: none; appearance: none; background: #FBF7EE; border: solid #4A3F33;
+  transition: transform .12s ease-out; }
+.rb.press { transform: scale(.88); transition: transform .06s ease-in; }
+#hand { position: absolute; width: 96px; height: 96px; transform-origin: 20.8% 4.2%; pointer-events: none; display: none; z-index: 5; }
 #hand.tap { animation: tap .5s ease-in-out 3; }
 @keyframes tap { 0%, 100% { transform: scale(1) } 50% { transform: scale(.85) } }
 </style>
 </head>
 <body>
-<div id="stage" aria-label="Буквы"></div>
+<div id="stage">
+  <div id="topbar" aria-hidden="true"></div>
+  <div id="letters" role="group" aria-label="Буквы"></div>
+  <div id="divider" aria-hidden="true"></div>
+  <div id="bottombar" role="toolbar" aria-label="Кнопки"></div>
+</div>
 <script>
 (function () {
   "use strict";
@@ -45,7 +61,11 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
   var VOWELS = "АЕЁИОУЫЭЮЯ";
   // открытая буква / закрытая (= цвет.lerp(#ECE7DC, 0.55))
   var COL = { v: "#D93A2B", c: "#2F6DB5", s: "#3C3228" }, COL_LOCK = { v: "#E3998C", c: "#97B0CA", s: "#9D968B" };
-  var W = 1024, H = 768, COLS = 7, SIZE = 124, STEP_X = 138, STEP_Y = 136, X0 = 36, Y0 = 50;
+  // кубик 124 → шаг 138×136 (пропорции letters_menu.gd); остальное — в единицах «сцены» 1024×768, см. layout()
+  var W = 1024, H = 768, SX = 138 / 124, SY = 136 / 124;
+  var TOP_BAR = 72, BTN = 88, BTN_MIN = 64, BTN_GAP = 40, BAR_PAD_T = 14, BAR_PAD_B = 20, DIV_H = 4, DIV_GAP = 14, SIDE = 28;
+  var BTN_COLORS = ["#F6B9C0", "#F9CB9C", "#F6E08E", "#CDE9DC", "#BEDCEE", "#C9CAF0"];   // «мягкая радуга», без красного
+  var BTN_DEPTH = ["#D9949C", "#DDA877", "#D4BC62", "#A6CDBB", "#94BCD6", "#A3A4D6"];
   var IDLE_HINT_SEC = 20, HINT_SHOW = 2;
   var LESSON = "lesson-a/";
   var PASS = ["debug", "junior", "hint_sec", "test", "fast", "audio"];   // параметры, которые уходят в урок
@@ -58,23 +78,36 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
   PASS.forEach(function (k) { if (q.has(k)) lq.set(k, q.get(k)); });
   var lessonHref = LESSON + (lq.toString() ? "?" + lq.toString() : "");
 
-  var stage = document.getElementById("stage"), cubeA = null, cubeLocked = null, state = "wait_letter", hintShown = 0;
+  var stage = document.getElementById("stage"), letters = document.getElementById("letters"), divider = document.getElementById("divider"),
+    bar = document.getElementById("bottombar"), topbar = document.getElementById("topbar");
+  var cubeA = null, cubeLocked = null, state = "wait_letter", hintShown = 0, cubes = [], btns = [];
   for (var i = 0; i < ALPHABET.length; i++) {
     var ch = ALPHABET[i], locked = ch !== ACTIVE;
-    var col = i % COLS + (i >= 28 ? 1 : 0), row = Math.floor(i / COLS);
     var b = document.createElement("button");
     b.className = "cube" + (locked ? " locked" : "");
-    b.style.left = (X0 + col * STEP_X) + "px"; b.style.top = (Y0 + row * STEP_Y) + "px";
     b.style.backgroundImage = "url(assets/cube_" + ORDER[i] + (locked ? "_lock" : "") + ".webp)";
     b.setAttribute("aria-label", "Буква " + ch + (locked ? " (пока закрыта)" : ""));
     var kind = VOWELS.indexOf(ch) >= 0 ? "v" : (ch === "Ь" || ch === "Ъ") ? "s" : "c";
     var s = document.createElement("span"); s.textContent = ch; s.style.color = (locked ? COL_LOCK : COL)[kind];
-    b.appendChild(s); stage.appendChild(b);
+    b.appendChild(s); letters.appendChild(b); cubes.push(b);
     if (!locked) { b.id = "cube-a"; cubeA = b; }
     else {
       if (ch === "Б") cubeLocked = b;
       b.addEventListener("pointerdown", wobble);
     }
+  }
+  // нижний ряд: 6 пустых круглых кнопок (data-slot 1…6) — пока только «нажимаются», действий нет
+  for (var j = 0; j < 6; j++) {
+    var r = document.createElement("button");
+    r.className = "rb"; r.type = "button"; r.dataset.slot = String(j + 1);
+    r.setAttribute("aria-label", "Кнопка " + (j + 1) + " (пока пустая)");
+    r.style.borderColor = "#4A3F33"; r.dataset.color = BTN_COLORS[j];
+    bar.appendChild(r); btns.push(r); rb_on(r);
+  }
+  function rb_on(r) {
+    var off = function () { r.classList.remove("press"); };
+    r.addEventListener("pointerdown", function () { if (state !== "leaving") r.classList.add("press"); });
+    r.addEventListener("pointerup", off); r.addEventListener("pointerleave", off); r.addEventListener("pointercancel", off);
   }
   var hand = document.createElement("img");
   hand.id = "hand"; hand.alt = ""; hand.src = "assets/hand_f1.webp"; stage.appendChild(hand);
@@ -104,13 +137,59 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
     if (e.persisted) { state = "wait_letter"; cubeA.classList.remove("go", "press"); stage.classList.remove("leaving"); idle = 0; publish(); }
   });
 
-  // масштаб: сцена 1024×768 целиком в окне, по центру (как stretch canvas_items + aspect expand в Godot)
-  var k = 1, ox = 0, oy = 0;
+  // раскладка в пикселях окна. s — масштаб «сцены» 1024×768 (как раньше); полосы: верх TOP_BAR·s (место под меню),
+  // внизу ряд кнопок (BTN·s, но не меньше BTN_MIN px — палец ребёнка), над ним черта; кубики — максимально крупные в
+  // оставшейся области. 4:3 — всегда 7×5; на широких экранах берём 9×4 / 11×3, если кубики выходят заметно крупнее.
+  var s = 1, cube = 124, gx = 0, gy = 0, cols = 7, ax0 = 0, ay0 = 0;
+  function gridFit(n, aw, ah) {
+    var rows = Math.ceil(ALPHABET.length / n);
+    return Math.min(aw / ((n - 1) * SX + 1), ah / ((rows - 1) * SY + 1));
+  }
   function layout() {
     var vw = window.innerWidth, vh = window.innerHeight;
-    k = Math.min(vw / W, vh / H); ox = (vw - W * k) / 2; oy = (vh - H * k) / 2;
-    stage.style.transform = "translate(" + ox + "px," + oy + "px) scale(" + k + ")";
+    s = Math.min(vw / W, vh / H);
+    var top = Math.round(TOP_BAR * s), btn = Math.round(Math.max(BTN_MIN, BTN * s));
+    var barH = Math.round(btn + (BAR_PAD_T + BAR_PAD_B) * s), divH = Math.max(3, Math.round(DIV_H * s)), gap = Math.round(DIV_GAP * s);
+    var side = Math.round(SIDE * s), areaTop = top, areaH = vh - top - barH - divH - 2 * gap, areaW = vw - 2 * side;
+    // выбор сетки
+    // 7×5 остаётся, если другая сетка не даёт кубик крупнее хотя бы на 12 % (так 4:3 и iPad Air 1180×820 — всегда 7×5)
+    var c7 = gridFit(7, areaW, areaH), best = 7, bestC = c7;
+    (vw >= vh ? [9, 11] : [5]).forEach(function (n) { var c = gridFit(n, areaW, areaH); if (c > bestC) { best = n; bestC = c; } });
+    if (bestC < c7 * 1.12) { best = 7; bestC = c7; }
+    cols = best; cube = Math.floor(Math.min(bestC, 124 * s * 1.35));
+    var rows = Math.ceil(ALPHABET.length / cols), stx = cube * SX, sty = cube * SY;
+    var gw = (cols - 1) * stx + cube, gh = (rows - 1) * sty + cube;
+    gx = Math.round((vw - gw) / 2); gy = Math.round(areaTop + (areaH - gh) / 2);
+    var lastN = ALPHABET.length - (rows - 1) * cols, lastOff = (cols - lastN) / 2;
+    var fs = cube * 52 / 124;
+    for (var i = 0; i < cubes.length; i++) {
+      var row = Math.floor(i / cols), col = i % cols + (row === rows - 1 ? lastOff : 0), b = cubes[i];
+      b.style.width = b.style.height = cube + "px";
+      b.style.left = Math.round(gx + col * stx) + "px"; b.style.top = Math.round(gy + row * sty) + "px";
+      b.firstChild.style.fontSize = fs.toFixed(1) + "px";
+    }
+    ax0 = gx; ay0 = gy;
+    topbar.style.height = top + "px";
+    // черта: по ширине сетки (без тени кубика справа), сразу под областью кубиков
+    var dTop = vh - barH - gap - divH, dw = Math.round(gw - cube * 0.08);
+    divider.style.left = Math.round((vw - dw) / 2) + "px"; divider.style.width = dw + "px";
+    divider.style.top = dTop + "px"; divider.style.height = divH + "px";
+    // кнопки: по центру, равные промежутки
+    var bgap = Math.round(Math.max(BTN_GAP * s, btn * 0.3)), rw = 6 * btn + 5 * bgap, bx = Math.round((vw - rw) / 2);
+    var by = Math.round(vh - barH + BAR_PAD_T * s - 2 * s);
+    bar.style.top = (vh - barH) + "px"; bar.style.height = barH + "px";
+    var ring = Math.max(5, Math.round(btn * 0.085)), ink = Math.max(2, Math.round(btn * 0.028)), depth = Math.max(3, Math.round(btn * 0.055));
+    for (var j = 0; j < btns.length; j++) {
+      var r = btns[j];
+      r.style.width = r.style.height = btn + "px";
+      r.style.left = (bx + j * (btn + bgap)) + "px"; r.style.top = (by - (vh - barH)) + "px";
+      r.style.borderWidth = ink + "px";
+      r.style.boxShadow = "inset 0 0 0 " + ring + "px " + BTN_COLORS[j] + ", inset 0 " + (-Math.round(ring * 0.5)) + "px 0 " + ring + "px " + BTN_DEPTH[j] +
+        ", 0 " + depth + "px 0 0 " + BTN_DEPTH[j] + ", 0 " + depth + "px 0 " + ink + "px #4A3F33, 0 " + (depth + 4) + "px " + Math.round(depth * 2) + "px rgba(60,50,40,.2)";
+    }
+    var hs = cube * 96 / 124; hand.style.width = hand.style.height = hs.toFixed(1) + "px";
     stage.style.visibility = "visible";
+    if (showing) placeHand();
   }
   layout();
   window.addEventListener("resize", layout);
@@ -124,13 +203,17 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
   document.addEventListener("visibilitychange", resetIdle);
   function showHand() {
     showing = true; idle = 0; hintShown++;
-    hand.style.left = (X0 + SIZE / 2 - 20) + "px"; hand.style.top = (Y0 + SIZE / 2 - 4) + "px";
+    placeHand();
     hand.src = "assets/hand_f1.webp"; hand.style.display = "block";
     hand.classList.remove("tap"); void hand.offsetWidth; hand.classList.add("tap");
     var n = 0;
     frameTimer = setInterval(function () { n++; hand.src = n % 2 ? "assets/hand_f2.webp" : "assets/hand_f1.webp"; if (n >= 6) clearInterval(frameTimer); }, 250);
     handTimer = setTimeout(hideHand, HINT_SHOW * 1000);
     publish();
+  }
+  function placeHand() {   // кончик пальца (20,4 из 96) — в центр кубика «А»
+    var r = cubeA.getBoundingClientRect(), u = cube / 124, cx = cubeA.offsetLeft + cube / 2, cy = cubeA.offsetTop + cube / 2;
+    hand.style.left = (cx - 20 * u) + "px"; hand.style.top = (cy - 4 * u) + "px";
   }
   function hideHand() {
     clearTimeout(handTimer); clearInterval(frameTimer);
@@ -146,9 +229,10 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
   // для автотеста: координаты целей в CSS-пикселях окна
   function center(el) { var r = el.getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]; }
   function publish() {
-    var t = { letter_a: center(cubeA), letter_locked: center(cubeLocked) };
-    if (showing) t.hint_hand = [Math.round(ox + (X0 + SIZE / 2) * k), Math.round(oy + (Y0 + SIZE / 2) * k)];
-    window.__home = { step: "home", state: state, hint_sec: hintSec, hint_shown: hintShown, targets: t, lesson_href: lessonHref, scale: k };
+    var t = { letter_a: center(cubeA), letter_locked: center(cubeLocked), buttons: btns.map(center) };
+    if (showing) t.hint_hand = [Math.round(cubeA.offsetLeft + cube / 2), Math.round(cubeA.offsetTop + cube / 2)];
+    window.__home = { step: "home", state: state, hint_sec: hintSec, hint_shown: hintShown, targets: t, lesson_href: lessonHref,
+      scale: s, cube: cube, cols: cols, button: btns[0].offsetWidth };
   }
   publish(); setInterval(publish, 250);
 
