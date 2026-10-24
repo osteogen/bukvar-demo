@@ -1,5 +1,5 @@
 ## Менеджер сцен урока: загружает шаги из lesson.json, держит общий интерфейс
-## (кнопки «дальше»/«назад», субтитры, рука-подсказка, разблокировка звука на iOS).
+## (кнопки «дальше»/«назад», крестик выхода к экрану букв, субтитры, рука-подсказка, разблокировка звука на iOS).
 extends Control
 
 const W := 1024.0
@@ -13,6 +13,11 @@ var host: Control
 var overlay: Control
 var next_btn: TextureButton
 var back_btn: TextureButton
+var exit_btn: TextureButton        # крестик справа вверху на s01–s10 → экран букв (menu/letters_menu)
+var screen := ""                   # имя текущего экрана: шаг из lesson.json или "letters_menu"
+const LETTERS_MENU := "res://menu/letters_menu.tscn"
+const EXIT_SIZE := 72.0            # кнопка 72×72 (≥ 64 px для пальца), как «назад»
+const EXIT_MARGIN := 14.0
 var caption_panel: ColorRect
 var caption_label: Label
 var caption_ever_visible := false
@@ -36,12 +41,15 @@ var _hint_idle := 0.0
 var _hint_showing := false
 var _hint_tween: Tween
 var _hand_frames: Array = []
-const HINT_IDLE := 5.0
+## Бездействие ребёнка до руки-подсказки (и между повторами), с. Единственная настройка; в тесте — ?hint_sec=N.
+const IDLE_HINT_SEC := 20.0
+var idle_hint_sec := IDLE_HINT_SEC
 const HINT_SHOW := 2.0
-const HINT_PAUSE := 3.0
 
 func _ready() -> void:
 	test_mode = Assets.flag("test")
+	if (test_mode or Assets.flag("debug")) and String(Assets.params.get("hint_sec", "")).is_valid_float():
+		idle_hint_sec = maxf(0.5, float(Assets.params.get("hint_sec")))
 	started_ms = Time.get_ticks_msec()
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var th := Theme.new()
@@ -67,12 +75,15 @@ func _ready() -> void:
 	_ios_audio_session()
 	var start := 0
 	var want := String(Assets.params.get("step", ""))
-	if want != "":
+	if want == "letters_menu":
+		show_letters()
+	elif want != "":
 		var i := steps.find(want)
 		if i < 0 and want.is_valid_int():
 			i = int(want)
 		start = clampi(i, 0, steps.size() - 1)
-	goto(start)
+	if want != "letters_menu":
+		goto(start)
 	if test_mode:
 		var t := Timer.new()
 		t.wait_time = 0.25
@@ -84,6 +95,10 @@ func _ready() -> void:
 func _layout() -> void:
 	var vs := get_viewport_rect().size
 	stage.position = ((vs - Vector2(W, H)) / 2).floor()
+	if exit_btn:
+		# правый верхний угол ВИДИМОЙ области (на 4:3 — угол сцены, на 16:9 — уходит в поле справа)
+		var vr := visible_rect()
+		exit_btn.position = Vector2(vr.end.x - EXIT_MARGIN - EXIT_SIZE, vr.position.y + EXIT_MARGIN)
 	if current and current.has_method("relayout"):
 		current.relayout()
 
@@ -114,6 +129,11 @@ func _build_overlay() -> void:
 	back_btn = _ui_button("ui_btn_back", Vector2(20, 20), Vector2(72, 72))
 	back_btn.pressed.connect(prev_step)
 	back_btn.modulate.a = 0.75
+	exit_btn = _ui_button("ui_exit", Vector2.ZERO, Vector2(EXIT_SIZE, EXIT_SIZE))
+	exit_btn.name = "ui_exit"
+	exit_btn.pressed.connect(exit_to_letters)
+	exit_btn.visible = false
+	_layout()
 
 	hand = TextureRect.new()
 	hand.texture = Assets.tex("ui_hand_f1")
@@ -153,10 +173,37 @@ func set_info(k: String, v) -> void:
 
 # ---------- навигация ----------
 func goto(i: int) -> void:
+	_leave_current()
+	index = clampi(i, 0, steps.size() - 1)
+	screen = String(steps[index])
+	_enter("res://steps/%s.tscn" % screen)
+	back_btn.visible = index > 1
+	exit_btn.visible = index >= 1            # s01–s10; на памятке взрослому s00 крестика нет
+	expose("exit", exit_btn if exit_btn.visible else null)
+	current.call_deferred("run")
+
+## Экран всех букв (пока активна только «А»). Сюда ведут крестик и «домой» в s10.
+func show_letters() -> void:
+	_leave_current()
+	screen = "letters_menu"
+	_enter(LETTERS_MENU)
+	back_btn.visible = false
+	exit_btn.visible = false
+	current.call_deferred("run")
+
+func exit_to_letters() -> void:
+	if screen == "letters_menu":
+		return
+	log_event("exit", {})
+	Voice.sfx("sfx_whoosh")
+	show_letters()
+
+func _leave_current() -> void:
 	hint_stop()
 	Voice.stop_all()
 	show_next(false)
 	_targets.clear()
+	info.erase("parent_panel")
 	if current:
 		current.dead = true
 		host.remove_child(current)
@@ -164,15 +211,13 @@ func goto(i: int) -> void:
 		get_tree().create_timer(3.0).timeout.connect(func(): old.free())
 		current = null
 	Voice.clear_cache()
-	index = clampi(i, 0, steps.size() - 1)
-	var path := "res://steps/%s.tscn" % steps[index]
+
+func _enter(path: String) -> void:
 	var sc: PackedScene = load(path)
 	current = sc.instantiate()
 	current.main = self
 	host.add_child(current)
-	back_btn.visible = index > 1
 	set_state("enter")
-	current.call_deferred("run")
 
 func next_step() -> void:
 	Voice.sfx("sfx_whoosh")
@@ -218,13 +263,21 @@ func _hide_hand() -> void:
 	_hint_showing = false
 	if _hint_tween:
 		_hint_tween.kill()
-	hand.visible = false
+	if hand.visible:
+		hand.visible = false
+		expose("hint_hand", null)
+		if test_mode:
+			publish()
 
 func _process(delta: float) -> void:
 	if not _hint_active:
 		return
+	# пока звучит реплика, ребёнок слушает — бездействие не считаем (отсчёт 20 с начинается после неё)
+	if not _hint_showing and Voice.is_speaking():
+		_hint_idle = 0.0
+		return
 	_hint_idle += delta
-	if not _hint_showing and _hint_idle >= (HINT_IDLE if _hint_count == 0 else HINT_PAUSE):
+	if not _hint_showing and _hint_idle >= idle_hint_sec:
 		_show_hand()
 	elif _hint_showing and _hint_idle >= HINT_SHOW:
 		_hide_hand()
@@ -249,6 +302,8 @@ func _show_hand() -> void:
 	hand.global_position = p0 - Vector2(20, 4)
 	hand.texture = _hand_frames[0]
 	hand.visible = true
+	expose("hint_hand", hand)
+	set_info("hint_shown", int(info.get("hint_shown", 0)) + 1)
 	_hint_tween = hand.create_tween()
 	var d = _hint_drag_to.call() if _hint_drag_to.is_valid() else null
 	if d != null and is_instance_valid(d):
@@ -275,7 +330,7 @@ func _ios_audio_session() -> void:
 
 # ---------- журнал и автотест ----------
 func log_event(kind: String, data: Dictionary = {}) -> void:
-	var e := {"t": Time.get_unix_time_from_system(), "step": steps[index], "kind": kind}
+	var e := {"t": Time.get_unix_time_from_system(), "step": screen, "kind": kind}
 	e.merge(data)
 	log_entries.append(e)
 	print("LOG ", JSON.stringify(e))
@@ -303,7 +358,8 @@ func publish() -> void:
 		if is_instance_valid(c) and c.is_visible_in_tree():
 			var r: Rect2 = c.get_global_rect()
 			t[k] = [r.get_center().x, r.get_center().y]
-	var d := {"step": steps[index] if index >= 0 else "", "state": state, "targets": t,
+	var d := {"step": screen, "state": state, "targets": t, "hint_sec": idle_hint_sec,
+		"exit_overlaps": _exit_overlaps(),
 		"log": log_entries.size(), "caption": caption_label.text,
 		"caption_visible": caption_panel.visible, "caption_ever_visible": caption_ever_visible,
 		"labels_visible": _visible_labels(), "info": info}
@@ -317,5 +373,20 @@ func _visible_labels() -> Array:
 		var n: Node = stack.pop_back()
 		if n is Label and (n as Label).is_visible_in_tree() and (n as Label).text.strip_edges() != "":
 			out.append((n as Label).text.substr(0, 40))
+		stack.append_array(n.get_children())
+	return out
+
+## Для теста: видимые кнопки текущего экрана, которые пересекаются с крестиком (должно быть пусто).
+func _exit_overlaps() -> Array:
+	var out: Array = []
+	if exit_btn == null or not exit_btn.visible or current == null:
+		return out
+	var er := exit_btn.get_global_rect()
+	var stack: Array = [current, next_btn, back_btn]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		if n is Control and n != exit_btn and (n as Control).is_visible_in_tree() \
+				and (n is BaseButton or n.name == "reward_album") and (n as Control).get_global_rect().intersects(er):
+			out.append(String(n.name))
 		stack.append_array(n.get_children())
 	return out

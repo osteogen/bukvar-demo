@@ -19,6 +19,11 @@ const VOWEL_RED := Color("#D93A2B")
 ## Зелёный — только мягкие согласные, синий — только твёрдые: в кнопках, одежде и крупных предметах не используются.
 const MUSTARD := Color("#E2B42E")
 const CORAL := Color("#E07A4E")
+## Экран букв (menu/letters_menu): согласные — синие (только буквы, не кнопки), ь/ъ — тёмные, подложки — кремовые.
+const CONSONANT_BLUE := Color("#2F6DB5")
+const DARK := Color("#3C3228")
+const CREAM := Color("#F7F0DE")
+const VOWELS := "аеёиоуыэюя"
 const SETTINGS_PATH := "user://settings.json"
 ## Настройки для взрослого (сохраняются на устройстве). junior — младший режим для 4 лет (допуск ±60 px в сцене 6).
 var settings: Dictionary = {"junior": false}

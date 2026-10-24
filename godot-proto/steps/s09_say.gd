@@ -85,8 +85,12 @@ func _show_parent(on: bool) -> void:
 		shown_at = Time.get_ticks_msec()
 		if not parent_hinted:
 			idle_timer.start()
-	elif idle_timer:
-		idle_timer.stop()
+		# 20 с без касаний — рука показывает на ✓ (кнопку нажимает взрослый); без реплики и автопомощи
+		main.hint_start(func(): return btn_ok, "")
+	else:
+		main.hint_stop()
+		if idle_timer:
+			idle_timer.stop()
 
 func _press(v: String) -> void:
 	var now := Time.get_ticks_msec()

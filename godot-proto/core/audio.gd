@@ -9,6 +9,7 @@ var voice: AudioStreamPlayer
 var loop_player: AudioStreamPlayer
 var sfx_pool: Array[AudioStreamPlayer] = []
 var _token := 0
+var _speaking := 0          # токен реплики, которая звучит сейчас (0 — тишина)
 var _cache: Dictionary = {}
 var fast := false
 
@@ -39,6 +40,7 @@ func say(id: String) -> void:
 	stop_voice()
 	_token += 1
 	var my := _token
+	_speaking = my
 	caption.emit(Assets.line_text(id))
 	var s := _stream(id)
 	var limit := Assets.line_dur(id) + 1.0
@@ -55,10 +57,16 @@ func say(id: String) -> void:
 		if s and not voice.playing and not fast:
 			break
 		await get_tree().process_frame
+	if _speaking == my:
+		_speaking = 0
 	if my == _token:
 		if fast:
 			voice.stop()
 		caption.emit("")
+
+## Звучит ли реплика ведущей (для паузы отсчёта руки-подсказки).
+func is_speaking() -> bool:
+	return _speaking != 0 and _speaking == _token
 
 func stop_voice() -> void:
 	_token += 1

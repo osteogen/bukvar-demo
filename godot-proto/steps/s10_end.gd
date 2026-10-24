@@ -1,4 +1,4 @@
-## Сцена 10. Награда: наклейка-аист летит в альбом (обложка кремовая), зайка спит в кроватке; «Ещё раз» / «Домой».
+## Сцена 10. Награда: наклейка-аист летит в альбом (обложка кремовая), зайка спит в кроватке; «Ещё раз» / «Домой» (→ экран букв).
 ## Итог для взрослого — за маленьким значком без текста (ui_parent_info), открывается долгим нажатием ≈2 с.
 extends LessonStep
 
@@ -12,7 +12,7 @@ func run() -> void:
 	if not bunny.pose("sleep"):
 		bunny.sleeping = true
 	bunny.pressed.connect(func(): Voice.sfx("sfx_snore"))
-	var album := add_pic(String(cfg.get("album", "reward_album")), Vector2(950, 70), Vector2(100, 100), false)   # обложка кремовая #F7F0DE (финальный файл иллюстратора)
+	var album := add_pic(String(cfg.get("album", "reward_album")), Vector2(830, 70), Vector2(100, 100), false)   # левее угла: справа вверху крестик выхода; обложка кремовая #F7F0DE (финальный файл иллюстратора)
 	pop_in(alya)
 	alya.pose_for("joy", 1.6)              # радуется (статичная поза), потом машет
 	get_tree().create_timer(1.7).timeout.connect(func(): if is_instance_valid(alya): alya.wave(2))
@@ -46,23 +46,10 @@ func run() -> void:
 	_add_parent_icon("Звёзд: %d из %d (со второго раза: %d) · время: %d мин" % [stars.size(), 4, second, mins])
 	main.log_event("lesson_end", {"stars": stars, "minutes": mins})
 	again.pressed.connect(func(): main.goto(1))
-	home.pressed.connect(_home)
+	home.pressed.connect(main.show_letters)
+	# 20 с без касаний — рука показывает на «домой» (к экрану букв)
+	main.hint_start(func(): return home, "")
 	main.set_state("done")
-
-func _home() -> void:
-	var panel := ColorRect.new()
-	panel.color = Color(0, 0, 0, 0.7)
-	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(panel)
-	# заглушка без букв: закрытая дверца с замочком и звёздочками
-	var door := add_pic(cfg.stub_pic, Vector2(512, 340), Vector2(300, 400), false)
-	door.reparent(panel)
-	pop_in(door)
-	var back := add_pic("ui_btn_back", Vector2(512, 650), Vector2(90, 90))
-	back.reparent(panel)
-	main.expose("stub_back", back)
-	back.pressed.connect(func(): main.goto(1))
-	main.set_state("home_stub")
 
 ## Значок для взрослого: коричневый кружок без текста; удерживать ≈2 с (end.parent_hold_sec) — откроется итог урока.
 var _hold_t := -1.0

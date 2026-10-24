@@ -1,5 +1,7 @@
 // Сквозной тест урока «А» в headless Chrome: проходит все шаги s00…s10 КАСАНИЯМИ (touch-события, как на планшете),
 // делает ошибки там, где это нужно для проверки реакций, снимает скриншоты.
+// Плюс: крестик выхода на s01–s10 (виден, ни с чем не пересекается) → экран букв → «А» → s01;
+// рука-подсказка после бездействия (?hint_sec=3 — укороченный таймер; по умолчанию 20 с — проверяется на экране букв).
 // Запуск: PORT=<свободный> node tests/lesson.mjs     (TOUCH=0 — мышью; URLQ="audio=stream" — доп. параметры)
 import { createRequire } from "module"; import { spawn } from "child_process"; import path from "path"; import fs from "fs"; import { fileURLToPath } from "url";
 const require = createRequire(import.meta.url);
@@ -18,7 +20,7 @@ const ALLOWED = new Set(["А", "а"]);
 const bk = async () => {
   const s = await page.evaluate(() => window.__bk || {});
   if (s.caption_visible || s.caption_ever_visible) textViolations.add("субтитр виден: " + (s.step || "") + " «" + (s.caption || "") + "»");
-  if (s.step && s.step !== "s00_parent_note" && !(s.info && s.info.parent_panel))
+  if (s.step && s.step !== "s00_parent_note" && s.step !== "letters_menu" && !(s.info && s.info.parent_panel))
     for (const t of s.labels_visible || []) if (!ALLOWED.has(t.trim())) textViolations.add("текст на экране " + s.step + ": «" + t + "»");
   return s;
 };
@@ -71,7 +73,17 @@ async function drag(from, to, steps = 18, holdMs = 0) {
 }
 const shot = async (name) => { await page.screenshot({ path: path.join(SHOTS, name + ".png") }); };
 const state = (st) => (s) => s.state === st;
+// крестик выхода: виден в правом верхнем углу и не пересекается с кнопками/альбомом экрана
+const exitSeen = new Set();
+async function checkExit(where) {
+  const s = await waitFor((s) => s.targets && s.targets.exit, "exit button on " + where, 10000);
+  const [x, y] = s.targets.exit;
+  if (x < 900 || y > 100) throw new Error(`${where}: крестик не в правом верхнем углу (${x}, ${y})`);
+  if ((s.exit_overlaps || []).length) throw new Error(`${where}: крестик перекрывает ${s.exit_overlaps.join(", ")}`);
+  exitSeen.add(s.step);
+}
 async function next(fromStep) {
+  await checkExit(fromStep);
   await tap("next", 40000);
   await waitFor((s) => s.step && s.step !== fromStep, "leave " + fromStep);
   passed.push(fromStep);
@@ -105,7 +117,6 @@ try {
   // s03: картинка → первое окошко (на 2-й картинке одна ошибка)
   for (let i = 0; i < 3; i++) {
     await waitFor(state("wait_pic_" + i), "s03 pic " + i);
-    if (i === 0) { await sleep(6200); await shot("s03-hint-hand"); }
     await tap("pic");
     await waitFor(state("wait_slot_" + i), "s03 slot " + i);
     // «Далее» не должна появляться, пока не посажен кружок у третьей картинки
@@ -174,7 +185,7 @@ try {
     }
     await waitFor(state("wait_parent_" + i), "s09 parent " + i);
     await sleep(1100);   // кнопка игнорирует нажатия чаще 1 раза в секунду
-    if (i === 0) { await shot("s09-say-parent-button"); }
+    if (i === 0) { await checkExit("s09 (кнопка взрослого)"); await shot("s09-say-parent-button"); }
     { // карточки сцены 9 — без красных предметов (кроме самой буквы А в задании 4)
       const s = await bk(); const card = s.info && s.info.s09_card;
       if (!card || card.i !== i) throw new Error("s09: нет сведений о карточке " + i);
@@ -200,7 +211,9 @@ try {
   await waitFor(state("done"), "s09 done"); await shot("s09-say-done"); await next("s09_say");
   // s10
   await waitFor((s) => s.step === "s10_end" && s.state === "done", "s10 done", 40000);
-  await sleep(500); await shot("s10-end");
+  await sleep(500); await shot("s10-end"); await checkExit("s10_end");
+  { const s = await bk(); const [ax, ay, aw, ah] = s.info.s10_album; const [ex, ey] = s.targets.exit;
+    if (ex + 36 > ax && ex - 36 < ax + aw && ey + 36 > ay && ey - 36 < ay + ah) throw new Error("s10: крестик перекрывает альбом"); }
   { const s = await bk(); if (!s.targets.sticker) throw new Error("s10: нет наклейки-аиста (она в утверждённом сценарии)"); }
   { // обложка альбома — без красного и оранжевого (оттенок 0…35° и 345…360°)
     const s = await bk(); const r = s.info && s.info.s10_album; if (!r) throw new Error("s10: нет сведений об альбоме");
@@ -218,9 +231,23 @@ try {
   await waitFor((s) => s.info && s.info.parent_panel, "s10 parent panel", 5000);
   await sleep(300); await shot("s10-parent-panel");
   await tap("parent_panel"); await waitFor((s) => !s.info.parent_panel, "s10 parent panel closed", 5000);
-  await tap("home"); await waitFor(state("home_stub"), "home stub"); await shot("s10-home-stub");
-  await tap("stub_back"); await waitFor((s) => s.step === "s01_intro", "back to s01");
+  // «домой» → экран букв
+  await tap("home"); await waitFor((s) => s.step === "letters_menu" && s.state === "wait_letter", "home → letters");
+  { const s = await bk(); if (s.targets.exit) throw new Error("letters: на экране букв не должно быть крестика"); }
+  await sleep(500); await shot("letters-menu");
+  await tap("letter_locked"); await sleep(600);
+  if ((await bk()).step !== "letters_menu") throw new Error("letters: закрытая буква «Б» открыла урок");
+  await tap("letter_a"); await waitFor((s) => s.step === "s01_intro", "letters «А» → s01");
   passed.push("s10_end");
+  // крестик посреди урока: s01 → экран букв → «А» → снова s01
+  await waitFor((s) => s.step === "s01_intro" && s.state === "wait_alya", "s01 again");
+  await checkExit("s01_intro"); await shot("s01-intro-exit");
+  await tap("exit"); await waitFor((s) => s.step === "letters_menu" && s.state === "wait_letter", "exit → letters");
+  await tap("letter_a"); await waitFor((s) => s.step === "s01_intro" && s.state === "wait_alya", "letters → s01 (после крестика)");
+  { const miss = ["s01_intro","s02_sing","s03_words","s04_hear","s05_letter","s06_write","s07_find","s08_sort","s09_say","s10_end"].filter((n) => !exitSeen.has(n));
+    if (miss.length) throw new Error("нет крестика на: " + miss.join(", ")); }
+  console.log("крестик: виден на s01–s10 без перекрытий; выход → экран букв → «А» → s01 — ок");
+  passed.push("exit→letters→А→s01");
   const log = await page.evaluate(() => (window.__bk || {}).log);
   console.log("журнал событий (записей):", log);
   if (textViolations.size) throw new Error("текст на экране ребёнка:\n" + [...textViolations].join("\n"));
@@ -230,6 +257,36 @@ try {
   await waitFor((s) => s.caption_visible, "debug: субтитр виден", 60000);
   await shot("debug-subtitles-s01");
   console.log("debug=1: субтитры показаны");
+  // рука-подсказка с укороченным таймером: s03, ждём картинку
+  await page.goto(`http://127.0.0.1:${PORT}/index.html?test=1&fast=1&hint_sec=3&step=s03_words`, { waitUntil: "load" });
+  await waitFor(state("wait_pic_0"), "idle: s03 wait_pic_0", 60000);
+  { const t0 = Date.now(); await sleep(1500);
+    if ((await bk()).targets.hint_hand) throw new Error("idle: рука появилась раньше таймера");
+    const s = await waitFor((s) => s.targets.hint_hand, "idle: рука через 3 с", 6000);
+    const dt = (Date.now() - t0) / 1000; const [hx, hy] = s.targets.hint_hand, [px, py] = s.targets.pic;
+    console.log(`idle: рука появилась через ${dt.toFixed(1)} с (hint_sec=${s.hint_sec}), над картинкой: ${Math.hypot(hx - px, hy - py) < 120}`);
+    if (Math.hypot(hx - px, hy - py) > 120) throw new Error("idle: рука не над картинкой");
+    await sleep(300); await shot("s03-hint-hand");
+    // касание пустого места — рука прячется, отсчёт заново
+    await waitFor((s) => !s.targets.hint_hand, "idle: рука спряталась после показа", 6000);
+    TOUCH ? await page.touchscreen.tap(60, 400) : await page.mouse.click(60, 400);
+    const t1 = Date.now(); await sleep(1500);
+    if ((await bk()).targets.hint_hand) throw new Error("idle: касание не сбросило таймер");
+    await waitFor((s) => s.targets.hint_hand, "idle: повторный показ", 6000);
+    console.log(`idle: после касания рука снова через ${((Date.now() - t1) / 1000).toFixed(1)} с`); }
+  passed.push("idle-hint(3s)");
+  // по умолчанию — 20 с (экран букв: рука над «А»)
+  await page.goto(`http://127.0.0.1:${PORT}/index.html?test=1&fast=1&step=letters_menu`, { waitUntil: "load" });
+  { const s0 = await waitFor(state("wait_letter"), "letters ready", 60000);
+    if (s0.hint_sec !== 20) throw new Error("idle: по умолчанию не 20 с: " + s0.hint_sec);
+    const t0 = Date.now(); await sleep(18000);
+    if ((await bk()).targets.hint_hand) throw new Error("idle: рука раньше 20 с");
+    const s = await waitFor((s) => s.targets.hint_hand, "idle: рука через 20 с", 6000);
+    const [hx, hy] = s.targets.hint_hand, [ax, ay] = s.targets.letter_a;
+    console.log(`idle (20 с): рука через ${((Date.now() - t0) / 1000).toFixed(1)} с, над «А»: ${Math.hypot(hx - ax, hy - ay) < 80}`);
+    if (Math.hypot(hx - ax, hy - ay) > 80) throw new Error("idle: рука не над «А»");
+    await sleep(300); await shot("letters-menu-hint"); }
+  passed.push("idle-hint(20s)");
 } catch (e) { errors.push("test: " + (e.stack || e)); try { await shot("FAIL"); } catch {} }
 finally { if (browser) await browser.close(); srv.kill(); }
 console.log("passed:", passed.join(" → "));
