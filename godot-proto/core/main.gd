@@ -25,6 +25,7 @@ var info := {}
 var hand: TextureRect
 var unlock_layer: Control
 var parent_note_seen := false     # памятка s00 уже была в этой сессии
+var home_requested := false       # веб: ушли на HTML-главную (для автотеста)
 var test_mode := false
 var log_entries: Array = []
 var _targets: Dictionary = {}       # имя -> Control (для автотеста)
@@ -74,13 +75,18 @@ func _ready() -> void:
 	_build_overlay()
 	Voice.caption.connect(_on_caption)
 	_ios_audio_session()
-	# Главный экран — все буквы. ?step=... (s00…s10 или номер) — сразу в урок, ?step=letters_menu — то же, что без параметра.
+	# В вебе главный экран букв — отдельная лёгкая HTML-страница в корне сайта (web-home/), а Godot живёт в lesson-a/:
+	# без параметров урок всегда начинается с памятки s00 (её кнопка — первый жест, разблокирует звук на iOS).
+	# ?step=... (s00…s10 или номер) — сразу нужный шаг; ?step=letters_menu — экран букв внутри Godot (для отладки).
+	# Не в вебе (редактор, десктоп) экран букв из Godot остаётся главным.
 	var want := String(Assets.params.get("step", ""))
 	var i := steps.find(want)
 	if i < 0 and want.is_valid_int():
 		i = int(want)
-	if want == "" or want == "letters_menu" or i < 0:
+	if want == "letters_menu" or (want == "" and not OS.has_feature("web")):
 		show_letters()
+	elif i < 0:
+		goto(0)
 	else:
 		goto(clampi(i, 0, steps.size() - 1))
 	if test_mode:
@@ -201,6 +207,20 @@ func exit_to_letters() -> void:
 		return
 	log_event("exit", {})
 	Voice.sfx("sfx_whoosh")
+	go_home()
+
+## Домой, к экрану букв. В вебе — на HTML-главную (../), с теми же параметрами адреса, кроме step;
+## не в вебе — экран букв внутри Godot. Сюда ведут крестик и «домой» в s10.
+func go_home() -> void:
+	if OS.has_feature("web") and String(Assets.params.get("step", "")) != "letters_menu":
+		if home_requested:
+			return
+		hint_stop()
+		home_requested = true
+		publish()
+		JavaScriptBridge.eval("setTimeout(function(){try{var p=new URLSearchParams(location.search);p.delete('step');" \
+			+ "var q=p.toString();location.href='../'+(q?'?'+q:'');}catch(e){location.href='../';}},150);", true)
+		return
 	show_letters()
 
 func _leave_current() -> void:
@@ -368,7 +388,7 @@ func publish() -> void:
 		"exit_overlaps": _exit_overlaps(),
 		"log": log_entries.size(), "caption": caption_label.text,
 		"caption_visible": caption_panel.visible, "caption_ever_visible": caption_ever_visible,
-		"labels_visible": _visible_labels(), "info": info}
+		"labels_visible": _visible_labels(), "info": info, "home_requested": home_requested}
 	JavaScriptBridge.eval("window.__bk=" + JSON.stringify(d) + ";", true)
 
 ## Все видимые надписи (Label) на экране — тест проверяет, что у ребёнка нет текста, кроме А/а.

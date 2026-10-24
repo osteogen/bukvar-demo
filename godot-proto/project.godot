@@ -5,10 +5,9 @@ config_version=5
 config/name="Урок А — демо"
 run/main_scene="res://core/main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
-boot_splash/bg_color=Color(1, 0.925, 0.804, 1)
-boot_splash/image="res://core/boot_splash.png"
-boot_splash/fullsize=true
-boot_splash/use_filter=true
+config/icon="res://core/app_icon.png"
+boot_splash/bg_color=Color(0.9254902, 0.8901961, 0.8156863, 1)
+boot_splash/show_image=false
 
 [autoload]
 Assets="*res://core/assets.gd"

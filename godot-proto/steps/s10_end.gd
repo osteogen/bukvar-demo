@@ -46,7 +46,7 @@ func run() -> void:
 	_add_parent_icon("Звёзд: %d из %d (со второго раза: %d) · время: %d мин" % [stars.size(), 4, second, mins])
 	main.log_event("lesson_end", {"stars": stars, "minutes": mins})
 	again.pressed.connect(func(): main.goto(1))
-	home.pressed.connect(main.show_letters)
+	home.pressed.connect(main.go_home)
 	# 20 с без касаний — рука показывает на «домой» (к экрану букв)
 	main.hint_start(func(): return home, "")
 	main.set_state("done")

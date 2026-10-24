@@ -1,8 +1,10 @@
 // Сквозной тест урока «А» в headless Chrome: проходит все шаги s00…s10 КАСАНИЯМИ (touch-события, как на планшете),
 // делает ошибки там, где это нужно для проверки реакций, снимает скриншоты.
-// Плюс: крестик выхода на s01–s10 (виден, ни с чем не пересекается) → экран букв → «А» → s01;
-// рука-подсказка после бездействия (?hint_sec=3 — укороченный таймер; по умолчанию 20 с — проверяется на экране букв).
-// Запуск: PORT=<свободный> node tests/lesson.mjs     (TOUCH=0 — мышью; URLQ="audio=stream" — доп. параметры)
+// Сайт как в CI: корень — HTML-главная (web-home/), урок — lesson-a/ (сборка: bash tests/assemble_site.sh).
+// Вход: главная → «А» → lesson-a/ → s00 (памятка, каждый раз при загрузке урока) → s01…s10.
+// Плюс: крестик выхода на s00–s10 (виден, ни с чем не пересекается) → главная → «А» → s00 → s01; «домой» в s10 → главная;
+// рука-подсказка после бездействия (?hint_sec=3 — укороченный таймер; по умолчанию 20 с — проверяется на главной).
+// Запуск: PORT=<свободный> node tests/lesson.mjs     (TOUCH=0 — мышью; URLQ="audio=stream" — доп. параметры; SITE=папка сайта)
 import { createRequire } from "module"; import { spawn } from "child_process"; import path from "path"; import fs from "fs"; import { fileURLToPath } from "url";
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -10,7 +12,8 @@ const puppeteer = require(path.resolve(ROOT, "../.tools/node_modules/puppeteer-c
 const PORT = +(process.env.PORT || 55782);
 const TOUCH = process.env.TOUCH !== "0";
 const SHOTS = path.join(ROOT, "screenshots"); fs.mkdirSync(SHOTS, { recursive: true });
-const srv = spawn("node", [path.join(ROOT, "tests/serve.mjs"), path.join(ROOT, "build"), String(PORT)], { stdio: "ignore", env: { ...process.env, NOCOI: "1" } });
+const SITE = path.resolve(process.env.SITE || path.join(ROOT, "../site"));
+const srv = spawn("node", [path.join(ROOT, "tests/serve.mjs"), SITE, String(PORT)], { stdio: "ignore", env: { ...process.env, NOCOI: "1" } });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [], logs = [], passed = []; let browser, page;
 // Без ?debug=1 субтитров быть не должно, а из текста на экране ребёнка — только А/а
@@ -18,7 +21,7 @@ const errors = [], logs = [], passed = []; let browser, page;
 const textViolations = new Set();
 const ALLOWED = new Set(["А", "а"]);
 const bk = async () => {
-  const s = await page.evaluate(() => window.__bk || {});
+  const s = await page.evaluate(() => window.__bk || {}).catch(() => ({}));
   if (s.caption_visible || s.caption_ever_visible) textViolations.add("субтитр виден: " + (s.step || "") + " «" + (s.caption || "") + "»");
   if (s.step && s.step !== "s00_parent_note" && s.step !== "letters_menu" && !(s.info && s.info.parent_panel))
     for (const t of s.labels_visible || []) if (!ALLOWED.has(t.trim())) textViolations.add("текст на экране " + s.step + ": «" + t + "»");
@@ -71,6 +74,33 @@ async function drag(from, to, steps = 18, holdMs = 0) {
   }
   await sleep(150);
 }
+// HTML-главная (window.__home) и переходы между страницами
+const home = () => page.evaluate(() => window.__home || {}).catch(() => ({}));
+async function homeReady(desc) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < 15000) { const h = await home(); if (h.state === "wait_letter") return h; await sleep(100); }
+  throw new Error("timeout: " + desc + " (главная) | url=" + page.url());
+}
+async function tapXY([x, y]) { if (TOUCH) await page.touchscreen.tap(x, y); else await page.mouse.click(x, y); }
+async function tapNav(xy, what) {
+  try { await Promise.all([page.waitForNavigation({ waitUntil: "load", timeout: 15000 }), tapXY(xy)]); }
+  catch (e) { throw new Error(`нет перехода после «${what}» (${page.url()}): ${e.message}`); }
+}
+async function homeToLesson() {   // главная: тап «А» → lesson-a/ → s00
+  const h = await homeReady("перед «А»"); await sleep(400);
+  await tapNav(h.targets.letter_a, "А на главной");
+  if (!/\/lesson-a\/(index\.html)?\?/.test(page.url())) throw new Error("«А» открыла не lesson-a/: " + page.url());
+  const s = await waitFor((s) => s.step === "s00_parent_note" && s.state === "wait_start", "lesson-a → s00", 120000);
+  await sleep(600);   // свежая загрузка Godot: первые ~300 мс касания не доходят
+  return s;
+}
+async function tapStart() {   // «Начнём!» на s00; в headless после свежей загрузки первый тап иногда теряется — один повтор
+  for (let i = 0; i < 2; i++) {
+    await tap("start");
+    try { await waitFor((s) => s.step !== "s00_parent_note", "s00 → s01", 3000); return; }
+    catch (e) { if (i) throw e; console.log("s00: тап «Начнём!» не дошёл, повтор"); }
+  }
+}
 const shot = async (name) => { await page.screenshot({ path: path.join(SHOTS, name + ".png") }); };
 const state = (st) => (s) => s.state === st;
 // крестик выхода: виден в правом верхнем углу и не пересекается с кнопками/альбомом экрана
@@ -98,24 +128,12 @@ try {
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
   const t0 = Date.now();
   const q = "test=1&fast=1" + (process.env.URLQ ? "&" + process.env.URLQ : "");
-  await page.goto(`http://127.0.0.1:${PORT}/index.html?${q}`, { waitUntil: "load" });
-  // запуск без ?step → главный экран букв (без крестика)
-  { const s = await waitFor((s) => s.step === "letters_menu" && s.state === "wait_letter", "boot → letters_menu", 120000);
-    console.log("ready ms", Date.now() - t0);
-    if (s.targets.exit) throw new Error("letters: на главном экране не должно быть крестика"); }
-  await sleep(500); await shot("letters-home");
-  { const s = await bk(); const [ax, ay] = s.targets.letter_a;   // кубик «А»: левый верхний (36,50), 124×124 → центр (98,112)
-    if (Math.abs(ax - 98) > 3 || Math.abs(ay - 112) > 3) throw new Error(`letters: кубик «А» не на месте (${ax}, ${ay})`); }
-  // широкий экран 16:9: сетка кубиков по центру
-  await page.setViewport({ width: 1366, height: 768, hasTouch: TOUCH, isMobile: false }); await sleep(1200);
-  await shot("letters-home-wide");
-  { const s = await bk(); const [ax, ay] = s.targets.letter_a;
-    if (Math.abs(ax - (98 + 171)) > 3 || Math.abs(ay - 112) > 3) throw new Error(`letters 16:9: сетка не по центру (${ax}, ${ay})`); }
-  await page.setViewport({ width: 1024, height: 768, hasTouch: TOUCH, isMobile: false }); await sleep(1200);
-  passed.push("boot→letters_menu");
-  // первый вход в «А» за сессию → памятка взрослому s00 (с крестиком)
-  await tap("letter_a");
-  await waitFor((s) => s.step === "s00_parent_note" && s.state === "wait_start", "«А» → s00 (первый раз)", 30000);
+  await page.goto(`http://127.0.0.1:${PORT}/?${q}`, { waitUntil: "load" });
+  // сайт открывается HTML-главной (Godot не грузится), «А» → урок → памятка s00 (с крестиком)
+  await homeReady("старт");
+  await homeToLesson();
+  console.log("ready ms (главная → урок → s00)", Date.now() - t0);
+  passed.push("главная→«А»→s00");
   await checkExit("s00_parent_note");
   await sleep(400); await shot("s00-parent-note");
   await tap("junior"); await sleep(300);   // младший режим (4 года): допуск ±60 px в сцене 6
@@ -246,39 +264,43 @@ try {
   await waitFor((s) => s.info && s.info.parent_panel, "s10 parent panel", 5000);
   await sleep(300); await shot("s10-parent-panel");
   await tap("parent_panel"); await waitFor((s) => !s.info.parent_panel, "s10 parent panel closed", 5000);
-  // «домой» → экран букв
-  await tap("home"); await waitFor((s) => s.step === "letters_menu" && s.state === "wait_letter", "home → letters");
-  { const s = await bk(); if (s.targets.exit) throw new Error("letters: на экране букв не должно быть крестика"); }
+  // «домой» → HTML-главная
+  { const [x, y] = await target("home"); await tapNav([x, y], "домой (s10)"); }
+  await homeReady("s10 домой → главная");
+  if (new URL(page.url()).pathname !== "/") throw new Error("«домой» привела не на главную: " + page.url());
+  console.log("s10 «домой» → главная:", page.url().replace(/^http:\/\/[^/]+/, ""));
   await sleep(500); await shot("letters-menu");
-  await tap("letter_locked"); await sleep(600);
-  if ((await bk()).step !== "letters_menu") throw new Error("letters: закрытая буква «Б» открыла урок");
-  await tap("letter_a");
-  { const s = await waitFor((s) => s.step && s.step !== "letters_menu", "letters «А» → урок");
-    if (s.step !== "s01_intro") throw new Error("второй вход в «А»: ожидался s01, а открылся " + s.step); }
-  console.log("второй вход в «А» за сессию: сразу s01 (без памятки)");
+  { const h = await home(); await tapXY(h.targets.letter_locked); await sleep(600);
+    if (new URL(page.url()).pathname !== "/") throw new Error("закрытая буква «Б» открыла урок"); }
+  // повторный вход: урок загружается заново → снова памятка s00 (на iOS это нужный жест для звука) → s01
+  await homeToLesson();
+  console.log("повторный вход в «А»: снова s00 (новая загрузка урока)");
+  await tapStart();
   passed.push("s10_end");
-  // крестик посреди урока: s01 → экран букв → «А» → снова s01
+  // крестик посреди урока: s01 → главная → «А» → s00 → s01
   await waitFor((s) => s.step === "s01_intro" && s.state === "wait_alya", "s01 again");
   await checkExit("s01_intro"); await shot("s01-intro-exit");
-  await tap("exit"); await waitFor((s) => s.step === "letters_menu" && s.state === "wait_letter", "exit → letters");
-  await tap("letter_a"); await waitFor((s) => s.step === "s01_intro" && s.state === "wait_alya", "letters → s01 (после крестика)");
+  { const [x, y] = await target("exit"); await tapNav([x, y], "крестик s01"); }
+  await homeReady("крестик → главная");
+  await homeToLesson(); await tapStart();
+  await waitFor((s) => s.step === "s01_intro" && s.state === "wait_alya", "главная → s00 → s01 (после крестика)");
   { const miss = ["s00_parent_note","s01_intro","s02_sing","s03_words","s04_hear","s05_letter","s06_write","s07_find","s08_sort","s09_say","s10_end"].filter((n) => !exitSeen.has(n));
     if (miss.length) throw new Error("нет крестика на: " + miss.join(", ")); }
-  console.log("крестик: виден на s00–s10 без перекрытий; выход → экран букв → «А» → s01 — ок");
-  passed.push("exit→letters→А→s01");
+  console.log("крестик: виден на s00–s10 без перекрытий; выход → главная → «А» → s00 → s01 — ок");
+  passed.push("exit→главная→А→s00→s01");
   const log = await page.evaluate(() => (window.__bk || {}).log);
   console.log("журнал событий (записей):", log);
   if (textViolations.size) throw new Error("текст на экране ребёнка:\n" + [...textViolations].join("\n"));
   console.log("субтитры без debug: ни разу не показаны; текст на экране ребёнка — только А/а");
   // с ?debug=1 субтитры появляются
-  await page.goto(`http://127.0.0.1:${PORT}/index.html?test=1&fast=1&debug=1&step=s01_intro`, { waitUntil: "load" });
+  await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&debug=1&step=s01_intro`, { waitUntil: "load" });
   await waitFor((s) => s.step === "s01_intro", "deep link ?step=s01_intro → s01", 60000);
   console.log("deep link ?step=s01_intro: сразу s01");
   await waitFor((s) => s.caption_visible, "debug: субтитр виден", 60000);
   await shot("debug-subtitles-s01");
   console.log("debug=1: субтитры показаны");
   // рука-подсказка с укороченным таймером: s03, ждём картинку
-  await page.goto(`http://127.0.0.1:${PORT}/index.html?test=1&fast=1&hint_sec=3&step=s03_words`, { waitUntil: "load" });
+  await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&hint_sec=3&step=s03_words`, { waitUntil: "load" });
   await waitFor(state("wait_pic_0"), "idle: s03 wait_pic_0", 60000);
   { const t0 = Date.now(); await sleep(1500);
     if ((await bk()).targets.hint_hand) throw new Error("idle: рука появилась раньше таймера");
@@ -295,15 +317,16 @@ try {
     await waitFor((s) => s.targets.hint_hand, "idle: повторный показ", 6000);
     console.log(`idle: после касания рука снова через ${((Date.now() - t1) / 1000).toFixed(1)} с`); }
   passed.push("idle-hint(3s)");
-  // по умолчанию — 20 с (экран букв: рука над «А»)
-  await page.goto(`http://127.0.0.1:${PORT}/index.html?test=1&fast=1&step=letters_menu`, { waitUntil: "load" });
-  { const s0 = await waitFor(state("wait_letter"), "letters ready", 60000);
+  // по умолчанию — 20 с (HTML-главная: рука над «А»)
+  await page.goto(`http://127.0.0.1:${PORT}/?test=1&fast=1`, { waitUntil: "load" });
+  { const s0 = await homeReady("главная (20 с)");
     if (s0.hint_sec !== 20) throw new Error("idle: по умолчанию не 20 с: " + s0.hint_sec);
     const t0 = Date.now(); await sleep(18000);
-    if ((await bk()).targets.hint_hand) throw new Error("idle: рука раньше 20 с");
-    const s = await waitFor((s) => s.targets.hint_hand, "idle: рука через 20 с", 6000);
+    if ((await home()).targets.hint_hand) throw new Error("idle: рука раньше 20 с");
+    let s; while (Date.now() - t0 < 24000) { s = await home(); if (s.targets.hint_hand) break; await sleep(100); }
+    if (!s.targets.hint_hand) throw new Error("idle: нет руки через 20 с");
     const [hx, hy] = s.targets.hint_hand, [ax, ay] = s.targets.letter_a;
-    console.log(`idle (20 с): рука через ${((Date.now() - t0) / 1000).toFixed(1)} с, над «А»: ${Math.hypot(hx - ax, hy - ay) < 80}`);
+    console.log(`idle (20 с, главная): рука через ${((Date.now() - t0) / 1000).toFixed(1)} с, над «А»: ${Math.hypot(hx - ax, hy - ay) < 80}`);
     if (Math.hypot(hx - ax, hy - ay) > 80) throw new Error("idle: рука не над «А»");
     await sleep(300); await shot("letters-menu-hint"); }
   passed.push("idle-hint(20s)");

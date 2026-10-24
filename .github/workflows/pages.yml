@@ -1,4 +1,8 @@
-name: Deploy Godot web export
+name: Deploy site (HTML home + Godot lesson)
+
+# Сайт на GitHub Pages:
+#   /            — лёгкая HTML-главная с алфавитом (папка web-home/ в корне репозитория, ~45 КБ, без Godot)
+#   /lesson-a/   — веб-экспорт Godot (godot-proto/), грузится только после тапа по «А»
 
 on:
   push:
@@ -51,23 +55,44 @@ jobs:
           set -euo pipefail
           "$HOME/godot/Godot_v4.7.2-stable_linux.x86_64" --headless --path . --import
 
-      - name: Export Web preset
+      - name: Export Web preset (lesson)
         working-directory: godot-proto
         run: |
           set -euo pipefail
+          test -s web/shell.html
           mkdir -p build
           "$HOME/godot/Godot_v4.7.2-stable_linux.x86_64" --headless --path . --export-release "Web" build/index.html
-          touch build/.nojekyll
           test -s build/index.html
           test -s build/index.wasm
           test -s build/index.pck
-          echo "Export contents:"
-          find build -type f -printf '%s\t%p\n' | sort -k2
+          # своя оболочка загрузки (web/shell.html), а не стандартная с логотипом Godot
+          grep -q 'id="status-bar"' build/index.html
+
+      - name: Assemble site (home at root, lesson in lesson-a/)
+        run: |
+          set -euo pipefail
+          rm -rf site
+          mkdir -p site/lesson-a
+          test -s web-home/index.html
+          # главная: всё из web-home/, кроме служебной папки tools/
+          tar -C web-home --exclude=./tools -cf - . | tar -C site -xf -
+          cp -R godot-proto/build/. site/lesson-a/
+          touch site/.nojekyll
+          test -s site/index.html
+          test -s site/lesson-a/index.html
+          test -s site/lesson-a/index.wasm
+          test -s site/lesson-a/index.pck
+          # на главной не должно быть ссылок на тяжёлые файлы Godot
+          if grep -nE '\.(wasm|pck)' site/index.html; then echo "home page must not reference Godot files"; exit 1; fi
+          echo "Site contents:"
+          find site -type f -printf '%s\t%p\n' | sort -k2
+          echo "Home page size (bytes, without lesson-a/):"
+          find site -path site/lesson-a -prune -o -type f -printf '%s\n' | awk '{s+=$1} END {print s}'
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: godot-proto/build
+          path: site
           include-hidden-files: true
 
   deploy:

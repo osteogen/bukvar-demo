@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#ECE3D0">
+<title>Букварь — буквы</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="preload" href="assets/dejavu-sans-bold-cyr.woff2" as="font" type="font/woff2" crossorigin>
+<!-- Главная страница: лёгкая копия экрана букв из Godot (menu/letters_menu.gd). Godot (~67 МБ) грузится только
+     после тапа по «А» — на странице lesson-a/. Сетка, палитра и цвета — как в letters_menu.gd. -->
+<style>
+@font-face { font-family: "DejaVuBk"; src: url("assets/dejavu-sans-bold-cyr.woff2") format("woff2"); font-weight: 700; font-display: block; }
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #ECE3D0; }
+body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
+#stage { position: absolute; left: 0; top: 0; width: 1024px; height: 768px; transform-origin: 0 0; visibility: hidden; }
+.cube { position: absolute; width: 124px; height: 124px; padding: 0; margin: 0; border: 0; outline: none; cursor: pointer;
+  background: transparent center / 100% 100% no-repeat; -webkit-appearance: none; appearance: none; }
+.cube span { position: absolute; left: 9.7px; top: 19.4px; width: 93px; height: 93px; display: flex; align-items: center;
+  justify-content: center; font: 700 52px/normal "DejaVuBk", "DejaVu Sans", sans-serif; pointer-events: none; }
+.cube.locked { cursor: default; }
+.cube.wobble { animation: wobble .35s linear; }
+@keyframes wobble { 0% { transform: rotate(0) } 20% { transform: rotate(-.14rad) } 40% { transform: rotate(.14rad) }
+  60% { transform: rotate(-.09rad) } 80% { transform: rotate(.09rad) } 100% { transform: rotate(0) } }
+#cube-a { animation: popin .35s cubic-bezier(.34, 1.56, .64, 1) both, pulse .4s ease-in-out .35s 2; }
+@keyframes popin { from { transform: scale(0) } to { transform: scale(1) } }
+@keyframes pulse { 50% { transform: scale(1.12) } }
+#cube-a.press { animation: none; transform: scale(.92); transition: transform .08s; }
+#cube-a.go { animation: go .7s ease-in-out infinite; }
+@keyframes go { 0% { transform: scale(.92) } 35% { transform: scale(1.14) } 100% { transform: scale(1.06) } }
+#stage.leaving .cube.locked { opacity: .55; transition: opacity .3s; }
+#hand { position: absolute; width: 96px; height: 96px; transform-origin: 20px 4px; pointer-events: none; display: none; z-index: 5; }
+#hand.tap { animation: tap .5s ease-in-out 3; }
+@keyframes tap { 0%, 100% { transform: scale(1) } 50% { transform: scale(.85) } }
+</style>
+</head>
+<body>
+<div id="stage" aria-label="Буквы"></div>
+<script>
+(function () {
+  "use strict";
+  var ALPHABET = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ", ACTIVE = "А";
+  var ORDER = [1, 0, 5, 6, 3, 0, 4, 6, 2, 4, 1, 2, 5, 1, 5, 3, 6, 5, 0, 6, 2, 0, 4, 1, 3, 4, 1, 3, 6, 2, 0, 5, 2];
+  var VOWELS = "АЕЁИОУЫЭЮЯ";
+  // открытая буква / закрытая (= цвет.lerp(#ECE7DC, 0.55))
+  var COL = { v: "#D93A2B", c: "#2F6DB5", s: "#3C3228" }, COL_LOCK = { v: "#E3998C", c: "#97B0CA", s: "#9D968B" };
+  var W = 1024, H = 768, COLS = 7, SIZE = 124, STEP_X = 138, STEP_Y = 136, X0 = 36, Y0 = 50;
+  var IDLE_HINT_SEC = 20, HINT_SHOW = 2;
+  var LESSON = "lesson-a/";
+  var PASS = ["debug", "junior", "hint_sec", "test", "fast", "audio"];   // параметры, которые уходят в урок
+
+  var q = new URLSearchParams(location.search);
+  var flag = function (k) { return q.has(k) && q.get(k) !== "0" && q.get(k) !== "false"; };
+  var hintSec = IDLE_HINT_SEC;
+  if ((flag("test") || flag("debug")) && isFinite(parseFloat(q.get("hint_sec")))) hintSec = Math.max(0.5, parseFloat(q.get("hint_sec")));
+  var lq = new URLSearchParams();
+  PASS.forEach(function (k) { if (q.has(k)) lq.set(k, q.get(k)); });
+  var lessonHref = LESSON + (lq.toString() ? "?" + lq.toString() : "");
+
+  var stage = document.getElementById("stage"), cubeA = null, cubeLocked = null, state = "wait_letter", hintShown = 0;
+  for (var i = 0; i < ALPHABET.length; i++) {
+    var ch = ALPHABET[i], locked = ch !== ACTIVE;
+    var col = i % COLS + (i >= 28 ? 1 : 0), row = Math.floor(i / COLS);
+    var b = document.createElement("button");
+    b.className = "cube" + (locked ? " locked" : "");
+    b.style.left = (X0 + col * STEP_X) + "px"; b.style.top = (Y0 + row * STEP_Y) + "px";
+    b.style.backgroundImage = "url(assets/cube_" + ORDER[i] + (locked ? "_lock" : "") + ".webp)";
+    b.setAttribute("aria-label", "Буква " + ch + (locked ? " (пока закрыта)" : ""));
+    var kind = VOWELS.indexOf(ch) >= 0 ? "v" : (ch === "Ь" || ch === "Ъ") ? "s" : "c";
+    var s = document.createElement("span"); s.textContent = ch; s.style.color = (locked ? COL_LOCK : COL)[kind];
+    b.appendChild(s); stage.appendChild(b);
+    if (!locked) { b.id = "cube-a"; cubeA = b; }
+    else {
+      if (ch === "Б") cubeLocked = b;
+      b.addEventListener("pointerdown", wobble);
+    }
+  }
+  var hand = document.createElement("img");
+  hand.id = "hand"; hand.alt = ""; hand.src = "assets/hand_f1.webp"; stage.appendChild(hand);
+  var f2 = new Image(); f2.src = "assets/hand_f2.webp";
+
+  function wobble(e) {
+    var c = e.currentTarget; c.classList.remove("wobble"); void c.offsetWidth; c.classList.add("wobble");
+  }
+  c_on(cubeA);
+  function c_on(a) {
+    // отклик — сразу на касание; переход — когда палец отпущен на кубике (click не ждём: на части планшетов он запаздывает)
+    var down = false;
+    a.addEventListener("pointerdown", function () { if (state !== "leaving") { down = true; a.classList.add("press"); } });
+    a.addEventListener("pointerup", function () { if (down) { down = false; go(); } });
+    a.addEventListener("pointerleave", function () { down = false; if (state !== "leaving") a.classList.remove("press"); });
+    a.addEventListener("pointercancel", function () { down = false; if (state !== "leaving") a.classList.remove("press"); });
+    a.addEventListener("click", go);   // клавиатура / программный клик
+  }
+  function go() {
+    if (state === "leaving") return;
+    state = "leaving"; hideHand(); publish();
+    cubeA.classList.remove("press"); cubeA.classList.add("go"); stage.classList.add("leaving");
+    setTimeout(function () { location.href = lessonHref; }, 160);
+  }
+  // возврат кнопкой «назад» (страница из bfcache) — снова ждём тап
+  window.addEventListener("pageshow", function (e) {
+    if (e.persisted) { state = "wait_letter"; cubeA.classList.remove("go", "press"); stage.classList.remove("leaving"); idle = 0; publish(); }
+  });
+
+  // масштаб: сцена 1024×768 целиком в окне, по центру (как stretch canvas_items + aspect expand в Godot)
+  var k = 1, ox = 0, oy = 0;
+  function layout() {
+    var vw = window.innerWidth, vh = window.innerHeight;
+    k = Math.min(vw / W, vh / H); ox = (vw - W * k) / 2; oy = (vh - H * k) / 2;
+    stage.style.transform = "translate(" + ox + "px," + oy + "px) scale(" + k + ")";
+    stage.style.visibility = "visible";
+  }
+  layout();
+  window.addEventListener("resize", layout);
+  window.addEventListener("orientationchange", function () { setTimeout(layout, 100); });
+
+  // рука-подсказка: hintSec без касаний → рука над «А» на 2 с; любое касание сбрасывает отсчёт
+  var idle = 0, showing = false, last = performance.now(), handTimer = 0, frameTimer = 0;
+  function resetIdle() { idle = 0; }
+  document.addEventListener("pointerdown", resetIdle, true);
+  document.addEventListener("keydown", resetIdle, true);
+  document.addEventListener("visibilitychange", resetIdle);
+  function showHand() {
+    showing = true; idle = 0; hintShown++;
+    hand.style.left = (X0 + SIZE / 2 - 20) + "px"; hand.style.top = (Y0 + SIZE / 2 - 4) + "px";
+    hand.src = "assets/hand_f1.webp"; hand.style.display = "block";
+    hand.classList.remove("tap"); void hand.offsetWidth; hand.classList.add("tap");
+    var n = 0;
+    frameTimer = setInterval(function () { n++; hand.src = n % 2 ? "assets/hand_f2.webp" : "assets/hand_f1.webp"; if (n >= 6) clearInterval(frameTimer); }, 250);
+    handTimer = setTimeout(hideHand, HINT_SHOW * 1000);
+    publish();
+  }
+  function hideHand() {
+    clearTimeout(handTimer); clearInterval(frameTimer);
+    hand.style.display = "none"; hand.classList.remove("tap"); showing = false; idle = 0; publish();
+  }
+  setInterval(function () {
+    var now = performance.now(), dt = (now - last) / 1000; last = now;
+    if (state !== "wait_letter" || showing || document.hidden) return;
+    idle += dt;
+    if (idle >= hintSec) showHand();
+  }, 100);
+
+  // для автотеста: координаты целей в CSS-пикселях окна
+  function center(el) { var r = el.getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]; }
+  function publish() {
+    var t = { letter_a: center(cubeA), letter_locked: center(cubeLocked) };
+    if (showing) t.hint_hand = [Math.round(ox + (X0 + SIZE / 2) * k), Math.round(oy + (Y0 + SIZE / 2) * k)];
+    window.__home = { step: "home", state: state, hint_sec: hintSec, hint_shown: hintShown, targets: t, lesson_href: lessonHref, scale: k };
+  }
+  publish(); setInterval(publish, 250);
+
+  // старый сервис-воркер Godot, раньше жил в корне сайта, — убрать (у урока теперь свой, в lesson-a/)
+  if ("serviceWorker" in navigator && navigator.serviceWorker.getRegistrations) {
+    var here = new URL(".", location.href).href;
+    navigator.serviceWorker.getRegistrations().then(function (rs) {
+      rs.forEach(function (r) { if (r.scope === here) r.unregister(); });
+    }).catch(function () {});
+  }
+})();
+</script>
+</body>
+</html>
