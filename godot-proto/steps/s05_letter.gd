@@ -1,63 +1,247 @@
-## Сцена 5. Буква А: вырастает из кружка, лесенка, портрет Али (без надписи), маленькая а.
+## Сцена 5. Буква А (ред. 25.10.2026): большая А и маленькая а сразу по центру парой; Аля (персонаж, крупно, ниже букв)
+## говорит и чуть покачивается, пока звучит голос. Пока Аля описывает букву, называемые части подсвечиваются
+## по таймлайну из данных (letter.lines.*.highlights, секунды от начала звука).
+## Касание буквы — её реплика с подсветкой (повторное касание — повтор). Когда нажаты обе — итоговая реплика,
+## затем «Далее». Ответов здесь нет — ничего не подтверждается. Деревянной «лесенки» и карточки Али больше нет.
 extends LessonStep
 
-const LETTER_H := 300.0
-const LADDER_OFFSET := Vector2(338 - 322, 755 - 750)   # px файла буквы: сдвиг кадра лесенки относительно кадра буквы
+## Подсветка части буквы: полупрозрачная жёлтая полоса поверх штриха (чуть шире его — видно и ореол) по линии / овалу
+## в долях кадра буквы. letter.hl.front = false — свечение только ЗА буквой.
+class PartHL extends Control:
+	var pts: PackedVector2Array
+	var closed := false
+	var w := 0.1
+	var col := Color("#FFD23C")
+	func _draw() -> void:
+		var p := PackedVector2Array()
+		for q in pts:
+			p.append(Vector2(q.x * size.x, q.y * size.y))
+		var lw := w * size.y
+		if closed and p.size() > 2:
+			p.append(p[0])
+		draw_polyline(p, col, lw, true)
+		for q in p:   # скруглённые концы и стыки
+			draw_circle(q, lw / 2.0, col)
+
+var big: Control
+var small: Control
+var alya: Cutout
+var hls := {}               # "big:left" → PartHL
+var _hl_tw: Array = []
+var _line_token := 0
+var _seen := {"big": false, "small": false}
+var _outro_done := false
+var _pulse_tw := {}
+var _idle := 0.0
+var _waiting := false
+var _alya_y := 0.0
+var _t := 0.0
+var _big_btn: Button
+var _small_btn: Button
 
 func run() -> void:
 	section("letter")
 	add_bg(cfg.bg)
-	# лесенка в том же масштабе, что и буква (так её рисовал иллюстратор): k = высота буквы / 812
-	var k := LETTER_H / 812.0
-	var lsz := Vector2(644, 768) * k
-	var ladder := add_pic(cfg.shape_pic, Vector2(220, 360), lsz)
-	ladder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var circ := add_pic(String(Assets.lesson.get("sound_dot", "ui_circle_flat")), Vector2(600, 360), Vector2(80, 80), false)
-	var big := add_letter(Assets.lesson.big, Vector2(600, 360), int(LETTER_H))
-	big.visible = false
-	var tg := create_tween()
-	tg.tween_interval(1.5)
-	tg.tween_callback(func(): circ.visible = false; big.visible = true; pop_in(big))
-	if not await say(cfg.lines[0]): return
-	big.visible = true
-	circ.visible = false
-	var home := ladder.position
-	# полупрозрачная лесенка (pic_lesenka_ghost) накладывается на букву: низ ножек (y=750 в файле лесенки)
-	# совпадает с нижней линией буквы (низ красного, y=755 в letter_a_upper), центры по x: 322 и 338
-	var on_letter := big.position + LADDER_OFFSET * k
-	var ghost := add_pic(cfg.shape_pic + "_ghost", on_letter + lsz / 2, lsz, false)
-	ghost.visible = false
-	main.expose("ladder_ghost", ghost)
-	var tl := ladder.create_tween()
-	tl.tween_property(ladder, "position", on_letter, 0.6)
-	tl.tween_callback(func(): ghost.visible = true; ladder.modulate.a = 0.0)
-	tl.tween_interval(1.5)
-	tl.tween_callback(func(): ghost.visible = false; ladder.modulate.a = 1.0)
-	tl.tween_property(ladder, "position", home, 0.6)
-	if not await say(cfg.lines[1]): return
-	# портрет Али рядом с буквой; имя звучит только голосом. Написанного слова «Аля» нет:
-	# в нём буквы Л и Я, которых ребёнок ещё не знает. На экране только А и а.
-	# портрет — сбоку, под лесенкой, целиком внутри листа (лист ≈ x 52…984, y 74…690)
-	var portrait := add_pic(cfg.portrait, Vector2(220, 600), Vector2(140, 140), false)
-	main.expose("portrait", portrait)
-	pop_in(portrait)
-	if not await say(cfg.lines[2]): return
-	var small := add_letter(Assets.lesson.small, Vector2(870, 420), 170)
-	pop_in(small)
-	if not await say(cfg.lines[3]): return
-	var big_btn := tap_area(big)
-	var small_btn := tap_area(small)
-	main.expose("big", big_btn)
-	main.expose("small", small_btn)
-	ladder.mouse_filter = Control.MOUSE_FILTER_STOP
-	ladder.pressed.connect(func(): Voice.say(cfg.lines[1]))
-	var seen := {"big": false, "small": false}
-	big_btn.pressed.connect(func(): pulse(big); Voice.say(cfg.lines[2]); seen.big = true; _check(seen))
-	small_btn.pressed.connect(func(): pulse(small); Voice.say(cfg.lines[3]); seen.small = true; _check(seen))
-	main.hint_start(func(): return small_btn if seen.big else big_btn, "h_tap_01")
+	# 1) буквы сразу, парой по центру (данные — letter.big / letter.small; угловые зоны кнопок не задеты)
+	big = add_letter(Assets.lesson.big, _v(cfg.big.center), int(cfg.big.h))
+	small = add_letter(Assets.lesson.small, _v(cfg.small.center), int(cfg.small.h))
+	big.name = "letter_big"
+	small.name = "letter_small"
+	for l in [big, small]:
+		l.pivot_offset = l.size / 2
+	_build_parts("big", big)
+	_build_parts("small", small)
+	pop_in(big)
+	pop_in(small, 0.15)
+	# 2) Аля — персонаж ниже букв; рот двигается сам, пока звучит голос (Cutout.talk), плюс лёгкое покачивание
+	var ad: Dictionary = cfg.alya
+	alya = add_character(String(ad.get("who", "alya")), _v(ad.center), _v(ad.size))
+	alya.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	alya.name = "alya"
+	_alya_y = alya.position.y
+	main.expose("alya", alya)
+	pop_in(alya, 0.25)
+	_big_btn = tap_area(big)
+	_small_btn = tap_area(small)
+	_big_btn.name = "big_tap"
+	_small_btn.name = "small_tap"
+	main.expose("big", _big_btn)
+	main.expose("small", _small_btn)
+	_big_btn.pressed.connect(_on_letter.bind("big"))
+	_small_btn.pressed.connect(_on_letter.bind("small"))
+	# 3) вступление: «…Вот большая Аа. Вот маленькая Аа. Нажми на любую!» — с «Нажми» обе буквы мягко пульсируют
+	main.set_state("intro")
+	var intro: Dictionary = cfg.lines.intro
+	if intro.has("pulse_from"):
+		var pt := create_tween()
+		pt.tween_interval(float(intro.pulse_from) if not Voice.fast else 0.0)
+		pt.tween_callback(func(): _soft_pulse("big"); _soft_pulse("small"))
+	if not await _play_line(intro): return
+	_soft_pulse("big")
+	_soft_pulse("small")
+	_waiting = true
 	main.set_state("wait_letters")
 
-func _check(seen: Dictionary) -> void:
-	if seen.big and seen.small and not main.next_btn.visible:
-		main.hint_stop()
+func _v(a) -> Vector2:
+	return Vector2(float(a[0]), float(a[1]))
+
+func _build_parts(letter: String, node: Control) -> void:
+	var hc: Dictionary = cfg.get("hl", {})
+	var col := Color(String(hc.get("color", "#FFD23C")))
+	col.a = float(hc.get("alpha", 0.85))
+	var glow := float(hc.get("glow", 1.7))
+	var defs: Dictionary = cfg.parts.get(letter, {})
+	for part in defs.keys():
+		var d: Dictionary = defs[part]
+		var h := PartHL.new()
+		h.name = "hl_%s_%s" % [letter, part]
+		h.size = node.size
+		h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		h.show_behind_parent = not bool(hc.get("front", true))
+		h.set_meta("no_overlap_check", true)
+		h.col = col
+		h.w = float(d.get("w", 0.1)) * glow
+		if d.has("ellipse"):
+			var e: Array = d.ellipse
+			for k in 48:
+				var a := TAU * k / 48.0
+				h.pts.append(Vector2(float(e[0]) + cos(a) * float(e[2]), float(e[1]) + sin(a) * float(e[3])))
+			h.closed = true
+		else:
+			for q in d.line:
+				h.pts.append(Vector2(float(q[0]), float(q[1])))
+		h.modulate.a = 0.0
+		node.add_child(h)
+		hls["%s:%s" % [letter, part]] = h
+
+## part: "big" (вся буква) | "big:left" | …
+func _hl_nodes(part: String) -> Array:
+	if hls.has(part):
+		return [hls[part]]
+	var out: Array = []
+	for k in hls.keys():
+		if String(k).begins_with(part + ":"):
+			out.append(hls[k])
+	return out
+
+func _hl_reset() -> void:
+	for tw in _hl_tw:
+		if tw and tw.is_valid():
+			tw.kill()
+	_hl_tw.clear()
+	for h in hls.values():
+		h.modulate.a = 0.0
+	main.set_info("s05_hl", [])
+
+## Реплика с таймлайном подсветки. Возвращает false, если сцена закрыта или реплику перебили другой.
+func _play_line(line: Dictionary) -> bool:
+	_line_token += 1
+	var my := _line_token
+	_hl_reset()
+	var fs := float(cfg.get("hl", {}).get("fade_sec", 0.15))
+	var k := 1.0
+	if Voice.fast:
+		k = 0.25 / maxf(Assets.line_dur(String(line.audio)), 0.25)   # в тесте реплика ≈0,25 с — сжимаем таймлайн
+	for hd in line.get("highlights", []):
+		for h in _hl_nodes(String(hd.part)):
+			var tw: Tween = h.create_tween()
+			tw.tween_interval(float(hd.t_start) * k)
+			tw.tween_callback(func(): _mark_hl(String(hd.part), true))
+			tw.tween_property(h, "modulate:a", 1.0, fs)
+			tw.tween_interval(maxf(0.0, (float(hd.t_end) - float(hd.t_start)) * k - fs))
+			tw.tween_property(h, "modulate:a", 0.0, fs)
+			_hl_tw.append(tw)
+	var ok := await say(String(line.audio))   # нет файла — Voice.say молча ждёт длительность из lines.json
+	if dead: return false
+	if my != _line_token: return false
+	return ok
+
+var _hl_seen := {}
+func _mark_hl(part: String, on: bool) -> void:
+	_hl_seen[part] = true
+	main.set_info("s05_hl_seen", _hl_seen.keys())
+
+func _soft_pulse(letter: String) -> void:
+	if _pulse_tw.has(letter) and _pulse_tw[letter].is_valid():
+		return
+	if _seen[letter]:
+		return
+	var n: Control = big if letter == "big" else small
+	var pc: Dictionary = cfg.get("pulse", {})
+	var sc := float(pc.get("scale", 1.06))
+	var sec := float(pc.get("sec", 0.7))
+	var tw := n.create_tween().set_loops()
+	tw.tween_property(n, "scale", Vector2(sc, sc), sec).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(n, "scale", Vector2.ONE, sec).set_trans(Tween.TRANS_SINE)
+	_pulse_tw[letter] = tw
+
+func _stop_pulse() -> void:
+	for k in _pulse_tw.keys():
+		if _pulse_tw[k].is_valid():
+			_pulse_tw[k].kill()
+	_pulse_tw.clear()
+	big.scale = Vector2.ONE
+	small.scale = Vector2.ONE
+
+func _on_letter(letter: String) -> void:
+	if not _waiting:
+		return
+	_idle = 0.0
+	main.hint_stop()
+	_stop_pulse()   # «пока одна не нажата» — после первого касания пульс прекращается
+	_seen[letter] = true
+	main.set_info("s05_seen", _seen.duplicate())
+	main.set_info("s05_last", letter)
+	var line: Dictionary = cfg.lines.tap_big if letter == "big" else cfg.lines.tap_small
+	if not await _play_line(line): return
+	if _seen.big and _seen.small and not _outro_done:
+		_outro_done = true
+		_waiting = false
+		if not await _play_line(cfg.lines.outro):
+			if dead: return
+		_waiting = true
+		main.set_info("s05_outro", true)
 		finish()
+
+## 5 с без касаний (letter.idle_hint.sec; ?hint_sec меньше — берётся он) — рука на ещё не нажатую букву и
+## отрезок «Нажми на любую!» из a_letter_01 (from…to, секунды). Нет файла — только рука.
+func _process(dt: float) -> void:
+	_t += dt
+	if alya and is_instance_valid(alya):
+		var bob := float(cfg.alya.get("bob_px", 4))
+		var target_y := _alya_y
+		if Voice.is_speaking():
+			target_y = _alya_y - absf(sin(_t * 6.0)) * bob
+		alya.position.y = lerpf(alya.position.y, target_y, minf(1.0, dt * 12.0))
+	if not _waiting or _outro_done:
+		return
+	if Voice.is_speaking():
+		_idle = 0.0
+		return
+	_idle += dt
+	var ih: Dictionary = cfg.get("idle_hint", {})
+	var lim := minf(float(ih.get("sec", 5)), float(main.idle_hint_sec))
+	if _idle < lim:
+		return
+	_idle = -2.0   # следующая подсказка — после паузы
+	var tgt: Control = _small_btn if _seen.big else _big_btn
+	main.hint_start(func(): return tgt, "")
+	main.hint_now()
+	main.set_info("s05_idle_hints", int(main.info.get("s05_idle_hints", 0)) + 1)
+	_play_range(String(ih.get("audio", "a_letter_01")), float(ih.get("from", 0)), float(ih.get("to", 0)))
+
+func _input(ev: InputEvent) -> void:
+	if ev is InputEventMouseButton or ev is InputEventScreenTouch:
+		_idle = 0.0
+
+func _play_range(id: String, from: float, to: float) -> void:
+	var s := Voice._stream(id)
+	if s == null or to <= from:
+		return
+	Voice.stop_voice()
+	Voice.voice.stream = s
+	Voice.voice.play(from)
+	var my := Voice._token
+	await get_tree().create_timer(to - from).timeout
+	if Voice._token == my and is_instance_valid(self):
+		Voice.voice.stop()

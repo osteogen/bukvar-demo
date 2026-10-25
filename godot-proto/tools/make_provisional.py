@@ -168,3 +168,29 @@ if os.path.isdir(V2):
         os.makedirs(os.path.dirname(o), exist_ok=True)
         im.save(o, optimize=True)
         print("v2", src, "→ art_provisional/" + dst, im.size, mode)
+
+# паровозик сцены 3: финальная графика художника (раунд 9) лежит в art/common/ui/ (ui_train_end/mid/engine, ui_train_wheel*,
+# ui_train_steam_*, ui_train_rails) — провизорные копии эскизов v3 больше не нужны.
+
+# ---------- кнопки сцены 4 (25.10.2026): Аля говорит «нажми на красный кружок… / на серый» ----------
+# ui_hear_yes — красный круг #D93A2B с тёмной обводкой (чёрную «А» сверху рисует код шрифтом урока, hear.yes_letter);
+# ui_hear_no — серый круг с тёмно-серым крестиком #3C3C3C (в уроке нет красных крестиков). 352×352 = 176 логич.
+def hear_btn(name, fill, cross=False):
+    S = 4 * 352
+    im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.ellipse((12, 12, S - 13, S - 13), fill=(60, 50, 40, 255))
+    d.ellipse((12 + 40, 12 + 40, S - 13 - 40, S - 13 - 40), fill=fill)
+    if cross:
+        c, a, w = S / 2, S * 0.2, int(S * 0.075)
+        for (x0, y0, x1, y1) in [(c - a, c - a, c + a, c + a), (c - a, c + a, c + a, c - a)]:
+            d.line((x0, y0, x1, y1), fill=(60, 60, 60, 255), width=w)
+            for x, y in [(x0, y0), (x1, y1)]:
+                d.ellipse((x - w / 2, y - w / 2, x + w / 2, y + w / 2), fill=(60, 60, 60, 255))
+    im = im.resize((352, 352), Image.LANCZOS)
+    o = os.path.join(ROOT, "art_provisional", "common/ui", name + ".png")
+    im.save(o, optimize=True)
+    print("s04", name, "→ art_provisional/common/ui/" + name + ".png")
+
+hear_btn("ui_hear_yes", (217, 58, 43, 255))
+hear_btn("ui_hear_no", (176, 172, 165, 255), cross=True)

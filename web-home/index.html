@@ -46,9 +46,30 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
   -webkit-appearance: none; appearance: none; background: #FBF7EE; border: solid #4A3F33;
   transition: transform .12s ease-out; }
 .rb.press { transform: scale(.88); transition: transform .06s ease-in; }
-#hand { position: absolute; width: 96px; height: 96px; transform-origin: 20.8% 4.2%; pointer-events: none; display: none; z-index: 5; }
-#hand.tap { animation: tap .5s ease-in-out 3; }
-@keyframes tap { 0%, 100% { transform: scale(1) } 50% { transform: scale(.85) } }
+/* «i» — сведения для взрослых: маленькая приглушённая кнопка в левом нижнем углу (место выбирает layout(), не на кубиках) */
+#info-btn { position: absolute; box-sizing: border-box; padding: 0; margin: 0; border-radius: 50%; cursor: pointer; outline: none;
+  -webkit-appearance: none; appearance: none; background: #F7F0DE; border: 1.5px solid #8A7660; color: #5A5A5A;
+  font: italic 700 20px/1 Georgia, "Times New Roman", serif; display: flex; align-items: center; justify-content: center;
+  opacity: .85; transition: transform .12s ease-out; }
+#info-btn.press { transform: scale(.9); }
+/* страница сведений: лёгкий HTML-слой поверх главной (Godot не грузится); текст — web-home/info.html */
+#info { position: fixed; inset: 0; z-index: 20; display: none; background: #F7F0DE; color: #3C3228; }
+#info.open { display: block; }
+#info-scroll { position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  touch-action: pan-y; -webkit-user-select: text; user-select: text;
+  padding: calc(env(safe-area-inset-top, 0px) + 64px) calc(env(safe-area-inset-right, 0px) + 22px) calc(env(safe-area-inset-bottom, 0px) + 36px) calc(env(safe-area-inset-left, 0px) + 22px); box-sizing: border-box; }
+#info-text { max-width: 680px; margin: 0 auto; font: 17px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+#info-text h1 { font-size: 25px; line-height: 1.25; margin: 0 0 12px; }
+#info-text h2 { font-size: 19px; margin: 22px 0 6px; }
+#info-text p, #info-text ul { margin: 0 0 10px; }
+#info-text ul { padding-left: 22px; }
+#info-text li { margin: 4px 0; }
+/* крестик — тёмно-серый (не красный), в правом верхнем углу, крупная зона касания */
+#info-close { position: fixed; z-index: 21; top: calc(env(safe-area-inset-top, 0px) + 10px); right: calc(env(safe-area-inset-right, 0px) + 10px);
+  width: 48px; height: 48px; padding: 0; margin: 0; border: 0; border-radius: 50%; background: rgba(247,240,222,.92); cursor: pointer;
+  -webkit-appearance: none; appearance: none; outline: none; }
+#info-close::before, #info-close::after { content: ""; position: absolute; left: 12px; top: 22.5px; width: 24px; height: 3px; border-radius: 2px; background: #4A4A4A; }
+#info-close::before { transform: rotate(45deg); } #info-close::after { transform: rotate(-45deg); }
 </style>
 </head>
 <body>
@@ -58,6 +79,11 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
   <div id="letters" role="group" aria-label="Буквы"></div>
   <div id="divider" aria-hidden="true"></div>
   <div id="bottombar" role="toolbar" aria-label="Кнопки"></div>
+  <button id="info-btn" type="button" aria-label="Для взрослых: как устроен Букварь">i</button>
+</div>
+<div id="info" role="dialog" aria-modal="true" aria-label="Как устроен Букварь">
+  <div id="info-scroll"><div id="info-text"></div></div>
+  <button id="info-close" type="button" aria-label="Закрыть и вернуться к буквам"></button>
 </div>
 <script>
 (function () {
@@ -73,21 +99,20 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
   var EDGE_X = 12, EDGE_B = 10;   // минимум от боковых краёв и от низа видимой области (px)
   var BTN_COLORS = ["#F6B9C0", "#F9CB9C", "#F6E08E", "#CDE9DC", "#BEDCEE", "#C9CAF0"];   // «мягкая радуга», без красного
   var BTN_DEPTH = ["#D9949C", "#DDA877", "#D4BC62", "#A6CDBB", "#94BCD6", "#A3A4D6"];
-  var IDLE_HINT_SEC = 20, HINT_SHOW = 2;
+  // руки-подсказки на главной нет (решение заказчика): подсказка при бездействии — только в играх урока
+  var INFO_URL = "info.html";   // текст страницы «i» — общий для всех уроков, правится в этом файле
   var LESSON = "lesson-a/";
   var PASS = ["debug", "junior", "hint_sec", "test", "fast", "audio"];   // параметры, которые уходят в урок
 
   var q = new URLSearchParams(location.search);
   var flag = function (k) { return q.has(k) && q.get(k) !== "0" && q.get(k) !== "false"; };
-  var hintSec = IDLE_HINT_SEC;
-  if ((flag("test") || flag("debug")) && isFinite(parseFloat(q.get("hint_sec")))) hintSec = Math.max(0.5, parseFloat(q.get("hint_sec")));
   var lq = new URLSearchParams();
   PASS.forEach(function (k) { if (q.has(k)) lq.set(k, q.get(k)); });
   var lessonHref = LESSON + (lq.toString() ? "?" + lq.toString() : "");
 
   var stage = document.getElementById("stage"), letters = document.getElementById("letters"), divider = document.getElementById("divider"),
     bar = document.getElementById("bottombar"), topbar = document.getElementById("topbar");
-  var cubeA = null, cubeLocked = null, state = "wait_letter", hintShown = 0, cubes = [], btns = [];
+  var cubeA = null, cubeLocked = null, state = "wait_letter", cubes = [], btns = [];
   for (var i = 0; i < ALPHABET.length; i++) {
     var ch = ALPHABET[i], locked = ch !== ACTIVE;
     var b = document.createElement("button");
@@ -116,9 +141,40 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
     r.addEventListener("pointerdown", function () { if (state !== "leaving") r.classList.add("press"); });
     r.addEventListener("pointerup", off); r.addEventListener("pointerleave", off); r.addEventListener("pointercancel", off);
   }
-  var hand = document.createElement("img");
-  hand.id = "hand"; hand.alt = ""; hand.src = "assets/hand_f1.webp"; stage.appendChild(hand);
-  var f2 = new Image(); f2.src = "assets/hand_f2.webp";
+  // «i» и страница сведений
+  var infoBtn = document.getElementById("info-btn"), info = document.getElementById("info"), infoText = document.getElementById("info-text"),
+    infoScroll = document.getElementById("info-scroll"), infoClose = document.getElementById("info-close"), infoLoaded = false, infoPushed = false;
+  function loadInfo() {
+    if (infoLoaded) return;
+    infoLoaded = true;
+    fetch(INFO_URL, { cache: "no-cache" }).then(function (r) { if (!r.ok) throw 0; return r.text(); })
+      .then(function (t) { infoText.innerHTML = t; publish(); })
+      .catch(function () { infoLoaded = false; infoText.innerHTML = "<h1>Как устроен Букварь</h1><p>Не удалось загрузить текст. Проверьте интернет и откройте ещё раз.</p>"; });
+  }
+  function openInfo() {
+    if (state !== "wait_letter") return;
+    loadInfo(); state = "info"; info.classList.add("open"); infoScroll.scrollTop = 0;
+    try { history.pushState({ bkInfo: 1 }, ""); infoPushed = true; } catch (e) { infoPushed = false; }
+    publish();
+  }
+  function hideInfo() {
+    if (state !== "info") return;
+    info.classList.remove("open"); state = "wait_letter"; publish();
+  }
+  function closeInfo() {   // крестик / Esc: назад по истории (тогда «назад» в браузере не уводит со страницы), иначе просто спрятать
+    if (state !== "info") return;
+    if (infoPushed && history.state && history.state.bkInfo) { infoPushed = false; history.back(); setTimeout(hideInfo, 400); } else hideInfo();
+  }
+  window.addEventListener("popstate", function () { infoPushed = false; hideInfo(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeInfo(); });
+  (function () {
+    var off = function () { infoBtn.classList.remove("press"); };
+    infoBtn.addEventListener("pointerdown", function () { if (state === "wait_letter") infoBtn.classList.add("press"); });
+    infoBtn.addEventListener("pointerup", off); infoBtn.addEventListener("pointerleave", off); infoBtn.addEventListener("pointercancel", off);
+    infoBtn.addEventListener("click", openInfo);
+    infoClose.addEventListener("click", closeInfo);
+  })();
+  setTimeout(loadInfo, 600);   // заранее, чтобы страница открывалась мгновенно
 
   function wobble(e) {
     var c = e.currentTarget; c.classList.remove("wobble"); void c.offsetWidth; c.classList.add("wobble");
@@ -135,13 +191,13 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
   }
   function go() {
     if (state === "leaving") return;
-    state = "leaving"; hideHand(); publish();
+    state = "leaving"; publish();
     cubeA.classList.remove("press"); cubeA.classList.add("go"); stage.classList.add("leaving");
     setTimeout(function () { location.href = lessonHref; }, 160);
   }
   // возврат кнопкой «назад» (страница из bfcache) — снова ждём тап
   window.addEventListener("pageshow", function (e) {
-    if (e.persisted) { state = "wait_letter"; cubeA.classList.remove("go", "press"); stage.classList.remove("leaving"); idle = 0; publish(); }
+    if (e.persisted) { state = "wait_letter"; cubeA.classList.remove("go", "press"); stage.classList.remove("leaving"); info.classList.remove("open"); publish(); }
   });
 
   // раскладка в пикселях окна. s — масштаб «сцены» 1024×768 (как раньше); полосы: верх TOP_BAR·s (место под меню),
@@ -164,7 +220,39 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
       it: px(cs.paddingTop), ir: px(cs.paddingRight), ib: px(cs.paddingBottom), il: px(cs.paddingLeft) };
   }
   var lastKey = "", vpInfo = null;
-  function layout() {
+  var infoRect = null;
+  function layout() { layoutPass(0); if (!placeInfo()) { layoutPass(infoSize() + 8); placeInfo(true); } }
+  // размер «i»: примерно половина круглой кнопки, 32…42 px
+  var btnNow = 64;
+  function infoSize() { return Math.round(Math.max(32, Math.min(42, btnNow * 0.5))); }
+  var geo = {};
+  // место для «i» (по порядку): 1) слева от ряда кнопок, в нижнем левом углу; 2) там же, но над рядом — у левого конца
+  // черты, если под кубиками есть свободная полоса (телефон вертикально); 3) пустая клетка слева в последнем ряду
+  // кубиков (ряд короче и стоит по центру); 4) ряд кнопок ужимается и освобождает угол (force). Никогда — на кубиках.
+  function placeInfo(force) {
+    var g = geo, iS = infoSize(), x, y, ok = false;
+    if (g.bx - g.L0 >= EDGE_X + iS + 8 || force) {
+      x = g.L0 + EDGE_X; y = g.barTop + g.padT + (g.btn - iS) / 2; ok = true;
+    } else if (g.barTop - g.gridB >= iS + 12) {
+      x = g.L0 + EDGE_X;
+      y = (x + iS <= g.divL - 6) ? g.dTop + g.divH / 2 - iS / 2 : g.dTop - 6 - iS;   // на линии черты (левее её) или над ней
+      y = Math.min(y, g.barTop - iS - 4);
+      ok = y >= g.gridB + 6;
+    }
+    if (!ok && g.lastOff >= 1 && iS <= g.cube) {
+      var cellR = g.gx + g.lastOff * g.stx - (g.stx - g.cube);   // правый край свободного места до первого кубика ряда
+      x = Math.max(g.L0 + EDGE_X, g.gx + (Math.min(cellR, g.gx + g.cube) - g.gx - iS) / 2);
+      y = g.lastTop + g.cube - iS - Math.round(g.cube * 0.06);
+      ok = x + iS <= cellR - 4;
+    }
+    if (!ok) return false;
+    x = Math.round(x); y = Math.round(y);
+    infoBtn.style.width = infoBtn.style.height = iS + "px"; infoBtn.style.left = x + "px"; infoBtn.style.top = y + "px";
+    infoBtn.style.fontSize = Math.round(iS * 0.56) + "px";
+    infoRect = [x, y, iS];
+    return true;
+  }
+  function layoutPass(resv) {
     var V = viewport(); vpInfo = V;
     var vw = V.w, vh = V.h;
     stage.style.width = vw + "px"; stage.style.height = vh + "px";
@@ -173,13 +261,13 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
     s = Math.min(aw / W, ah / H);
     // кнопки: 88·s (не меньше 64), но ряд из 6 обязан влезть по ширине (поля ≥ 12 px) и занимать не больше ~17 % высоты
     var sideB = Math.max(EDGE_X, Math.round(SIDE * s)), gapK = 0.36;
-    var rowW = aw - 2 * sideB, btnW = rowW / (6 + 5 * gapK);      // предел по ширине; на узких — промежутки уже
+    var rowW = aw - 2 * sideB - 2 * resv, btnW = rowW / (6 + 5 * gapK);      // предел по ширине; на узких — промежутки уже
     if (btnW < 52) btnW = rowW / (6 + 5 * 0.2);
     if (btnW < BTN_FLOOR) btnW = (rowW - 5 * 6) / 6;
     var btn = Math.max(BTN_MIN, BTN * s);
     btn = Math.min(btn, btnW, Math.max(BTN_FLOOR, ah * 0.17));
     btn = Math.floor(Math.max(Math.min(BTN_FLOOR, btnW), btn));   // ≥ 44, если ширина позволяет; иначе — сколько влезает
-    var bgap = Math.floor(Math.min(Math.max(BTN_GAP * s, btn * 0.3), (aw - 2 * sideB - 6 * btn) / 5));
+    var bgap = Math.floor(Math.min(Math.max(BTN_GAP * s, btn * 0.3), (aw - 2 * sideB - 2 * resv - 6 * btn) / 5));
     var depth = Math.max(3, Math.round(btn * 0.055));
     // вертикальные полосы; на низких экранах верх и зазоры ужимаются
     var tight = Math.min(1, ah / 600);
@@ -222,10 +310,11 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
       r.style.boxShadow = "inset 0 0 0 " + ring + "px " + BTN_COLORS[j] + ", inset 0 " + (-Math.round(ring * 0.5)) + "px 0 " + ring + "px " + BTN_DEPTH[j] +
         ", 0 " + depth + "px 0 0 " + BTN_DEPTH[j] + ", 0 " + depth + "px 0 " + ink + "px #4A3F33, 0 " + (depth + 3) + "px " + Math.round(depth * 1.6) + "px rgba(60,50,40,.2)";
     }
-    var hs = cube * 96 / 124; hand.style.width = hand.style.height = hs.toFixed(1) + "px";
+    btnNow = btn;
+    geo = { L0: L0, bx: bx, barTop: barTop, padT: padT, btn: btn, gx: gx, stx: stx, cube: cube, lastOff: lastOff, lastTop: Math.round(gy + (rows - 1) * sty),
+      gridB: gy + gh, dTop: dTop, divH: divH, divL: Math.round(L0 + (aw - dw) / 2) };
     stage.style.visibility = "visible";
     lastKey = [vw, vh, V.it, V.ir, V.ib, V.il].join(",");
-    if (showing) placeHand();
   }
   layout();
   // пересчёт: поворот, панели браузера появились/спрятались, зум, возврат на страницу; плюс сторож раз в 0,4 с —
@@ -238,47 +327,21 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayout);
   setInterval(function () { var V = viewport(); if ([V.w, V.h, V.it, V.ir, V.ib, V.il].join(",") !== lastKey) relayout(); }, 400);
   // страница не должна прокручиваться ни при каких условиях (iOS может сдвинуть её при «резиновом» скролле)
-  document.addEventListener("touchmove", function (e) { e.preventDefault(); }, { passive: false });
+  // (кроме текста страницы «i» — он прокручивается сам по себе)
+  document.addEventListener("touchmove", function (e) { if (!infoScroll.contains(e.target)) e.preventDefault(); }, { passive: false });
   window.addEventListener("scroll", function () { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); });
-
-  // рука-подсказка: hintSec без касаний → рука над «А» на 2 с; любое касание сбрасывает отсчёт
-  var idle = 0, showing = false, last = performance.now(), handTimer = 0, frameTimer = 0;
-  function resetIdle() { idle = 0; }
-  document.addEventListener("pointerdown", resetIdle, true);
-  document.addEventListener("keydown", resetIdle, true);
-  document.addEventListener("visibilitychange", resetIdle);
-  function showHand() {
-    showing = true; idle = 0; hintShown++;
-    placeHand();
-    hand.src = "assets/hand_f1.webp"; hand.style.display = "block";
-    hand.classList.remove("tap"); void hand.offsetWidth; hand.classList.add("tap");
-    var n = 0;
-    frameTimer = setInterval(function () { n++; hand.src = n % 2 ? "assets/hand_f2.webp" : "assets/hand_f1.webp"; if (n >= 6) clearInterval(frameTimer); }, 250);
-    handTimer = setTimeout(hideHand, HINT_SHOW * 1000);
-    publish();
-  }
-  function placeHand() {   // кончик пальца (20,4 из 96) — в центр кубика «А»
-    var r = cubeA.getBoundingClientRect(), u = cube / 124, cx = cubeA.offsetLeft + cube / 2, cy = cubeA.offsetTop + cube / 2;
-    hand.style.left = (cx - 20 * u) + "px"; hand.style.top = (cy - 4 * u) + "px";
-  }
-  function hideHand() {
-    clearTimeout(handTimer); clearInterval(frameTimer);
-    hand.style.display = "none"; hand.classList.remove("tap"); showing = false; idle = 0; publish();
-  }
-  setInterval(function () {
-    var now = performance.now(), dt = (now - last) / 1000; last = now;
-    if (state !== "wait_letter" || showing || document.hidden) return;
-    idle += dt;
-    if (idle >= hintSec) showHand();
-  }, 100);
 
   // для автотеста: координаты целей в CSS-пикселях окна
   function center(el) { var r = el.getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]; }
   function publish() {
     var t = { letter_a: center(cubeA), letter_locked: center(cubeLocked), buttons: btns.map(center) };
-    if (showing) t.hint_hand = [Math.round(cubeA.offsetLeft + cube / 2), Math.round(cubeA.offsetTop + cube / 2)];
-    window.__home = { step: "home", state: state, hint_sec: hintSec, hint_shown: hintShown, targets: t, lesson_href: lessonHref,
-      scale: s, cube: cube, cols: cols, button: btns[0].offsetWidth, viewport: vpInfo };
+    var rect = function (el) { var r = el.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]; };
+    t.info_btn = center(infoBtn);
+    if (state === "info") t.info_close = center(infoClose);
+    window.__home = { step: "home", state: state, targets: t, lesson_href: lessonHref,
+      scale: s, cube: cube, cols: cols, button: btns[0].offsetWidth, viewport: vpInfo,
+      info_rect: rect(infoBtn), cube_rects: cubes.map(rect), button_rects: btns.map(rect),
+      info_text_len: infoText.textContent.length, info_scroll: [infoScroll.scrollHeight, infoScroll.clientHeight] };
   }
   publish(); setInterval(publish, 250);
 

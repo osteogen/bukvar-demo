@@ -48,7 +48,8 @@ func run() -> void:
 	if not await say(cfg.lines[2]): return
 	circle.button_down.connect(_down)
 	circle.button_up.connect(_up)
-	main.hint_start(func(): return circle, cfg.lines[2], _auto)
+	# подсказка только показывает (рука + повтор реплики); засчитывает лишь удержание ребёнком 2 с
+	main.hint_start(func(): return circle, cfg.lines[2])
 	main.set_state("wait_hold")
 
 func _down() -> void:
@@ -71,7 +72,7 @@ func _up() -> void:
 		pulse(circle, 1)
 		await say(cfg.lines[2])
 	if not done and not dead:
-		main.hint_start(func(): return circle, cfg.lines[2], _auto)
+		main.hint_start(func(): return circle, cfg.lines[2])
 
 func _process(delta: float) -> void:
 	if holding and not done:
@@ -83,11 +84,6 @@ func _process(delta: float) -> void:
 
 func _update() -> void:
 	bar_fill.size.x = 600.0 * clampf(held / goal, 0.0, 1.0)
-
-func _auto() -> void:
-	held = goal
-	_update()
-	_success()
 
 func _success() -> void:
 	if done: return

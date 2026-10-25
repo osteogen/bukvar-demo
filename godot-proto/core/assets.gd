@@ -1,6 +1,7 @@
 ## Assets (autoload): данные урока и поиск ассетов ПО СОГЛАШЕНИЮ С ХУДОЖНИКОМ (ASSETS.md).
 ## Имя → путь:
 ##   pic_*            → res://art/lesson_<буква>/pic_*.png        (кадры: pic_<id>_f1/_f2)
+##   s<N>_*           → res://art/lesson_<буква>/s<N>_*.png       (картинки одной сцены: s8_basket_big_A_0 …)
 ##   bg_*             → res://art/common/bg/bg_*.png
 ##   ui_*             → res://art/common/ui/ui_*.png
 ##   reward_*         → res://art/common/reward/reward_*.png
@@ -26,6 +27,8 @@ const CREAM := Color("#F7F0DE")
 const VOWELS := "аеёиоуыэюя"
 const SETTINGS_PATH := "user://settings.json"
 ## Настройки для взрослого (сохраняются на устройстве). junior — младший режим для 4 лет (допуск ±60 px в сцене 6).
+## С 26.10.2026 выбора режима в уроке нет: junior всегда false (обычный допуск); сохранённое когда-то значение
+## игнорируется, включить можно только параметром ?junior=1 (для отладки, путь в коде оставлен «спящим»).
 var settings: Dictionary = {"junior": false}
 
 const ART_SCALE := 0.5
@@ -64,8 +67,7 @@ func _load_settings() -> void:
 		var d = JSON.parse_string(FileAccess.get_file_as_string(SETTINGS_PATH))
 		if typeof(d) == TYPE_DICTIONARY:
 			settings.merge(d, true)
-	if params.has("junior"):
-		settings["junior"] = flag("junior")
+	settings["junior"] = flag("junior") if params.has("junior") else false
 
 func set_setting(key: String, value) -> void:
 	settings[key] = value
@@ -89,7 +91,8 @@ const ART_TIERS := ["res://art/", "res://art_provisional/", "res://art_placehold
 func art_rel(name: String) -> String:
 	if name.contains("/"):
 		return "characters/" + name + ".png"
-	if name.begins_with("pic_"):
+	if name.begins_with("pic_") or (name.length() > 2 and name[0] == "s" and name[1].is_valid_int()):
+		# pic_* и картинки отдельных сцен урока s<N>_* (напр. s8_basket_big_A_0) — в папке урока
 		return "lesson_%s/%s.png" % [letter_id, name]
 	if name.begins_with("bg_"):
 		return "common/bg/" + name + ".png"

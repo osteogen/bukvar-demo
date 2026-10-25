@@ -18,8 +18,8 @@ func run() -> void:
 	alya.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pop_in(alya)
 	add_pic("reward_shelf", Vector2(512, 80), Vector2(420, 90), false)
-	btn_ok = add_pic("ui_parent_ok", Vector2(880, 700), Vector2(64, 64))
-	btn_retry = add_pic("ui_parent_retry", Vector2(960, 700), Vector2(64, 64))
+	btn_ok = add_pic("ui_parent_ok", Vector2(780, 700), Vector2(64, 64))
+	btn_retry = add_pic("ui_parent_retry", Vector2(860, 700), Vector2(64, 64))
 	btn_ok.pressed.connect(_press.bind("ok"))
 	btn_retry.pressed.connect(_press.bind("retry"))
 	main.expose("parent_ok", btn_ok)

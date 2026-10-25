@@ -53,6 +53,7 @@ func finish() -> void:
 # ---------- построение сцены ----------
 ## Фон 1366×768 лог. (2732×1536 в файле), по центру сцены 1024×768; если окно ещё шире/выше — растягиваем «на вылет».
 var _bg: TextureRect
+var _bg_id := ""
 
 func add_bg(id: String) -> TextureRect:
 	var r := TextureRect.new()
@@ -60,20 +61,25 @@ func add_bg(id: String) -> TextureRect:
 	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	r.stretch_mode = TextureRect.STRETCH_SCALE
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	r.set_meta("bg", true)          # фон не считается «предметом» в проверке перекрытий кнопками
 	add_child(r)
 	_bg = r
+	_bg_id = id
 	relayout()
 	return r
 
 func relayout() -> void:
 	if _bg == null or main == null:
 		return
-	var vis: Rect2 = main.visible_rect()
+	# видимая область в координатах шага: шаг может быть сдвинут/уменьшен, чтобы не попадать под кнопки (main._layout_host)
+	var vis: Rect2 = main.visible_rect_local()
+	var c := Vector2(512, 384)                       # центр фона = центр сцены (рисунок фона совпадает с раскладкой)
+	var half := Vector2(maxf(c.x - vis.position.x, vis.end.x - c.x), maxf(c.y - vis.position.y, vis.end.y - c.y))
 	var bsz := Vector2(1366, 768)
-	var k := maxf(1.0, maxf(vis.size.x / bsz.x, vis.size.y / bsz.y))
+	var k := maxf(1.0, maxf(2.0 * half.x / bsz.x, 2.0 * half.y / bsz.y))
 	bsz *= k
 	_bg.size = bsz
-	_bg.position = Vector2(512, 384) - bsz / 2
+	_bg.position = c - bsz / 2
 
 ## sz = Vector2.ZERO → натуральный логический размер (исходник 2× × 0.5).
 func add_pic(id: String, center: Vector2, sz := Vector2.ZERO, clickable := true) -> TextureButton:
@@ -90,7 +96,32 @@ func add_pic(id: String, center: Vector2, sz := Vector2.ZERO, clickable := true)
 	if not clickable:
 		b.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(b)
+	if id == String(Assets.lesson.get("sound_dot", "ui_circle_flat")) or id == "ui_circle_flat":
+		cream_underlay(b)
 	return b
+
+## DESIGN_RULES.md §3: красная буква / красный кружок на насыщенном тёплом фоне (bg_room_evening и др. из
+## lesson.cream_underlay_bgs) — только на кремовой подложке #F7F0DE (как карточки s09). Подложка — ребёнок узла,
+## рисуется за ним и двигается вместе с ним. На остальных фонах ничего не делаем.
+func cream_underlay(n: Control, pad := 0.22) -> void:
+	var bgs: Array = Assets.lesson.get("cream_underlay_bgs", ["bg_room_evening"])
+	if not bgs.has(_bg_id) or n.has_node("cream_underlay"):
+		return
+	var p := Panel.new()
+	p.name = "cream_underlay"
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color("#F7F0DE")
+	var r := int(minf(n.size.x, n.size.y) * (0.5 + pad))
+	sb.set_corner_radius_all(r)
+	p.add_theme_stylebox_override("panel", sb)
+	var m := minf(n.size.x, n.size.y) * pad
+	p.position = Vector2(-m, -m)
+	p.size = n.size + Vector2(m, m) * 2
+	p.show_behind_parent = true
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.set_meta("no_overlap_check", true)
+	n.add_child(p)
+	main.set_info("cream_underlays", int(main.info.get("cream_underlays", 0)) + 1)
 
 ## Общая рамка-карточка ui_card_frame (рисует иллюстратор) под картинкой: ребёнок узла, рисуется за ним
 ## (show_behind_parent), чуть больше картинки — двигается и масштабируется вместе с ней. Нет файла — ничего не делаем.
@@ -151,10 +182,14 @@ func add_letter(ch: String, center: Vector2, height: int, color := Assets.VOWEL_
 		r.pivot_offset = r.size / 2
 		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(r)
+		if kind == "letter":
+			cream_underlay(r, 0.12)
 		return r
 	var l := add_text(ch, center, int(height * 0.9), color, Vector2(height * 1.0, height * 1.15))
 	l.add_theme_color_override("font_outline_color", Color.WHITE)
 	l.add_theme_constant_override("outline_size", 10 if kind == "letter" else 0)
+	if kind == "letter" and color == Assets.VOWEL_RED:
+		cream_underlay(l, 0.12)
 	return l
 
 ## Персонаж из слоёв (Cutout): who = "alya" | "bunny"; sz — логический размер кадра.

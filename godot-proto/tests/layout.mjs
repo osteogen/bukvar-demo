@@ -1,0 +1,109 @@
+// Тест раскладки (DESIGN_RULES.md, §2): на всех экранах кнопки «назад», «Далее», крестик целиком на экране и
+// не перекрывают карточки, картинки, буквы и другие интерактивные предметы — на каждом шаге s01…s10.
+// Плюс: s04 «Слышу звук?» — каждая карточка по центру, ряд отвеченных карточек по центру, касание карточки в ряду
+// говорит слово и ничего не подтверждает; s07 «Шарики» — летящие шарики (позиции в разные моменты) и итоговые А/а
+// не заходят под кнопки.
+// Запуск: PORT=<свободный> node tests/layout.mjs   (VPS="390x844,1024x768" — свои экраны; SITE=папка сайта)
+import { createRequire } from "module"; import { spawn } from "child_process"; import path from "path"; import fs from "fs"; import { fileURLToPath } from "url";
+const require = createRequire(import.meta.url);
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const puppeteer = require(path.resolve(ROOT, "../.tools/node_modules/puppeteer-core"));
+const PORT = +(process.env.PORT || 55784);
+const SITE = path.resolve(process.env.SITE || path.join(ROOT, "../site"));
+const SHOTS = path.join(ROOT, "screenshots", "layout"); fs.mkdirSync(SHOTS, { recursive: true });
+const srv = spawn("node", [path.join(ROOT, "tests/serve.mjs"), SITE, String(PORT)], { stdio: "ignore", env: { ...process.env, NOCOI: "1" } });
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// телефон портрет/альбом, 4:3, 16:9, 16:10, iPhone 390×844 (там «назад» перекрывал карточку «мак»), планшет-портрет
+const VPS = (process.env.VPS || "1024x768,1366x768,1280x800,844x390,390x844,360x640,768x1024").split(",");
+const STEPS = ["s01_intro", "s02_sing", "s03_words", "s04_hear", "s05_letter", "s06_write", "s07_find", "s08_sort", "s09_say", "s10_end"];
+const errors = [], notes = []; let page;
+const bk = () => page.evaluate(() => window.__bk || {}).catch(() => ({}));
+async function waitFor(fn, desc, timeout = 40000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeout) { const s = await bk(); if (fn(s)) return s; await sleep(120); }
+  throw new Error("timeout: " + desc + " | last state=" + (await bk()).state);
+}
+let K = 1;   // CSS px на единицу холста
+async function tapT(name) {
+  const s = await waitFor((s) => s.targets && s.targets[name], "target " + name);
+  const [x, y] = s.targets[name]; await page.touchscreen.tap(x * K, y * K); await sleep(150);
+}
+function checkButtonsOnScreen(s, where) {
+  const [, , w, h] = s.visible_rect;
+  for (const [k, [x, y, bw, bh]] of Object.entries(s.ui_rects || {}))
+    if (x < -0.5 || y < -0.5 || x + bw > w + 0.5 || y + bh > h + 0.5)
+      throw new Error(`${where}: кнопка ${k} не целиком на экране (${[x, y, bw, bh].map(Math.round)} в ${Math.round(w)}×${Math.round(h)})`);
+}
+async function sampleOverlaps(where, n, gap) {
+  const all = new Set();
+  for (let i = 0; i < n; i++) { const s = await bk(); (s.ui_overlaps || []).forEach((o) => all.add(o)); checkButtonsOnScreen(s, where); await sleep(gap); }
+  if (all.size) throw new Error(`${where}: кнопки перекрывают ${[...all].join("; ")}`);
+}
+async function open(step, extra = "") {
+  await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&step=${step}${extra}`, { waitUntil: "load" });
+  const s = await waitFor((s) => s.step === step && /^(wait|done|drive)/.test(s.state || ""), "open " + step, 60000);
+  K = (await page.evaluate(() => innerWidth)) / s.visible_rect[2];
+  return s;
+}
+const near = (a, b, d) => Math.abs(a - b) <= d;
+try {
+  const browser = await puppeteer.launch({ executablePath: "/usr/bin/google-chrome", headless: "new",
+    args: ["--no-sandbox", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--mute-audio"] });
+  page = await browser.newPage();
+  page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  for (const vp of VPS) {
+    const [w, h] = vp.split("x").map(Number);
+    await page.setViewport({ width: w, height: h, hasTouch: true, isMobile: w < 900 || h < 500 });
+    try {
+      // 1) все шаги: несколько замеров (анимации, въезд поезда, шарики)
+      for (const st of STEPS) {
+        await open(st);
+        await sampleOverlaps(`${vp} ${st}`, st === "s07_find" ? 12 : 4, st === "s07_find" ? 700 : 500);
+      }
+      // 2) s04: карточки по центру, ряд по центру, касание карточки в ряду
+      { const ans = ["yes", "no", "yes", "no", "yes"]; let y0 = null;
+        await open("s04_hear");
+        for (let i = 0; i < 5; i++) {
+          const s = await waitFor((s) => s.state === "wait_answer_" + i, "s04 answer " + i);
+          await sleep(450);
+          const s1 = await bk(); const [cx, cy] = s1.stage_center; const [x, y, cw, ch] = s1.info.s04_card;
+          const mx = x + cw / 2, my = y + ch / 2;
+          if (!near(mx, cx, 3)) throw new Error(`${vp} s04: карточка ${i + 1} не по центру (x ${Math.round(mx)} vs ${Math.round(cx)})`);
+          if (y0 === null) y0 = my - cy; else if (!near(my - cy, y0, 3)) throw new Error(`${vp} s04: карточка ${i + 1} на другой высоте`);
+          await sampleOverlaps(`${vp} s04 слово ${i + 1}`, 2, 300);
+          await tapT(ans[i]);
+        }
+        const s = await waitFor((s) => s.state === "done" && s.info.s04_row, "s04 done", 40000);
+        const row = s.info.s04_row; const [cx] = s.stage_center;
+        const mid = row.reduce((a, [x, , cw]) => a + x + cw / 2, 0) / row.length;
+        if (!near(mid, cx, 3)) throw new Error(`${vp} s04: ряд карточек не по центру (${Math.round(mid)} vs ${Math.round(cx)}) ${JSON.stringify(row.map((r) => r.map(Math.round)))}`);
+        if (new Set(row.map(([, y, , ch]) => Math.round(y + ch / 2))).size !== 1) throw new Error(`${vp} s04: карточки ряда на разной высоте`);
+        await sampleOverlaps(`${vp} s04 ряд`, 2, 300);
+        const ok0 = (s.sfx_counts || {}).sfx_ok || 0;
+        await tapT("row_card_0"); await sleep(700); await tapT("row_card_3"); await sleep(700);
+        const s2 = await bk();
+        if (s2.info.s04_word_taps !== 2) throw new Error(`${vp} s04: касание карточки в ряду не сработало (${s2.info.s04_word_taps})`);
+        if (s2.info.s04_word_last !== "a_hear_05") throw new Error(`${vp} s04: карточка «дом» сказала ${s2.info.s04_word_last}`);
+        if (s2.state !== "done" || ((s2.sfx_counts || {}).sfx_ok || 0) !== ok0) throw new Error(`${vp} s04: касание карточки в ряду что-то подтвердило`);
+        await page.screenshot({ path: path.join(SHOTS, `${vp}-s04-row.png`) });
+        notes.push(`${vp} s04: 5 карточек по центру, ряд по центру, касания ряда — слово, без подтверждения`); }
+      // 3) s07: лопаем все шарики с А/а, затем А и а в центре; шарики летят дальше
+      { await open("s07_find");
+        for (let n = 0; n < 200; n++) { const s = await bk(); if (s.state === "done") break;
+          checkButtonsOnScreen(s, vp + " s07"); if ((s.ui_overlaps || []).length) throw new Error(`${vp} s07: ${s.ui_overlaps.join("; ")}`);
+          if (s.targets && s.targets.balloon) { const [x, y] = s.targets.balloon; await page.touchscreen.tap(x * K, y * K); }
+          await sleep(350); }
+        await waitFor((s) => s.targets && s.targets.end_big && s.targets.end_small, vp + " s07 А/а", 10000);
+        await sampleOverlaps(`${vp} s07 итог А/а + шарики`, 8, 500);
+        await page.screenshot({ path: path.join(SHOTS, `${vp}-s07-letters.png`) });
+        notes.push(`${vp} s07: шарики и А/а без перекрытий`); }
+      notes.push(`${vp}: шаги s01–s10 без перекрытий, кнопки на экране`);
+    } catch (e) { errors.push(String(e.message || e)); try { await page.screenshot({ path: path.join(SHOTS, `FAIL-${vp}.png`) }); } catch {} }
+  }
+  await browser.close();
+} catch (e) { errors.push("test: " + (e.stack || e)); }
+finally { srv.kill(); }
+console.log(notes.join("\n"));
+console.log(errors.length ? "ERRORS:\n" + errors.join("\n") : "OK: layout");
+process.exit(errors.length ? 1 : 0);

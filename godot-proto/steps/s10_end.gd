@@ -8,7 +8,7 @@ func run() -> void:
 	var alya := add_character(cfg.host, Vector2(250, 440), Vector2(285, 380))
 	alya.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# зайка — отдельный персонаж, спит в кроватке (≈240×176, зайка ≈160): поза bunny_sleep между слоями кроватки
-	var bunny := add_bunny_crib(cfg.bunny, Vector2(800, 600))
+	var bunny := add_bunny_crib(cfg.bunny, Vector2(770, 590))
 	if not bunny.pose("sleep"):
 		bunny.sleeping = true
 	bunny.pressed.connect(func(): Voice.sfx("sfx_snore"))
@@ -59,7 +59,7 @@ var _parent_panel: Control
 
 func _add_parent_icon(text: String) -> void:
 	_parent_text = text
-	_hold_icon = add_pic(String(cfg.get("parent_icon", "ui_parent_info")), Vector2(980, 724), Vector2(56, 56))
+	_hold_icon = add_pic(String(cfg.get("parent_icon", "ui_parent_info")), Vector2(60, 724), Vector2(56, 56))   # левый нижний угол: правый нижний — зона «Далее»
 	_hold_icon.modulate.a = 0.75
 	main.expose("parent_info", _hold_icon)
 	_hold_icon.button_down.connect(func(): _hold_t = 0.0)

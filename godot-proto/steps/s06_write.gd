@@ -43,7 +43,7 @@ func run() -> void:
 	m_start = _marker()
 	m_end = _marker()
 	demo_hand = TextureRect.new()
-	demo_hand.texture = Assets.tex("ui_hand_f1")
+	demo_hand.texture = main.hint_frames()[0]   # та же картинка, что у руки-подсказки (data/common/hint.json)
 	demo_hand.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	demo_hand.size = Vector2(90, 90)
 	demo_hand.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -74,7 +74,7 @@ func _begin_stroke() -> void:
 	canvas.queue_redraw()
 	if not await say(cfg.lines[k + 1]): return
 	busy = false
-	main.hint_start(func(): return m_start, "", Callable())
+	main.hint_start(func(): return m_start, "")
 	main.set_state("wait_stroke_%d" % k)
 
 func _draw_canvas() -> void:
@@ -170,14 +170,14 @@ func _stroke_fail() -> void:
 	fails += 1
 	Voice.sfx("sfx_try")
 	if not await say("r_try_04"): return
-	if fails == 2:
+	# со 2-й неудачи рука показывает штрих (на каждой чётной), но штрих засчитывается только, когда ребёнок проведёт его сам
+	if fails >= 2 and fails % 2 == 0:
 		await _demo()
 		if dead: return
-	elif fails >= 3:
-		_stroke_ok()
-		return
 	busy = false
-	main.hint_start(func(): return m_start, "", Callable())
+	main.hint_start(func(): return m_start, "")
+	if fails >= 3:
+		main.hint_now()
 
 func _demo() -> void:
 	demo_hand.position = strokes[k][0] - Vector2(20, 4)
@@ -188,6 +188,15 @@ func _demo() -> void:
 	if not dead:
 		demo_hand.visible = false
 
+
+## Для проверки перекрытий кнопками: буква-дорожка нарисована на холсте во весь экран — её область = штрихи + толщина.
+func content_rects() -> Array:
+	var r := Rect2(strokes[0][0], Vector2.ZERO)
+	for s in strokes:
+		r = r.expand(s[0]).expand(s[1])
+	r = r.grow(40.0)
+	var xf := get_global_transform()
+	return [Rect2(xf * r.position, xf.get_scale() * r.size)]
 
 func _process(_dt: float) -> void:
 	# перерисовка ради пульсации точки старта

@@ -1,8 +1,9 @@
 // Тест HTML-главной (web-home/ в корне сайта) + переход в урок lesson-a/ и обратно, в headless Chrome касаниями.
 // Сайт собирается как в CI:  bash tests/assemble_site.sh   (корень = web-home/, lesson-a/ = build/)
 // Проверяет: главная не тянет Godot (*.wasm/*.pck/index.js), её вес; раскладка (место под меню, кубики, черта, 6 пустых
-// круглых кнопок) на 4:3, 16:10, 16:9 и телефонах без прокрутки и наложений; кнопки только «нажимаются»; закрытая буква качается и никуда не ведёт; рука-подсказка; тап «А» → мгновенный
-// отклик → lesson-a/ с параметрами → s00 → s01; крестик и «?step=» → обратно на главную.
+// круглых кнопок) на 4:3, 16:10, 16:9 и телефонах без прокрутки и наложений; кнопки только «нажимаются»; закрытая буква качается и никуда не ведёт; руки-подсказки на главной НЕТ;
+// кнопка «i» (левый нижний угол, не на кубиках/кнопках) → страница сведений (общая для всех уроков, текст web-home/info.html) → тёмно-серый крестик → буквы;
+// тап «А» → мгновенный отклик → lesson-a/ с параметрами → сразу s01 (экрана s00 нет); крестик и «?step=» → обратно на главную.
 // Запуск: PORT=<свободный> node tests/home.mjs [папка-сайта, по умолчанию ../site]
 import { createRequire } from "module"; import { spawn } from "child_process"; import path from "path"; import fs from "fs"; import { fileURLToPath } from "url";
 const require = createRequire(import.meta.url);
@@ -22,7 +23,10 @@ async function until(get, fn, desc, timeout = 30000) {
   while (Date.now() - t0 < timeout) { const s = await get(); if (fn(s)) return s; await sleep(80); }
   throw new Error("timeout: " + desc + " | last=" + JSON.stringify(await get()).slice(0, 400));
 }
-const tapAt = async ([x, y]) => { await page.touchscreen.tap(x, y); };
+// Заставка загрузки Godot (#status) ещё гаснет поверх холста первые ≈0,5 с — касание по ней в игру не доходит.
+// Короткие сцены (s05 в fast-режиме) успевают дойти до wait_* раньше, поэтому перед касанием ждём, пока она исчезнет.
+const statusGone = () => page.waitForFunction(() => { const e = document.getElementById("status"); if (!e) return true; const cs = getComputedStyle(e); return cs.visibility === "hidden" || cs.display === "none" || +cs.opacity === 0; }, { timeout: 10000 }).catch(() => {});
+const tapAt = async ([x, y]) => { await statusGone(); await page.touchscreen.tap(x, y); };
 const tapNav = async (xy, what = "") => { const from = page.url(); try { await Promise.all([page.waitForNavigation({ waitUntil: "load", timeout: 10000 }), tapAt(xy)]); } catch (e) { throw new Error(`нет перехода после тапа ${what} (${from} → ${page.url()}): ${e.message}`); } };
 const shot = (name) => page.screenshot({ path: path.join(SHOTS, name + ".png") });
 async function view(w, h) { await page.setViewport({ width: w, height: h, hasTouch: true, isMobile: false }); await sleep(300); }
@@ -61,7 +65,7 @@ try {
     console.log(`главная: ${reqs.length} запросов, передано ${total} Б (${(total / 1024).toFixed(1)} КБ, html — gzip), без *.wasm/*.pck`);
     for (const r of reqs) console.log("   ", r.status, r.len, r.url.replace(BASE, ""));
     ok(total < 1.5e6, "главная тяжелее 1,5 МБ");
-    const s = await home(); ok(s.hint_sec === 20, "подсказка по умолчанию не 20 с: " + s.hint_sec); }
+    ok(!(await page.evaluate(() => document.getElementById("hand"))), "на главной осталась рука-подсказка"); }
   passed.push("home: без Godot");
   // 2) раскладка: верхняя полоса под меню, кубики, черта, 6 круглых кнопок — всё в окне, без прокрутки и наложений
   async function checkLayout(w, h) {
@@ -72,6 +76,7 @@ try {
         cubes: [...document.querySelectorAll(".cube")].map(R), div: document.getElementById("divider") && R(document.getElementById("divider")),
         divColor: getComputedStyle(document.getElementById("divider")).backgroundColor,
         btns: [...document.querySelectorAll("#bottombar .rb")].map((e) => ({ ...R(e), slot: e.dataset.slot, label: e.getAttribute("aria-label"), text: e.textContent, kids: e.children.length })),
+        info: R(document.getElementById("info-btn")),
         fs: parseFloat(getComputedStyle(document.querySelector(".cube span")).fontSize), home: window.__home };
     });
     const where = `${w}×${h}`, inside = (r) => r.l >= 0 && r.t >= 0 && r.r <= L.vw + 0.5 && r.b <= L.vh + 0.5;
@@ -97,6 +102,13 @@ try {
     });
     const rowC = (L.btns[0].l + L.btns[5].r) / 2; ok(Math.abs(rowC - L.vw / 2) < 2, `${where}: ряд кнопок не по центру`);
     ok(L.fs / L.home.cube > 0.4, `${where}: буквы мелкие`);
+    // «i»: в окне, круг ≥ 32 px, в левой нижней части, ни на кубиках, ни на кнопках, ни на черте
+    const I = L.info, apart = (a, b, m = 2) => a.r + m <= b.l || b.r + m <= a.l || a.b + m <= b.t || b.b + m <= a.t;
+    ok(inside(I) && I.w >= 32 && Math.abs(I.w - I.h) < 1, `${where}: «i» вне окна или мала ${JSON.stringify(I)}`);
+    ok(I.l < L.vw / 3 && I.t > L.vh / 2, `${where}: «i» не в левом нижнем углу ${JSON.stringify(I)}`);
+    L.cubes.forEach((c, i) => ok(apart(I, c), `${where}: «i» на кубике ${i}`));
+    L.btns.forEach((b, i) => ok(apart(I, { ...b, b: b.b + b.w * 0.07 }), `${where}: «i» на кнопке ${i + 1}`));
+    ok(apart(I, L.div, 1), `${where}: «i» на черте`);
     return L;
   }
   await sleep(1400);
@@ -115,16 +127,16 @@ try {
     // Android-планшет Chrome
     [1280, 680], [1280, 720], [800, 1180], [960, 540], [1340, 750],
     // телефоны: альбомная / портретная
-    [844, 340], [740, 300], [915, 370], [390, 660], [360, 620], [320, 560]];
+    [844, 340], [740, 300], [915, 370], [390, 660], [360, 620], [320, 560], [390, 844], [375, 667], [430, 932]];
   for (const [w, h] of SIZES) {
     const L = await checkLayout(w, h);
     if (Math.min(w, h) >= 600) ok(L.btns[0].w >= 64, `${w}×${h}: на планшете кнопка ${L.btns[0].w} < 64`);
     if (Math.abs(w / h - 4 / 3) < 0.12) ok(L.home.cols === 7, `${w}×${h}: на 4:3 должно быть 7×5, а ${L.home.cols}`);
     sizes.push(`${w}×${h}: ${L.home.cols} стлб, кубик ${L.home.cube}, кнопка ${L.btns[0].w}`);
   }
-  console.log("раскладка (без прокрутки, черта и 6 кнопок в окне):\n    " + sizes.join("\n    "));
+  console.log("раскладка (без прокрутки, черта, 6 кнопок и «i» в окне, без наложений):\n    " + sizes.join("\n    "));
   // скриншоты тесных случаев
-  for (const [w, h, n] of [[1180, 740, "home-ipad-safari"], [1280, 680, "home-android-chrome"], [844, 340, "home-phone"], [360, 620, "home-portrait-phone"]]) {
+  for (const [w, h, n] of [[1180, 740, "home-ipad-safari"], [1280, 680, "home-android-chrome"], [844, 340, "home-phone"], [360, 620, "home-portrait-phone"], [390, 844, "home-390x844"]]) {
     await checkLayout(w, h); await sleep(300); await shot(n); }
   // живой пересчёт: панели браузера показались (1180×820 → 1180×740) и поворот (→ 820×1180) без перезагрузки
   for (const [w, h] of [[1180, 820], [1180, 740], [820, 1180], [360, 620], [1024, 768]]) {
@@ -144,27 +156,58 @@ try {
     ok(!(await page.evaluate(() => document.querySelector(".rb.press"))), "кнопка осталась нажатой");
     console.log("кнопка 3: сжатие при касании (" + pressed + "), действий нет"); }
   passed.push("home: кнопки — только отклик");
-  // 4) закрытая буква и рука-подсказка (укороченный таймер — только с test/debug)
+  // 4) закрытая буква; руки-подсказки на главной нет (ни по умолчанию, ни с ?hint_sec)
   reqs.length = 0;
-  await page.goto(`${BASE}/?hint_sec=2`, { waitUntil: "load" });
-  ok((await home()).hint_sec === 20, "hint_sec без test/debug не должен действовать");
-  await page.goto(`${BASE}/?test=1&hint_sec=2`, { waitUntil: "load" });
-  await until(home, (s) => s.state === "wait_letter", "home ready (hint)");
-  const tB = Date.now();
+  await page.goto(`${BASE}/?test=1&hint_sec=1`, { waitUntil: "load" });
+  await until(home, (s) => s.state === "wait_letter", "home ready");
   { const s = await home(); await tapAt(s.targets.letter_locked); await sleep(120);
     ok(await page.evaluate(() => document.querySelector(".cube.locked.wobble") !== null), "закрытая «Б» не качнулась");
     await sleep(600); ok(page.url().startsWith(`${BASE}/?`), "закрытая «Б» куда-то увела"); }
-  { const t0 = tB; const s = await until(home, (s) => s.targets.hint_hand, "рука через 2 с", 6000);
-    const dt = (Date.now() - t0) / 1000, [hx, hy] = s.targets.hint_hand, [ax, ay] = s.targets.letter_a;
-    ok(Math.hypot(hx - ax, hy - ay) < 10, "рука не над «А»"); ok(dt > 1.7, "рука раньше таймера");
-    await sleep(500); await shot("home-hint");
-    await until(home, (s) => !s.targets.hint_hand, "рука спряталась", 4000);
-    await tapAt([1000, 740]); const t1 = Date.now(); await sleep(1200);
-    ok(!(await home()).targets.hint_hand, "касание не сбросило таймер");
-    await until(home, (s) => s.targets.hint_hand, "повторная рука", 5000);
-    console.log(`рука над «А»: через ${dt.toFixed(1)} с бездействия (hint_sec=2), касание сбрасывает отсчёт (снова через ${((Date.now() - t1) / 1000).toFixed(1)} с)`); }
-  passed.push("home: Б качается, рука");
-  // 5) тап «А» → отклик → lesson-a/ (параметры переданы) → s00 → s01
+  { const t0 = Date.now();
+    while (Date.now() - t0 < 22000) {
+      const s = await home(); ok(!s.targets.hint_hand, "на главной появилась рука-подсказка");
+      ok(!(await page.evaluate(() => [...document.querySelectorAll("img")].some((i) => /hand/.test(i.src) && i.offsetWidth))), "на главной видна картинка руки");
+      await sleep(500); }
+    console.log("главная: 22 с без касаний — руки-подсказки нет"); }
+  passed.push("home: Б качается, руки нет");
+  // 4б) «i» → страница сведений (общая для всех уроков) → крестик / «назад» → буквы; на телефоне 390×844 и планшете
+  for (const [w, h] of [[390, 844], [1024, 768], [820, 1180]]) {
+    await page.setViewport({ width: w, height: h, hasTouch: true, isMobile: w < 600 });
+    await page.goto(`${BASE}/?test=1`, { waitUntil: "load" });
+    await until(home, (s) => s.state === "wait_letter", `home ${w}×${h}`); await sleep(900);
+    const u0 = page.url();
+    { const s = await home(); await tapAt(s.targets.info_btn); }
+    const s = await until(home, (s) => s.state === "info" && s.info_text_len > 800, `«i» → сведения (${w}×${h})`, 5000);
+    const txt = await page.evaluate(() => document.getElementById("info-text").innerText);
+    for (const k of ["Как построен урок", "Подсказки и голос", "только когда ребёнок сам выберет правильный вариант", "Советы родителям"]) ok(txt.includes(k), `сведения: нет раздела «${k}»`);
+    ok(!/Урок «А»|буква «А»/.test(txt), "сведения про один урок «А», а должны быть общими");
+    const vis = await page.evaluate(() => { const r = document.getElementById("info").getBoundingClientRect(); const x = getComputedStyle(document.getElementById("info-close"), "::before");
+      return { cover: r.width >= innerWidth - 1 && r.height >= innerHeight - 1, cross: x.backgroundColor }; });
+    ok(vis.cover, "страница сведений не на весь экран");
+    const [cr, cg, cb] = vis.cross.match(/\d+/g).map(Number); ok(Math.max(cr, cg, cb) - Math.min(cr, cg, cb) < 20 && cr < 120, "крестик не тёмно-серый: " + vis.cross);
+    const [cx, cy] = s.targets.info_close; ok(cx > w * 0.8 && cy < 90, `крестик не в правом верхнем углу (${cx},${cy})`);
+    ok(page.url() === u0 && !(await page.evaluate(() => /lesson-a/.test(performance.getEntriesByType("resource").map((e) => e.name).join(" ")))), "сведения грузят урок / Godot");
+    if (w === 390) {   // длинный текст прокручивается пальцем (страница целиком — нет)
+      ok(s.info_scroll[0] > s.info_scroll[1], "на телефоне текст сведений должен прокручиваться");
+      await shot("home-info-390x844");
+      await page.touchscreen.touchStart(200, 600); for (let k = 1; k <= 8; k++) await page.touchscreen.touchMove(200, 600 - k * 40); await page.touchscreen.touchEnd(); await sleep(500);
+      const st = await page.evaluate(() => document.getElementById("info-scroll").scrollTop); ok(st > 50, "текст сведений не прокручивается пальцем: " + st);
+      await noScroll("сведения 390×844");
+      console.log(`сведения 390×844: текст ${s.info_text_len} симв., прокрутка пальцем ${st} px, крестик ${vis.cross}`);
+      await page.goBack(); await until(home, (s) => s.state === "wait_letter", "«назад» закрывает сведения", 5000);
+      ok(page.url() === u0, "«назад» ушёл со страницы букв");
+    } else {
+      if (w === 1024) await shot("home-info-1024");
+      await tapAt(s.targets.info_close);
+      await until(home, (s) => s.state === "wait_letter", `крестик → буквы (${w}×${h})`, 5000);
+      ok(page.url() === u0 && !(await page.evaluate(() => document.getElementById("info").classList.contains("open"))), "крестик не вернул к буквам");
+    }
+    { const s2 = await home(); ok(s2.targets.letter_a, "после сведений нет «А»"); }
+    console.log(`«i» ${w}×${h}: открылись сведения, ${w === 390 ? "«назад»" : "крестик"} → буквы`);
+  }
+  await view(1024, 768);
+  passed.push("home: «i» → сведения → буквы");
+  // 5) тап «А» → отклик → lesson-a/ (параметры переданы) → сразу s01 (экрана для взрослого s00 нет)
   await page.goto(`${BASE}/?test=1&fast=1&junior=1&debug=1&hint_sec=30&foo=bar`, { waitUntil: "load" });
   await until(home, (s) => s.state === "wait_letter", "home ready (А)");
   await sleep(1000);
@@ -182,13 +225,12 @@ try {
     ok(u.pathname === "/lesson-a/", "не lesson-a/: " + u.pathname);
     for (const k of ["test", "fast", "junior", "debug", "hint_sec"]) ok(u.searchParams.has(k), "не передан параметр " + k);
     ok(!u.searchParams.has("foo"), "лишний параметр foo ушёл в урок"); }
-  { const t0 = Date.now(); await until(bk, (s) => s.step === "s00_parent_note" && s.state === "wait_start", "lesson → s00", 120000);
-    console.log(`lesson-a/: Godot загрузился и открыл s00 за ${((Date.now() - t0) / 1000).toFixed(1)} с (локально)`);
-    const s = await bk(); ok(s.hint_sec === 30, "hint_sec не дошёл до урока: " + s.hint_sec); }
-  await shot("lesson-s00");
-  { const s = await bk(); await tapAt(s.targets.start); }
-  await until(bk, (s) => s.step === "s01_intro", "s00 → s01", 20000);
-  passed.push("А → lesson-a → s00 → s01");
+  { const t0 = Date.now(); await until(bk, (s) => s.step === "s01_intro", "lesson → s01", 120000);
+    console.log(`lesson-a/: Godot загрузился и сразу открыл s01 за ${((Date.now() - t0) / 1000).toFixed(1)} с (локально)`);
+    const s = await bk(); ok(s.hint_sec === 30, "hint_sec не дошёл до урока: " + s.hint_sec);
+    ok(!(s.targets || {}).start && !(s.targets || {}).junior, "в уроке остались «Начнём!» / младший режим"); }
+  await shot("lesson-s01-start");
+  passed.push("А → lesson-a → s01");
   // 6) крестик → главная (параметры, кроме step, сохранены)
   { const s = await until(bk, (s) => s.targets && s.targets.exit, "крестик на s01"); await tapNav(s.targets.exit, "крестик " + s.step); }
   { const u = new URL(page.url()); console.log("крестик →", u.pathname + u.search);

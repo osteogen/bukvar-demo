@@ -2,6 +2,8 @@
 ## Зайка — отдельный персонаж (bunny_ref / bunny_sleep) в кроватке bunny_crib_back/_front.
 ## Пение — поза alya_pose_sing_crib (кроватка справа от Али, зайки в позе нет; рот — слои _mouth_0/1/2).
 ## alya_pose_rock снята с использования.
+## Урок начинается сразу с этой сцены (памятки s00 больше нет). intro.unlock_tap: если на странице урока ещё не было
+## касания (iOS не даст звука), Аля и зайка уже на экране, Аля мягко пульсирует и ждёт любого касания — без текста.
 extends LessonStep
 
 var alya: Cutout
@@ -19,6 +21,7 @@ func run() -> void:
 	pop_in(alya)
 	if bunny.visible:
 		pop_in(bunny, 0.2)
+	if not await _unlock_gate(): return
 	if not await say("a_start_01"): return
 	alya.wave(2)
 	# «Тс-с…»: поза «палец к губам» alya_pose_shh
@@ -72,3 +75,36 @@ func _sing() -> bool:
 			alya.clear_pose()
 			bunny.visible = true
 	return ok
+
+## Первый жест на странице урока. В вебе: navigator.userActivation.hasBeenActive (касание уже было — сразу дальше).
+## В тесте (?test=1) — только с ?gate=1, чтобы сквозные тесты не ждали лишнего касания.
+signal _unlocked
+
+func _needs_gate() -> bool:
+	var u: Dictionary = cfg.get("unlock_tap", {})
+	if not bool(u.get("enabled", true)) or not OS.has_feature("web"):
+		return false
+	if main.test_mode and not Assets.flag("gate"):
+		return false
+	var active = JavaScriptBridge.eval("(navigator.userActivation && navigator.userActivation.hasBeenActive) ? 1 : 0", true)
+	return int(active) != 1 or Assets.flag("gate")
+
+func _unlock_gate() -> bool:
+	if not _needs_gate():
+		return true
+	var u: Dictionary = cfg.get("unlock_tap", {})
+	var sc := float(u.get("pulse_scale", 1.05))
+	var tw := alya.create_tween().set_loops()
+	tw.tween_property(alya, "scale", Vector2(sc, sc), float(u.get("pulse_sec", 0.8)) / 2)
+	tw.tween_property(alya, "scale", Vector2.ONE, float(u.get("pulse_sec", 0.8)) / 2)
+	main.hint_start(func(): return alya, "")
+	main.set_state("wait_unlock")
+	await _unlocked
+	tw.kill()
+	alya.scale = Vector2.ONE
+	main.hint_stop()
+	return not dead
+
+func _input(ev: InputEvent) -> void:
+	if main and main.state == "wait_unlock" and (ev is InputEventScreenTouch or ev is InputEventMouseButton) and ev.pressed:
+		_unlocked.emit()

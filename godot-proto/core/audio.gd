@@ -72,7 +72,10 @@ func stop_voice() -> void:
 	_token += 1
 	voice.stop()
 
+var sfx_counts := {}   # для теста: сколько раз звучал каждый эффект (успех — sfx_ok/sfx_cheer; s07 — sfx_pop)
+
 func sfx(id: String) -> void:
+	sfx_counts[id] = int(sfx_counts.get(id, 0)) + 1
 	var s := _stream(id)
 	if s == null:
 		return
