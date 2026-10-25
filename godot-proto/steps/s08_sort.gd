@@ -44,7 +44,8 @@ func run() -> void:
 		at = []
 		for x in bu.get("x_list", []):
 			_add_bush(String(bu.get("pic", "s8_bush_empty")), float(x), by, float(bu.get("width", 170)))
-			at.append([float(x) + off.x, by + off.y])
+			# tile_y — центр плиток одним рядом (финал иллюстратора: y 220); нет ключа — от низа куста + tile_offset
+			at.append([float(x) + off.x, float(lay.get("tile_y", by + off.y))])
 		basket_big = _add_basket(bb)
 		basket_small = _add_basket(bs)
 	else:
@@ -129,6 +130,20 @@ func _add_basket(d: Dictionary) -> TextureButton:
 	b.set_meta("drop", _rect(d.get("drop"), fr.grow(12)))
 	b.set_meta("silhouette", _rect(d.get("silhouette"), fr))
 	add_child(b)
+	# финал: табличка в картинке корзинки пустая, буква — отдельный слой на том же холсте (letter), поверх любого состояния
+	var lt := Assets.tex(String(d.get("letter", "")), false) if d.has("letter") else null
+	if lt:
+		var l := TextureRect.new()
+		l.name = "letter"
+		l.texture = lt
+		l.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		l.stretch_mode = TextureRect.STRETCH_SCALE
+		l.size = fr.size
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(l)
+	if d.has("label"):   # тест: табличка (координаты сцены)
+		var lr := _rect(d.get("label"), fr)
+		main.set_info("s08_label_" + ("big" if String(d.states[0]).contains("big") else "small"), [lr.position.x, lr.position.y, lr.end.x, lr.end.y])
 	return b
 
 func _set_state(b: TextureButton, n: int) -> void:

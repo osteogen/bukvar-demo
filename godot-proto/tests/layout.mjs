@@ -2,7 +2,8 @@
 // не перекрывают карточки, картинки, буквы и другие интерактивные предметы — на каждом шаге s01…s10.
 // Плюс: s04 «Слышу звук?» — каждая карточка по центру, ряд отвеченных карточек по центру, касание карточки в ряду
 // говорит слово и ничего не подтверждает; s07 «Шарики» — летящие шарики (позиции в разные моменты) и итоговые А/а
-// не заходят под кнопки.
+// не заходят под кнопки; s03 «Паровозик» — рельсы от края до края экрана, поезд въезжает и уезжает из-за краёв,
+// по пути не заходит под кнопки (снимки в пути — screenshots/layout/<экран>-s03-train-ride.png).
 // Запуск: PORT=<свободный> node tests/layout.mjs   (VPS="390x844,1024x768" — свои экраны; SITE=папка сайта)
 import { createRequire } from "module"; import { spawn } from "child_process"; import path from "path"; import fs from "fs"; import { fileURLToPath } from "url";
 const require = createRequire(import.meta.url);
@@ -88,6 +89,34 @@ try {
         if (s2.state !== "done" || ((s2.sfx_counts || {}).sfx_ok || 0) !== ok0) throw new Error(`${vp} s04: касание карточки в ряду что-то подтвердило`);
         await page.screenshot({ path: path.join(SHOTS, `${vp}-s04-row.png`) });
         notes.push(`${vp} s04: 5 карточек по центру, ряд по центру, касания ряда — слово, без подтверждения`); }
+      // 2б) s03: рельсы от края до края экрана (плитка без растяжения); поезд въезжает целиком из-за края,
+      //     уезжает целиком за другой край; во время езды кнопки ничего не перекрывают
+      { let s = await open("s03_words");
+        const r = s.info.s03_rails; const v = s.visible_rect; const kk = s.content_rect[2] / 1024;
+        const vl = (v[0] - s.content_rect[0]) / kk, vr = (v[0] + v[2] - s.content_rect[0]) / kk;
+        if (!r || r.x0 > vl + 0.5 || r.x1 < vr - 0.5) throw new Error(`${vp} s03: рельсы не на всю ширину (${r && [r.x0, r.x1].map(Math.round)} при экране ${[vl, vr].map(Math.round)})`);
+        if (Math.abs(r.kx - r.ky) > 1e-6) throw new Error(`${vp} s03: рельсы растянуты (${r.kx}×${r.ky})`);
+        const di = (await waitFor((s) => s.info && s.info.s03_drive_in, vp + " s03 drive_in")).info.s03_drive_in;
+        const offIn = di.dir === "rtl" ? di.from >= di.vis_r : di.from + di.w <= di.vis_l;
+        if (!offIn || di.vis_l > vl + 0.5 || di.vis_r < vr - 0.5) throw new Error(`${vp} s03: поезд въезжает не из-за края экрана ${JSON.stringify(di)}`);
+        let shot = false;
+        for (let n = 0; n < 200; n++) { s = await bk(); if (s.state !== "drive_in_0") break;
+          checkButtonsOnScreen(s, vp + " s03 въезд"); if ((s.ui_overlaps || []).length) throw new Error(`${vp} s03 въезд: ${s.ui_overlaps.join("; ")}`);
+          if (!shot && s.targets.train) { const tx = s.targets.train[0]; if (tx > v[2] * 0.2 && tx < v[2] * 0.45) { await page.screenshot({ path: path.join(SHOTS, `${vp}-s03-train-ride.png`) }); shot = true; } }
+          await sleep(60); }
+        await waitFor((s) => s.state === "wait_pic_0", vp + " s03 wait_pic_0");
+        await tapT("pic");
+        s = await waitFor((s) => s.state === "wait_slot_0" && s.info && s.info.s03_right !== undefined, vp + " s03 wait_slot_0");
+        await tapT("slot" + s.info.s03_right);
+        await waitFor((s) => /^(ok|drive_out)_0$/.test(s.state), vp + " s03 верный ответ");
+        for (let n = 0; n < 300; n++) { s = await bk(); if (s.info && s.info.s03_left === 0) break;
+          checkButtonsOnScreen(s, vp + " s03 выезд"); if ((s.ui_overlaps || []).length) throw new Error(`${vp} s03 выезд: ${s.ui_overlaps.join("; ")}`);
+          await sleep(60); }
+        const dout = (await waitFor((s) => s.info && s.info.s03_left === 0, vp + " s03 уехал", 20000)).info;
+        const d = dout.s03_drive_out; const offOut = d.dir === "rtl" ? d.to + d.w <= d.vis_l : d.to >= d.vis_r;
+        if (!offOut) throw new Error(`${vp} s03: поезд уехал не за край экрана ${JSON.stringify(d)}`);
+        if (dout.s03_cards_visible !== 0) throw new Error(`${vp} s03: карточка осталась после отъезда`);
+        notes.push(`${vp} s03: рельсы ${Math.round(r.x0)}…${Math.round(r.x1)} при экране ${Math.round(vl)}…${Math.round(vr)} (плитка ${Math.round(r.tile_w)}, ×${r.kx.toFixed(3)}); въезд ${Math.round(di.from)}→${Math.round(di.to)}, выезд ${Math.round(d.from)}→${Math.round(d.to)}, без перекрытий${shot ? ", снимок в пути" : ""}`); }
       // 3) s07: лопаем все шарики с А/а, затем А и а в центре; шарики летят дальше
       { await open("s07_find");
         for (let n = 0; n < 200; n++) { const s = await bk(); if (s.state === "done") break;

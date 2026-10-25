@@ -1,11 +1,14 @@
 ## Сцена 3. Звук [а] в словах: на каждое слово приезжает паровозик, ребёнок нажимает картинку и сажает кружок в окошко
-## (начало — середина — конец, слева направо по вагонам). Поезд уезжает вправо ТОЛЬКО после верного ответа ребёнка,
-## затем приезжает поезд со следующим словом. Для «Аля» кружок в конце — не ошибка: звучит a_words_end_ok.
+## (начало — середина — конец, слева направо по вагонам). Поезд уезжает ТОЛЬКО после верного ответа ребёнка,
+## затем приезжает поезд со следующим словом. Рельсы — на всю ширину экрана (любое соотношение сторон, плитка
+## ui_train_rails без растяжения); поезд на каждое слово въезжает из-за края экрана, стоит на stop_x и уезжает
+## целиком за противоположный край. Направление — words.train.direction: "ltr" (по умолчанию: паровоз носом вправо,
+## едет слева направо) или "rtl" (состав зеркалится — паровоз носом влево, едет справа налево). Для «Аля» кружок в конце — не ошибка: звучит a_words_end_ok.
 ## Раскладка и графика — из данных (words.train в lesson.json): финальные картинки, размеры и окошки художника
 ## подставляются без правки кода. Правило «без автоподтверждения» — DESIGN_RULES.md, §1.
 extends LessonStep
 
-var field: Control          # поезд и рельсы — внутри сцены 1024×768 (clip): при въезде/выезде не заходят под кнопки
+var field: Control          # поезд и рельсы; без обрезки по сцене — едут по всей видимой ширине (кнопки — в углах, выше/ниже пути)
 var train: Control          # весь состав; ездит по x
 var parts: Array = []       # части слева направо (TextureButton)
 var _bob_t := 0.0
@@ -16,6 +19,8 @@ var _wheel_r := 24.0
 var _last_x := 0.0
 var _steam_t := 0.0
 var _tc: Dictionary
+var _rtl := false           # words.train.direction == "rtl"
+var rails: Control
 
 func _process(dt: float) -> void:
 	if train == null or not is_instance_valid(train):
@@ -40,10 +45,10 @@ func run() -> void:
 	var tc: Dictionary = cfg.train
 	_tc = tc
 	_bob_px = float(tc.get("bob_px", 3))
+	_rtl = String(tc.get("direction", "ltr")) == "rtl"
 	field = Control.new()
 	field.name = "train_field"
 	field.size = Vector2(1024, 768)
-	field.clip_contents = true
 	field.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(field)
 	_add_rails(tc)
@@ -58,7 +63,11 @@ func run() -> void:
 		for s in slots:
 			s.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		main.set_state("drive_in_%d" % i)
-		if not await _drive(train, _parked_x(tc), float(tc.get("drive_in_sec", 1.8)), Tween.EASE_OUT): return
+		var vis := _vis_x()
+		train.position.x = (vis.y + 8.0) if _rtl else (vis.x - train.size.x - 8.0)   # целиком за краем экрана
+		_last_x = train.position.x
+		main.set_info("s03_drive_in", _drive_info(train.position.x, _parked_x(tc), vis))
+		if not await _drive(train, _parked_x(tc), _drive_sec(tc, "drive_in_sec", 1.8, absf(_parked_x(tc) - train.position.x)), Tween.EASE_OUT): return
 		# 2) картинка слова
 		var pic := add_pic(it.pic, pc, psz)
 		if not String(it.pic).begins_with("pic_alya_card"):   # у портрета Али своя рамка
@@ -87,6 +96,7 @@ func run() -> void:
 		var circ := add_pic(String(Assets.lesson.get("sound_dot", "ui_circle_flat")), dc, dsz, false)   # плоский матовый кружок-звук (78 — под окошко r 44)
 		pop_in(circ)
 		var right: Control = slots[int(it.pos)]
+		main.set_info("s03_right", int(it.pos))   # тест раскладки: какое окошко верное
 		if i == 0:
 			if not await say(cfg.slot_hint): return
 		else:
@@ -137,7 +147,10 @@ func run() -> void:
 		else:
 			var pt := pic.create_tween()
 			pt.tween_property(pic, "modulate:a", 0.0, float(tc.get("pic_fade_sec", 0.5)))
-		if not await _drive(train, 1024.0 + 40.0, float(tc.get("drive_out_sec", 1.6)), Tween.EASE_IN): return
+		var vo := _vis_x()
+		var out_x := (vo.x - train.size.x - 8.0) if _rtl else (vo.y + 8.0)                 # целиком за другим краем
+		main.set_info("s03_drive_out", _drive_info(train.position.x, out_x, vo))
+		if not await _drive(train, out_x, _drive_sec(tc, "drive_out_sec", 1.6, absf(out_x - train.position.x)), Tween.EASE_IN): return
 		pic.hide()
 		pic.queue_free()
 		train.queue_free()
@@ -158,38 +171,79 @@ func _count_cards() -> int:
 			n += 1
 	return n
 
-## Рельсы на всю ширину сцены (ui_train_rails, плитка); нет файла — простая заглушка: брусок и шпалы.
+## Видимая ширина экрана в координатах шага: Vector2(левый край, правый край).
+func _vis_x() -> Vector2:
+	var v: Rect2 = main.visible_rect_local()
+	return Vector2(minf(0.0, v.position.x), maxf(1024.0, v.end.x))
+
+## Время проезда: drive_*_sec задано для пути по сцене 1024 (въезд от x = −ширина состава до stop_x, выезд от stop_x
+## до 1024); на широком экране путь длиннее — время растёт так, чтобы скорость была та же.
+func _drive_sec(tc: Dictionary, key: String, def: float, dist: float) -> float:
+	var w := _train_width(tc)
+	var px := _parked_x(tc)
+	var ref := (px + w) if key == "drive_in_sec" else (1024.0 - px)
+	if _rtl:
+		ref = (1024.0 - px) if key == "drive_in_sec" else (px + w)
+	return float(tc.get(key, def)) * maxf(1.0, dist / maxf(1.0, ref))
+
+func _drive_info(from_x: float, to_x: float, vis: Vector2) -> Dictionary:
+	return {"from": from_x, "to": to_x, "w": train.size.x, "vis_l": vis.x, "vis_r": vis.y, "dir": "rtl" if _rtl else "ltr"}
+
+## Рельсы на всю видимую ширину экрана (ui_train_rails — плиткой, масштаб одинаковый по x и y, без растяжения);
+## нет файла — простая заглушка: брусок и шпалы. При смене размера окна — relayout() растягивает путь заново.
 func _add_rails(tc: Dictionary) -> void:
 	var y := float(tc.rails_y)
 	var h := float(tc.get("rails_h", 34))
 	var t := Assets.tex(String(tc.get("rails", "ui_train_rails")), false)
+	if rails and is_instance_valid(rails):
+		rails.queue_free()
+	var vis := _vis_x()
 	if t:
 		var k := h / float(t.get_height())
+		var tw := float(t.get_width()) * k            # ширина одной плитки в координатах сцены
+		var x0 := floorf(vis.x / tw) * tw              # шов плиток привязан к x = 0 сцены
 		var r := TextureRect.new()
 		r.name = "rails"
 		r.texture = t
 		r.stretch_mode = TextureRect.STRETCH_TILE
 		r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		r.size = Vector2(1024.0 / k, t.get_height())
+		r.size = Vector2(ceilf((vis.y - x0) / tw) * float(t.get_width()), t.get_height())
 		r.scale = Vector2(k, k)
-		r.position = Vector2(0, y)
+		r.position = Vector2(x0, y)
 		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		field.add_child(r)
+		field.move_child(r, 0)
+		rails = r
+		main.set_info("s03_rails", {"x0": x0, "x1": x0 + r.size.x * k, "kx": k, "ky": k, "tile_w": tw})
 		return
+	var box := Control.new()
+	box.name = "rails"
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	field.add_child(box)
+	field.move_child(box, 0)
+	rails = box
 	var bar := ColorRect.new()
-	bar.name = "rails"
 	bar.color = Color("#8E6238")
-	bar.position = Vector2(0, y)
-	bar.size = Vector2(1024, h * 0.28)
+	bar.position = Vector2(vis.x, y)
+	bar.size = Vector2(vis.y - vis.x, h * 0.28)
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	field.add_child(bar)
-	for x in range(8, 1024, 64):
-		var s := ColorRect.new()
-		s.color = Color("#B98650")
-		s.position = Vector2(x, y + h * 0.28)
-		s.size = Vector2(36, h * 0.6)
-		s.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		field.add_child(s)
+	box.add_child(bar)
+	var x := floorf(vis.x / 64.0) * 64.0 + 8.0
+	while x < vis.y:
+		var sl := ColorRect.new()
+		sl.color = Color("#B98650")
+		sl.position = Vector2(x, y + h * 0.28)
+		sl.size = Vector2(36, h * 0.6)
+		sl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_child(sl)
+		x += 64.0
+	main.set_info("s03_rails", {"x0": vis.x, "x1": vis.y, "kx": 1.0, "ky": 1.0, "tile_w": 64.0})
+
+## Окно поменяло размер (поворот планшета, другое соотношение сторон) — путь снова от края до края.
+func relayout() -> void:
+	super.relayout()
+	if field and is_instance_valid(field) and not _tc.is_empty():
+		_add_rails(_tc)
 
 func _train_width(tc: Dictionary) -> float:
 	var n: int = tc.parts.size()
@@ -207,9 +261,9 @@ func _make_train(tc: Dictionary) -> Array:
 	train.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sz := Vector2(tc.size[0], tc.size[1])
 	train.size = Vector2(_train_width(tc), sz.y)
-	train.position = Vector2(-train.size.x - 40.0, float(tc.y))
+	train.position = Vector2(-train.size.x - 40.0, float(tc.y))   # точный старт за краем экрана — в run()
 	field.add_child(train)
-	main.expose("train", train)   # тест: центр состава — видно, что поезд въезжает слева и уезжает вправо
+	main.expose("train", train)   # тест: центр состава — откуда въезжает и куда уезжает поезд
 	parts.clear()
 	for j in tc.parts.size():
 		var pd: Dictionary = tc.parts[j]
@@ -256,9 +310,30 @@ func _make_train(tc: Dictionary) -> Array:
 				wheels.append(w)
 	_last_x = train.position.x
 	var out: Array = []
+	if _rtl:
+		_mirror_train()
+		# зеркало: часть j теперь стоит на месте n−1−j; «начало» слова — по-прежнему левое окошко
+		var n: int = parts.size()
+		for s in tc.slots:
+			out.append(parts[n - 1 - int(s)])
+		return out
 	for s in tc.slots:
 		out.append(parts[int(s)])
 	return out
+
+## direction "rtl": состав зеркально (паровоз слева, носом влево) — части, окошки и колёса отражаются по ширине состава.
+func _mirror_train() -> void:
+	var w := train.size.x
+	for c in train.get_children():
+		var ctl := c as Control
+		ctl.position.x = w - ctl.position.x - ctl.size.x
+		if ctl is TextureButton:
+			(ctl as TextureButton).flip_h = not (ctl as TextureButton).flip_h
+			var win: Array = ctl.get_meta("window")
+			win[0] = 1.0 - float(win[0])
+			ctl.set_meta("window", win)
+		elif ctl is TextureRect:
+			(ctl as TextureRect).flip_h = not (ctl as TextureRect).flip_h
 
 func _drive(n: Control, to_x: float, sec: float, ease: int) -> bool:
 	_driving = true
@@ -283,7 +358,12 @@ func _steam(dt: float) -> void:
 	var eng: Control = parts[int(sc.get("part", parts.size() - 1))]
 	if not is_instance_valid(eng):
 		return
-	var src: Vector2 = train.position + eng.position + Vector2(sc.src[0], sc.src[1])
+	var sx := float(sc.src[0])
+	var dirx := 1.0
+	if _rtl:   # зеркальный паровоз: труба отражена, клубы уходят назад — вправо
+		sx = eng.size.x - sx
+		dirx = -1.0
+	var src: Vector2 = train.position + eng.position + Vector2(sx, sc.src[1])
 	var ids: Array = sc.ids
 	var puff := TextureRect.new()
 	puff.texture = Assets.tex(String(ids[0]), false)
@@ -295,13 +375,13 @@ func _steam(dt: float) -> void:
 	puff.set_meta("no_overlap_check", true)   # декор: не предмет игры
 	var sz0 := Vector2(sc.sizes[0][0], sc.sizes[0][1])
 	puff.size = sz0
-	puff.position = src + Vector2(sc.offsets[0][0], sc.offsets[0][1]) - sz0 / 2
+	puff.position = src + Vector2(dirx * float(sc.offsets[0][0]), sc.offsets[0][1]) - sz0 / 2
 	field.add_child(puff)
 	var tw := puff.create_tween()
 	var step := float(sc.get("step_sec", 0.45))
 	for k in range(1, ids.size()):
 		var szk := Vector2(sc.sizes[k][0], sc.sizes[k][1])
-		var to := src + Vector2(sc.offsets[k][0], sc.offsets[k][1]) - szk / 2
+		var to := src + Vector2(dirx * float(sc.offsets[k][0]), sc.offsets[k][1]) - szk / 2
 		tw.tween_callback(func(): puff.texture = Assets.tex(String(ids[k]), false))
 		tw.parallel().tween_property(puff, "size", szk, step)
 		tw.parallel().tween_property(puff, "position", to, step)

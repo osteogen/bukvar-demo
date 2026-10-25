@@ -469,9 +469,9 @@ func _show_hand() -> void:
 	if every > 0 and _hint_count % every == 0 and _hint_voice != "":
 		Voice.say(_hint_voice)
 	hand.visible = true
+	_animate_hand()   # сначала ставим руку к цели, потом публикуем её (иначе тест мог прочитать старое положение)
 	expose("hint_hand", hand)
 	set_info("hint_shown", int(info.get("hint_shown", 0)) + 1)
-	_animate_hand()
 
 ## Бесконечная мягкая анимация; каждый круг заново берёт положение цели (на случай поворота экрана / сдвига предмета).
 func _animate_hand() -> void:
