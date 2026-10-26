@@ -36,8 +36,6 @@ var _piv := Vector2.ZERO
 var _last_piv := Vector2.ZERO
 var _letters_down := false
 var _landed := false
-var _word_until := 0                  # до какого момента (мс) звучит a_word_02 по касанию аиста
-var _word_token := -1
 var _flapping := false
 var _n := {"word_taps": 0, "word_plays": 0, "flaps": 0, "letter_taps": 0}
 
@@ -361,20 +359,12 @@ func _on_stork() -> void:
 		return
 	_n.word_taps += 1
 	main.set_info("s01_word_taps", _n.word_taps)
-	if Time.get_ticks_msec() < _word_until and Voice._token == _word_token:
-		return
 	var st: Dictionary = cfg.get("stork_tap", {})
 	var id := String(st.get("audio", cfg.voice_appear))
-	var s := Voice._stream(id)
-	_n.word_plays += 1
-	main.set_info("s01_word_plays", _n.word_plays)
-	var len_sec: float = s.get_length() if s and s.get_length() > 0.0 else Assets.line_dur(id)
-	Voice.stop_voice()
-	_word_token = Voice._token
-	_word_until = Time.get_ticks_msec() + int(len_sec * 1000.0)
-	if s:
-		Voice.voice.stream = s
-		Voice.voice.play()
+	# общая очередь голоса: пока эта же реплика звучит или ждёт — касание её не повторяет и не перезапускает
+	if Voice.tap_say(id):
+		_n.word_plays += 1
+		main.set_info("s01_word_plays", _n.word_plays)
 	_flap(st)
 
 func _flap(st: Dictionary) -> void:
@@ -413,14 +403,7 @@ func _on_letter(k: String) -> void:
 	main.set_info("s01_aaa_audio", id if ok else "")
 	if not ok:
 		return
-	Voice.stop_voice()
-	var s := Voice._stream(id)
-	Voice.voice.stream = s
-	Voice.voice.play()
-	var my := Voice._token
-	await get_tree().create_timer(float(dt.get("max_sec", 1.8))).timeout
-	if Voice._token == my and is_instance_valid(self) and Voice.voice.stream == s:
-		Voice.voice.stop()
+	Voice.tap_say(id, float(dt.get("max_sec", 1.8)))   # очередь голоса: без наложения, без дублей
 
 func _bounce(b: Control, px: float, sec: float) -> void:
 	if b.has_meta("bounce_y"):

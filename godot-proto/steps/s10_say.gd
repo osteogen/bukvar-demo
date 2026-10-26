@@ -1,4 +1,4 @@
-## Сцена 9. Скажи вслух — проверяет взрослый. Кнопка взрослого «✓ / ещё раз» есть ТОЛЬКО в этой сцене.
+## Сцена 10 (s10_say). Скажи вслух — проверяет взрослый. Кнопка взрослого «✓ / ещё раз» есть ТОЛЬКО в этой сцене.
 ## Появляется через 2 с после реплики-задания; нажатия чаще 1 раза в секунду игнорируются;
 ## если взрослый молчит 8 с — кнопка пульсирует и звучит h_parent_01 (один раз за сцену).
 extends LessonStep
@@ -20,6 +20,8 @@ func run() -> void:
 	add_pic("reward_shelf", Vector2(512, 80), Vector2(420, 90), false)
 	btn_ok = add_pic("ui_parent_ok", Vector2(780, 700), Vector2(64, 64))
 	btn_retry = add_pic("ui_parent_retry", Vector2(860, 700), Vector2(64, 64))
+	main.click_on(btn_ok)                 # общее правило §8: щелчок на кнопках (подключается до обработчика)
+	main.click_on(btn_retry)
 	btn_ok.pressed.connect(_press.bind("ok"))
 	btn_retry.pressed.connect(_press.bind("retry"))
 	main.expose("parent_ok", btn_ok)

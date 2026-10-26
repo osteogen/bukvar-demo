@@ -4,7 +4,7 @@
 // Вход: главная → «А» → lesson-a/ → сразу s01 «Аист приносит буквы» (экрана для взрослого s00 больше нет) → s01…s11.
 // Звук на iOS: в вебе без жеста на странице s01 ждёт касания (пустое гнездо пульсирует, wait_unlock); s02 — так же, если урок
 // открыт сразу с неё (?step=2); в тесте выключено, ?gate=1 — включить.
-// Плюс: крестик выхода на s01–s11 (виден, ни с чем не пересекается) → главная → «А» → s01; «домой» в s11 → главная;
+// Плюс: крестик выхода на s01–s11 (виден, ни с чем не пересекается) → «Пока! Увидимся!» → главная → «А» → s01; «Ещё раз» в s10 → s01;
 // рука-подсказка после бездействия (?hint_sec=3 — укороченный таймер; по умолчанию 20 с из data/common/hint.json): держится до нужного действия,
 // касание цели / начало перетаскивания прячет её, касание мимо — нет. На главной руки нет (tests/home.mjs).
 // Запуск: PORT=<свободный> node tests/lesson.mjs     (TOUCH=0 — мышью; URLQ="audio=stream" — доп. параметры; SITE=папка сайта)
@@ -20,7 +20,7 @@ const srv = spawn("node", [path.join(ROOT, "tests/serve.mjs"), SITE, String(PORT
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [], logs = [], passed = []; let browser, page;
 // Без ?debug=1 субтитров быть не должно, а из текста на экране ребёнка — только А/а
-// (исключение: открытая взрослым панель итога в s11).
+// 
 const textViolations = new Set();
 const ALLOWED = new Set(["А", "а"]);
 const bk = async () => {
@@ -223,67 +223,101 @@ try {
     await assertNoConfirm("s03 (3 коротких нажатия)", "wait_hold", b0); noConfirmChecked.push("s03");
     await drag(c, c, 1, 2400); }
   await waitFor(state("done"), "s03 done"); await shot("s03-sing-done"); await next("s03_sing");
-  // s04: поезд въезжает слева → картинка → окошко; на каждом слове две ошибки (середина), потом верно (начало)
-  for (let i = 0; i < 3; i++) {
-    { // въезд: центр состава движется слева направо; паровоз справа
-      const s0 = await waitFor((s) => (s.state === "drive_in_" + i || s.state === "wait_pic_" + i) && s.targets && s.targets.train, "s04 train " + i);
-      const x0 = s0.targets.train[0];
-      const s1 = await waitFor(state("wait_pic_" + i), "s04 pic " + i);
-      const x1 = s1.targets.train[0];
-      if (s0.state === "drive_in_" + i && !(x1 > x0 + 20)) throw new Error(`s04: поезд ${i} не въехал слева направо (${x0} → ${x1})`);
-      if (Math.abs(x1 - 512) > 40) throw new Error(`s04: поезд ${i} остановился не по центру (${x1})`);
-      if (s1.info.s04_cards_visible !== 1) throw new Error(`s04: на сцене ${s1.info.s04_cards_visible} карточек вместо одной (слово ${i})`);
-      console.log(`s04 слово ${i + 1}: поезд въехал ${s0.state === "drive_in_" + i ? Math.round(x0) + "→" : ""}${Math.round(x1)}, карточек на сцене: 1`);
-    }
-    await tap("pic");
-    await waitFor(state("wait_slot_" + i), "s04 slot " + i);
-    { const st = "wait_slot_" + i; const b0 = sfxSnap(await bk()); const tx = (await bk()).targets.train[0];
-      for (let n = 0; n < 2; n++) { await tap("slot1"); await sleep(1300); }
-      const s = await assertNoConfirm(`s04 слово ${i + 1} (2 ошибки)`, st, b0);
-      if (Math.abs(s.targets.train[0] - tx) > 8) throw new Error(`s04: поезд поехал без верного ответа (слово ${i + 1})`);
-      await hintNear(`s04 слово ${i + 1}`, "slot0");
-      if (i === 0) noConfirmChecked.push("s04"); }
-    // «Далее» не должна появляться, пока не посажен кружок у третьей картинки
-    const nx = await page.evaluate(() => !!(window.__bk && window.__bk.targets && window.__bk.targets.next));
-    if (nx) throw new Error("s04: кнопка «Далее» видна до третьей картинки (картинка " + (i + 1) + ")");
-    if (i === 1) { await tap("slot2"); await sleep(1200); }
-    await tap("slot0");
-    { // после верного ответа поезд уезжает вправо, карточка отгаданного слова исчезает
-      const s0 = await waitFor((s) => s.state === "drive_out_" + i || (s.info && s.info.s04_left === i), "s04 drive_out " + i, 20000);
-      const x0 = s0.targets.train ? s0.targets.train[0] : 0;
-      const s1 = await waitFor((s) => s.info && s.info.s04_left === i, "s04 left " + i, 20000);
-      if (s1.info.s04_cards_visible !== 0) throw new Error(`s04: карточка слова ${i + 1} осталась после отъезда поезда`);
-      console.log(`s04 слово ${i + 1}: поезд уехал вправо (от x=${Math.round(x0)}), карточек осталось: ${s1.info.s04_cards_visible}`);
-    }
-  }
-  await waitFor(state("done"), "s04 done");
-  if (!(await page.evaluate(() => !!(window.__bk.targets && window.__bk.targets.next)))) throw new Error("s04: нет «Далее» после третьей картинки");
-  console.log("s04: «Далее» появилась только после третьей картинки");
-  await shot("s04-words-done"); await next("s04_words");
-  // s05: есть/нет (на «кот» — одна ошибка)
+  { // правило 5: вернулись «назад» в пройденную сцену — «Далее» видна сразу; правило 1: щелчок на кнопках навигации
+    const s0 = await waitFor((s) => s.step === "s04_hear" && s.ui_rects && s.ui_rects.back, "s04 открыта");
+    const c0 = (s0.sfx_counts || {}).sfx_click || 0;
+    if (!(c0 >= 2)) throw new Error("нет щелчка на «Далее»: sfx_click=" + c0);
+    const [x, y, w, h] = s0.ui_rects.back; await tapXY([x + w / 2, y + h / 2]);
+    const s1 = await waitFor((s) => s.step === "s03_sing" && s.targets.next, "«назад» → s03 с видимой «Далее»", 8000);
+    if (s1.state === "done") console.log("s03 после «назад»: состояние done");
+    if (!(((s1.sfx_counts || {}).sfx_click || 0) > c0)) throw new Error("нет щелчка на «назад»");
+    await sleep(400); await tap("next");
+    await waitFor((s) => s.step === "s04_hear", "s03 → s04 снова");
+    console.log("«назад» в пройденную s03: «Далее» сразу видна; щелчки навигации: " + ((await bk()).sfx_counts.sfx_click)); passed.push("back-next-visible"); }
+  // s04 «на слух» (с 27.10.2026 — до паровозика): Аля в центре показывает руками на кнопки, уходит; карточки по центру,
+  // отвеченные — в ряды вверху (слева со звуком, справа без); в конце — «аплодисменты» (первая «а» красная)
+  await waitFor(state("wait_answer_0"), "s04 answer 0", 40000);
+  { const i = (await bk()).info;
+    if (!i.s04_alya_point || !i.s04_alya_point_no) throw new Error("s04: Аля не показала на кнопки: " + JSON.stringify([i.s04_alya_point, i.s04_alya_point_no])); }
   const ans = ["yes", "no", "yes", "no", "yes"];
   for (let i = 0; i < 5; i++) {
-    await waitFor(state("wait_answer_" + i), "s05 answer " + i);
-    if (i === 0) await shot("s05-hear");
-    if (i === 1) { // «кот»: две ошибки подряд — шаг ждёт, рука показывает «нет»
+    await waitFor(state("wait_answer_" + i), "s04 answer " + i);
+    if (i === 0) await shot("s04-hear");
+    if (i === 1) { // «кот»: две ошибки подряд — шаг ждёт; подсказки сразу нет (только после 20 с бездействия)
       const b0 = sfxSnap(await bk());
       for (let n = 0; n < 2; n++) { await tap("yes"); await sleep(1600); }
-      await assertNoConfirm("s05 «кот» (2 ошибки)", "wait_answer_1", b0);
-      await hintNear("s05 «кот»", "no"); noConfirmChecked.push("s05"); }
+      const s = await assertNoConfirm("s04 «кот» (2 ошибки)", "wait_answer_1", b0);
+      if (s.targets.hint_hand) throw new Error("s04: рука-подсказка сразу после ошибок (должна — через 20 с)");
+      noConfirmChecked.push("s04"); }
     await tap(ans[i]);
   }
-  await waitFor((s) => s.state === "done" && s.info.s05_row, "s05 done"); await sleep(300); await shot("s05-hear-done");
-  { // ряд отвеченных карточек по центру; касание карточки в ряду — слово голосом Али, без подтверждения
-    const s = await bk(); const mid = s.info.s05_row.reduce((a, [x, , w]) => a + x + w / 2, 0) / s.info.s05_row.length;
-    if (Math.abs(mid - s.stage_center[0]) > 3) throw new Error(`s05: ряд карточек не по центру (${mid})`);
-    const ok0 = s.sfx_counts.sfx_ok || 0; await tap("row_card_0"); await sleep(600);
+  { const s = await waitFor((s) => s.info.s04_applause && s.info.s04_row, "s04: аплодисменты", 30000);
+    const ap = s.info.s04_applause;
+    if (ap.word !== "аплодисменты" || JSON.stringify(ap.red) !== "[0]") throw new Error("s04: финал не «аплодисменты» с красной первой «а»: " + JSON.stringify(ap));
+    for (const [x, y, w, h, has] of s.info.s04_row) {
+      if (y + h / 2 > 250) throw new Error("s04: ряд карточек не вверху: " + y);
+      if (has ? x + w / 2 > 512 : x + w / 2 < 512) throw new Error("s04: карточка не в своём ряду: " + JSON.stringify([x, w, has]));
+    }
+    await sleep(300); await shot("s04-hear-applause"); }
+  await waitFor(state("done"), "s04 done"); await sleep(300); await shot("s04-hear-done");
+  { const s = await bk(); const ok0 = s.sfx_counts.sfx_ok || 0; await tap("row_card_0"); await sleep(600);
     const s2 = await bk();
-    if (s2.info.s05_word_last !== "a_hear_02" || s2.state !== "done" || (s2.sfx_counts.sfx_ok || 0) !== ok0) throw new Error("s05: касание карточки «мак» в ряду: " + JSON.stringify(s2.info));
-    console.log("s05: ряд по центру, касание «мак» в ряду → a_hear_02, без подтверждения"); }
-  await next("s05_hear");
+    if (s2.info.s04_word_last !== "a_hear_02" || s2.state !== "done" || (s2.sfx_counts.sfx_ok || 0) !== ok0) throw new Error("s04: касание карточки «мак» в ряду: " + JSON.stringify(s2.info));
+    console.log("s04: Аля показала руками, ряды вверху (со звуком слева, без — справа), «аплодисменты», касание «мак» → a_hear_02"); }
+  await next("s04_hear");
+  // s05 паровозик: справа налево (зеркально), сразу; 5 слов вперемешку (первое — «аист»), ячейки внизу с начала;
+  // на первом слове две ошибки (середина), подсказок сразу нет; «астра» — два кружка; в конце буквы въезжают по рельсам
+  const LJ = JSON.parse(fs.readFileSync(path.join(ROOT, "data/lesson_a/lesson.json"), "utf8"));
+  const WORDS = Object.fromEntries(LJ.words.items.map((it) => [it.word, it]));
+  const order = [];
+  for (let i = 0; i < 5; i++) {
+    { // въезд: справа налево; стоп по центру; карточка вверху одна
+      const s0 = await waitFor((s) => (s.state === "drive_in_" + i || s.state === "wait_pic_" + i) && s.targets && s.targets.train, "s05 train " + i, 40000);
+      const x0 = s0.targets.train[0];
+      if (i === 0 && s0.state === "drive_in_0" && s0.info.s05_cells !== 5) throw new Error("s05: пустых ячеек с начала " + s0.info.s05_cells + " вместо 5");
+      const s1 = await waitFor(state("wait_pic_" + i), "s05 pic " + i);
+      const x1 = s1.targets.train[0];
+      if (s0.state === "drive_in_" + i && !(x1 < x0 - 20)) throw new Error(`s05: поезд ${i} не въехал справа налево (${x0} → ${x1})`);
+      if (Math.abs(x1 - 512) > 40) throw new Error(`s05: поезд ${i} остановился не по центру (${x1})`);
+      if (s1.info.s05_cards_visible !== 1) throw new Error(`s05: на сцене ${s1.info.s05_cards_visible} карточек вместо одной (слово ${i})`);
+      order.push(s1.info.s05_word);
+    }
+    const it = WORDS[order[i]]; if (!it) throw new Error("s05: неизвестное слово " + order[i]);
+    if (i === 0 && order[0] !== "аист") throw new Error("s05: первое слово не «аист»: " + order[0]);
+    const pos = Array.isArray(it.pos) ? it.pos : [it.pos];
+    await tap("pic");
+    await waitFor(state("wait_slot_" + i), "s05 slot " + i);
+    if (i === 0) { const t = (await bk()).targets; if (!(t.slot0[0] < t.slot2[0])) throw new Error("s05: начало слова не в левом окошке при RTL"); }
+    if (i === 0) { const st = "wait_slot_0"; const b0 = sfxSnap(await bk()); const tx = (await bk()).targets.train[0];
+      for (let n = 0; n < 2; n++) { await tap("slot1"); await sleep(1300); }
+      const s = await assertNoConfirm("s05 слово 1 (2 ошибки)", st, b0);
+      if (Math.abs(s.targets.train[0] - tx) > 8) throw new Error("s05: поезд поехал без верного ответа");
+      if (s.targets.hint_hand || (s.info.s05_sparks || 0)) throw new Error("s05: подсказка/искры сразу после ошибок (должны — через 20 с)");
+      noConfirmChecked.push("s05"); }
+    await tap("slot" + pos[0]);
+    if (pos.length > 1) { await waitFor(state("wait_slot2_" + i), "s05 второй кружок " + order[i], 20000); await tap("slot" + pos[1]); }
+    { const s1 = await waitFor((s) => s.info && s.info.s05_left === i, "s05 left " + i, 20000);
+      if (s1.info.s05_cards_visible !== 0) throw new Error(`s05: карточка слова ${i + 1} осталась вверху после отъезда`);
+      const d = s1.info.s05_drive_out; console.log(`s05 слово ${i + 1} «${order[i]}» (окошки ${pos}): уехал ${JSON.stringify(d)}`); }
+  }
+  if (new Set(order).size !== 5) throw new Error("s05: слова повторились: " + order);
+  { const s = await waitFor((s) => s.targets.ride_tap_big && s.targets.ride_tap_small && s.info.s05_letters_in, "s05: буквы въехали по рельсам", 20000);
+    const [[bx, by], [sx, sy]] = s.info.s05_letters_in;
+    if (!(bx < sx) || Math.abs((bx + sx) / 2 - 512) > 60) throw new Error("s05: буквы встали не по центру: " + JSON.stringify(s.info.s05_letters_in));
+    if (!((s.sfx_counts || {}).sfx_train_clack >= 10)) throw new Error("s05: нет перестука колёс: " + (s.sfx_counts || {}).sfx_train_clack);
+    if (!s.info.s05_clouds || !s.info.s05_grass) throw new Error("s05: нет облаков/травы");
+    await sleep(300); await shot("s05-words-letters");
+    await tap("ride_tap_big"); await sleep(400);
+    if ((await bk()).info.s05_letter_tap !== "А") throw new Error("s05: касание буквы на рельсах не сработало");
+    await waitFor(state("done"), "s05 done", 30000);
+    await tap("cell_card2"); await sleep(400);
+    if ((await bk()).info.s05_cell_tap !== order[2]) throw new Error("s05: касание карточки в ячейке не дало слово");
+    if (!(await bk()).targets.next) throw new Error("s05: нет «Далее» в конце");
+    console.log(`s05: порядок ${order.join(", ")}; перестук ${s.sfx_counts.sfx_train_clack}; буквы на рельсах ${JSON.stringify(s.info.s05_letters_in.map((p) => p.map(Math.round)))}; ячейки нажимаются`); }
+  await shot("s05-words-done"); await next("s05_words");
   // s06
   await waitFor(state("wait_letters"), "s06 letters"); await shot("s06-letter");
-  { // s06 (ред. 25.10.2026): Аля-персонаж, без «лесенки»; касание одной буквы — только её реплика с подсветкой частей
+  { // s06: Аля-персонаж; касание буквы — её реплика с подсветкой частей; большая А — левая рука, маленькая а — правая
     const s0 = await bk();
     if (!s0.targets.alya) throw new Error("s06: нет Али-персонажа");
     const b0 = sfxSnap(s0);
@@ -293,34 +327,50 @@ try {
     await assertNoConfirm("s06 (нажата только большая А)", "wait_letters", b0, 300); noConfirmChecked.push("s06");
     const hl = (await bk()).info.s06_hl_seen || [];
     for (const p of ["big:left", "big:right", "big:bar"]) if (!hl.includes(p)) throw new Error("s06: не подсветилась часть " + p + " " + JSON.stringify(hl));
-    await tap("big"); await sleep(400);   // повтор реплики — по-прежнему без подтверждения
+    if ((await bk()).info.s06_arm !== "l") throw new Error("s06: на большую А не левая рука (arm l): " + (await bk()).info.s06_arm);
+    await tap("big"); await sleep(400);
     if ((await bk()).state !== "wait_letters") throw new Error("s06: повторное касание А завершило сцену");
     await tap("small");
+    await waitFor((s) => s.info.s06_arm === "r", "s06: на маленькую а — правая рука (arm r)", 10000);
     const s1 = await waitFor(state("done"), "s06 done");
     const hl1 = s1.info.s06_hl_seen || [];
     for (const p of ["small:round", "small:stick", "big", "small"]) if (!hl1.includes(p)) throw new Error("s06: не подсветилось " + p + " " + JSON.stringify(hl1));
     if (!s1.info.s06_outro) throw new Error("s06: не было итоговой реплики a_letter_04");
-    console.log("s06: подсветка частей по таймлайну " + JSON.stringify(hl1) + "; итог a_letter_04 → «Далее»");
+    console.log("s06: руки " + JSON.stringify(s1.info.s06_arms) + "; подсветка " + JSON.stringify(hl1) + "; итог → «Далее»");
   }
   await next("s06_letter");
-  // s07: обводка 3 штрихов (первый — сначала мимо дорожки)
+  // s07: большая А (3 штриха; сначала 3 раза мимо), затем маленькая а (кружок + палочка с хвостиком) — по дорожке s07_path
   await waitFor(state("wait_stroke_0"), "s07 stroke 0"); await shot("s07-write");
-  { // три штриха мимо дорожки: штрих не засчитывается сам (была автоприёмка после 3-й неудачи)
-    const b0 = sfxSnap(await bk());
+  { const b0 = sfxSnap(await bk());
     for (let n = 0; n < 3; n++) { const a = await target("stroke_start"); await drag(a, [a[0] + 200, a[1] + 40]); await sleep(n === 1 ? 3200 : 1500); }
     await assertNoConfirm("s07 (3 штриха мимо)", "wait_stroke_0", b0, 500); noConfirmChecked.push("s07");
     await sleep(1500); }
+  async function tracePath(pts) {
+    const P = []; for (let j = 0; j < pts.length; j++) { if (j) { const [ax, ay] = pts[j - 1], [bx, by] = pts[j]; const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 12));
+      for (let q = 1; q <= n; q++) P.push([ax + (bx - ax) * q / n, ay + (by - ay) * q / n]); } else P.push(pts[0]); }
+    if (TOUCH) { await page.touchscreen.touchStart(P[0][0], P[0][1]); await sleep(60); for (const p of P.slice(1)) { await page.touchscreen.touchMove(p[0], p[1]); await sleep(16); } await page.touchscreen.touchEnd(); }
+    else { await page.mouse.move(P[0][0], P[0][1]); await page.mouse.down(); for (const p of P.slice(1)) { await page.mouse.move(p[0], p[1]); await sleep(16); } await page.mouse.up(); }
+    await sleep(200);
+  }
   for (let k = 0; k < 3; k++) {
-    await waitFor(state("wait_stroke_" + k), "s07 stroke " + k);
-    const a = await target("stroke_start"), b = await target("stroke_end");
-    await drag(a, b, 24);
+    const s = await waitFor((s) => s.state === "wait_stroke_" + k && s.info.s07_path, "s07 stroke " + k);
+    await tracePath(s.info.s07_path);
     if (k === 0) { await sleep(200); await shot("s07-write-stroke1"); }
   }
-  await waitFor(state("done"), "s07 done"); await shot("s07-write-done"); await next("s07_write");
-  // s08: шарики
+  await waitFor((s) => s.info.s07_done_upper, "s07: большая А обведена", 20000);
+  for (let k = 0; k < 2; k++) {
+    const s = await waitFor((s) => s.state === "wait_lower_" + k && s.info.s07_path && s.info.s07_phase === "lower", "s07 маленькая а, штрих " + k, 30000);
+    if (k === 0) { await sleep(300); await shot("s07-write-lower"); }
+    await tracePath(s.info.s07_path);
+  }
+  await waitFor(state("done"), "s07 done"); await shot("s07-write-done");
+  if (!(await bk()).info.s07_done_lower) throw new Error("s07: маленькая а не засчитана");
+  console.log("s07: большая А (3 штриха) → маленькая а (2 штриха по дорожке)");
+  await next("s07_write");
+  // s08: шарики; по бокам — столбики звёзд под А и а; облако; в конце остальные шарики тихо лопаются, потом буквы
   await waitFor(state("wait_balloons"), "s08 balloons"); await sleep(3000); await shot("s08-find");
-  { // два касания шариков-помех: ни один шарик с А/а не лопается сам
-    const b0 = sfxSnap(await bk()); let nw = 0;
+  { const st = (await bk()).info.s08_stars; if (!st) throw new Error("s08: нет столбиков звёзд"); }
+  { const b0 = sfxSnap(await bk()); let nw = 0;
     for (let n = 0; n < 40 && nw < 2; n++) { const s = await bk();
       if (s.targets.wrong_balloon) { const w = s.targets.wrong_balloon; TOUCH ? await page.touchscreen.tap(w[0], w[1]) : await page.mouse.click(w[0], w[1]); nw++; await sleep(900); }
       else await sleep(300); }
@@ -332,21 +382,21 @@ try {
     await sleep(400);
   }
   await waitFor(state("done"), "s08 done");
-  { // после последнего шарика: оставшиеся летят дальше плавно (без сброса), в центре — большая А и маленькая а со звуком
-    await waitFor((s) => s.targets && s.targets.end_big && s.targets.end_small, "s08: А и а в центре", 8000);
+  { await waitFor((s) => s.targets && s.targets.end_big && s.targets.end_small, "s08: А и а в центре", 8000);
+    const s0 = await bk(); if (s0.info.s08_end_popped === undefined) throw new Error("s08: оставшиеся шарики не лопнули в конце");
     await sleep(800); await shot("s08-find-letters");
     await tap("end_big"); await sleep(500); await tap("end_small"); await sleep(500);
     const s1 = await bk();
     const [bx] = s1.targets.end_big, [sx] = s1.targets.end_small;
     if (!(bx < sx)) throw new Error("s08: большая А не слева от маленькой а");
     if (!s1.targets.next) throw new Error("s08: нет «Далее» после шариков");
-    console.log(`s08: после шариков — А (${s1.targets.end_big.map(Math.round)}) и а (${s1.targets.end_small.map(Math.round)}) в центре, нажимаются`);
+    console.log(`s08: звёзды ${JSON.stringify(s1.info.s08_stars)}; в конце лопнуло ${s0.info.s08_end_popped}; А и а в центре`);
   }
   await next("s08_find");
-  // s09: корзинки (первая плитка — сначала в чужую корзинку)
+  // s09: кактусы-корзинки; солнце с полупрозрачными лучами; верный бросок — звук буквы
   await waitFor(state("wait_drag"), "s09 drag"); await shot("s09-sort");
-  { // до конца сцены корзинки на касание не отвечают
-    const b0 = sfxSnap(await bk()); await tap("basket_big"); await sleep(600);
+  if (!(await bk()).info.s09_sun) throw new Error("s09: нет солнца");
+  { const b0 = sfxSnap(await bk()); await tap("basket_big"); await sleep(600);
     const s = await bk(); if (s.info && s.info.s09_done_taps !== undefined) throw new Error("s09: корзинка ответила на касание до конца сцены");
     await assertNoConfirm("s09 (касание корзинки до конца)", "wait_drag", b0); }
   let wrongDone = false;
@@ -354,14 +404,14 @@ try {
     const s = await bk(); if (s.state === "done") break;
     const t = s.targets.tile, b = s.targets.tile_basket;
     if (t && b) {
-      const other = (b[0] === s.targets.basket_big[0]) ? s.targets.basket_small : s.targets.basket_big;
-      if (!wrongDone) { // две ошибки подряд: плитка возвращается, сама в корзинку не ложится
+      if (!wrongDone) {
         const b0 = sfxSnap(await bk());
         for (let k = 0; k < 2; k++) { const s2 = await bk(); const t2 = s2.targets.tile, bb = s2.targets.tile_basket;
           const o2 = (bb[0] === s2.targets.basket_big[0]) ? s2.targets.basket_small : s2.targets.basket_big;
           await drag(t2, o2, 16); await sleep(1600); }
         await assertNoConfirm("s09 (2 ошибки)", "wait_drag", { ...b0, sfx_pop: (sfxSnap(await bk())).sfx_pop }); noConfirmChecked.push("s09");
-        { const i8 = (await bk()).info || {}; if ((i8.s09_state_big || 0) !== 0 || (i8.s09_state_small || 0) !== 0) throw new Error(`s09: после ошибок корзинка наполнилась (${i8.s09_state_big}/${i8.s09_state_small})`); }
+        { const i8 = (await bk()).info || {}; if ((i8.s09_state_big || 0) !== 0 || (i8.s09_state_small || 0) !== 0) throw new Error(`s09: после ошибок корзинка наполнилась`);
+          if (i8.s09_drop_says) throw new Error("s09: звук буквы на неверном броске"); }
         wrongDone = true; continue; }
       await drag(t, b, 16);
       if (n === 2) await shot("s09-sort-progress");
@@ -369,15 +419,14 @@ try {
     await sleep(700);
   }
   await waitFor(state("done"), "s09 done"); await shot("s09-sort-done");
-  { const s = await waitFor((s) => s.info && s.info.s09_state_big === 4 && s.info.s09_state_small === 4, "s09 v3: обе корзинки полные (состояние 4)", 6000);
-    console.log(`s09 v3: корзинки в состоянии ${s.info.s09_state_big}/${s.info.s09_state_small}`); passed.push("s09-v3-states"); }
-  { // после конца: касание корзинки — «А-а-а» + подскок
-    await waitFor((s) => s.info && s.info.s09_done_taps === 0, "s09: корзинки слушают касания");
+  { const s = await waitFor((s) => s.info && s.info.s09_state_big === 4 && s.info.s09_state_small === 4, "s09: обе корзинки полные", 6000);
+    if (!(s.info.s09_drop_says >= 6) || !["a_aaa", "a_find_03"].includes(s.info.s09_drop_audio)) throw new Error("s09: верный бросок без звука буквы: " + JSON.stringify([s.info.s09_drop_says, s.info.s09_drop_audio]));
+    console.log(`s09: корзинки ${s.info.s09_state_big}/${s.info.s09_state_small}; звук буквы на верных бросках: ${s.info.s09_drop_says} (${s.info.s09_drop_audio})`); passed.push("s09-v3-states"); }
+  { await waitFor((s) => s.info && s.info.s09_done_taps === 0, "s09: корзинки слушают касания");
     for (const [k, name] of [[1, "basket_big"], [2, "basket_small"]]) {
       await tap(name); await sleep(400);
       const s = await bk(); const pk = s.info.s09_bounce_peak || {}; const up = pk.n === k ? pk.px : 0; if (s.info.s09_done_taps !== k) throw new Error(`s09: касание ${name} после конца не сработало`);
       if (up < 3) throw new Error(`s09: ${name} не подпрыгнула (${up.toFixed(1)} px)`);
-      console.log(`s09: после конца касание ${name} — подскок ${up.toFixed(0)} px, звук: ${s.info.s09_done_audio || "(нет файла — тихо)"}`);
       await sleep(400); }
     passed.push("s09-done-basket-aaa"); }
   await next("s09_sort");
@@ -412,49 +461,52 @@ try {
       if (i === 3) { await waitFor((s) => s.targets.parent_ok, "s10 reshow", 20000); await sleep(1100); await tap("parent_retry"); continue; }
       await waitFor((s) => s.targets.parent_ok, "s10 reshow", 20000); await sleep(1100);
     }
-    await tap("parent_ok");
+    { const c0 = ((await bk()).sfx_counts || {}).sfx_click || 0; await tap("parent_ok"); await sleep(150);
+      const c1 = ((await bk()).sfx_counts || {}).sfx_click || 0; if (!(c1 > c0)) throw new Error("s10: нет щелчка на кнопке взрослого ✓"); }
   }
   await waitFor(state("done"), "s10 done"); await shot("s10-say-done"); await next("s10_say");
-  // s11
-  await waitFor((s) => s.step === "s11_end" && s.state === "done", "s11 done", 40000);
+  // s11 финал: Аля слева, справа от центра — большая наклейка «А а»; касание → альбом, наклейка уменьшается в ячейку;
+  // без кнопок взрослого и полки; «Ещё раз» (круглая) → урок сначала
+  await waitFor((s) => s.step === "s11_end" && s.state === "wait_sticker" && s.targets.sticker, "s11 наклейка", 40000);
   await sleep(500); await shot("s11-end"); await checkExit("s11_end");
-  { const s = await bk(); const [ax, ay, aw, ah] = s.info.s11_album; const [ex, ey] = s.targets.exit;
-    if (ex + 36 > ax && ex - 36 < ax + aw && ey + 36 > ay && ey - 36 < ay + ah) throw new Error("s11: крестик перекрывает альбом"); }
-  { const s = await bk(); if (!s.targets.sticker) throw new Error("s11: нет наклейки-аиста (она в утверждённом сценарии)"); }
-  { // обложка альбома — без красного и оранжевого (оттенок 0…35° и 345…360°)
-    const s = await bk(); const r = s.info && s.info.s11_album; if (!r) throw new Error("s11: нет сведений об альбоме");
-    // точки на обложке (корешок и низ обложки, мимо наклейки и прозрачных полей; фон за альбомом — вечерняя стена, она оранжевая)
-    const [x, y, w, h] = r; let of = 0;
-    for (const [fx, fy] of [[0.12, 0.5], [0.12, 0.8], [0.86, 0.88], [0.86, 0.2]]) of += await redFraction([x + fx * w - 2, y + fy * h - 2, 4, 4], 35, 345);
-    console.log(`s11 альбом: красно-оранжевых точек обложки ${of.toFixed(2)} из 4`);
-    if (of > 0) throw new Error(`s11: красный/оранжевый фон альбома`); }
-  // итог для взрослого: короткий тап не открывает, удержание ≈2 с — открывает
-  await tap("parent_info"); await sleep(400);
-  if ((await bk()).info.parent_panel) throw new Error("s11: панель взрослого открылась от короткого тапа");
-  { const [x, y] = await target("parent_info");
-    if (TOUCH) { await page.touchscreen.touchStart(x, y); await sleep(2300); await page.touchscreen.touchEnd(); }
-    else { await page.mouse.move(x, y); await page.mouse.down(); await sleep(2300); await page.mouse.up(); } }
-  await waitFor((s) => s.info && s.info.parent_panel, "s11 parent panel", 5000);
-  await sleep(300); await shot("s11-parent-panel");
-  await tap("parent_panel"); await waitFor((s) => !s.info.parent_panel, "s11 parent panel closed", 5000);
-  // «домой» → HTML-главная
-  { const [x, y] = await target("home"); await tapNav([x, y], "домой (s11)"); }
-  await homeReady("s11 домой → главная");
-  if (new URL(page.url()).pathname !== "/") throw new Error("«домой» привела не на главную: " + page.url());
-  console.log("s11 «домой» → главная:", page.url().replace(/^http:\/\/[^/]+/, ""));
+  { const s = await bk(); const t = s.targets;
+    for (const k of ["parent_ok", "parent_retry", "parent_info", "home", "next", "again", "shelf"]) if (t[k]) throw new Error("s11: лишняя кнопка " + k);
+    if (!(t.sticker[0] > 512)) throw new Error("s11: наклейка не правее центра: " + t.sticker);
+    if (t.alya && !(t.alya[0] < 512)) throw new Error("s11: Аля не слева"); }
+  await tap("sticker");
+  { const s = await waitFor((s) => s.info.s11_placed && s.state === "done" && s.targets.again, "s11: наклейка в альбоме, «Ещё раз»", 20000);
+    const [px, py, pw, ph] = s.info.s11_placed, [cx, cy, cw, ch] = s.info.s11_cell;
+    if (Math.abs(px + pw / 2 - (cx + cw / 2)) > 4 || Math.abs(py + ph / 2 - (cy + ch / 2)) > 4 || pw > cw + 2) throw new Error("s11: наклейка не в ячейке: " + JSON.stringify([s.info.s11_placed, s.info.s11_cell]));
+    await sleep(400); await shot("s11-end-album");
+    const n0 = s.info.s11_taps || 0; await tap("sticker"); await sleep(400);
+    const s2 = await bk(); if ((s2.info.s11_taps || 0) !== n0 + 1 || !["a_aaa", "a_find_03"].includes(s2.info.s11_tap_audio)) throw new Error("s11: касание наклейки в альбоме без звука: " + JSON.stringify([s2.info.s11_taps, s2.info.s11_tap_audio]));
+    console.log(`s11: наклейка в ячейке ${JSON.stringify(s.info.s11_cell.map(Math.round))}; касание после — ${s2.info.s11_tap_audio}`); }
+  await tap("again");
+  await waitFor((s) => s.step === "s01_stork", "s11 «Ещё раз» → s01", 30000);
+  console.log("s11: «Ещё раз» → урок сначала (s01)");
+  passed.push("s11_end");
+  // крестик: «Пока! Увидимся!» → главная
+  await sleep(600);
+  { const [x, y] = await target("exit"); let bye = false;
+    const nav = page.waitForNavigation({ waitUntil: "load", timeout: 15000 });
+    await tapXY([x, y]);
+    for (let n = 0; n < 40 && !bye; n++) { const s = await page.evaluate(() => window.__bk || {}).catch(() => ({})); if (s.state === "exit_bye") bye = true; else await sleep(40); }
+    await nav;
+    if (!bye) throw new Error("крестик: не было прощания «Пока! Увидимся!» перед выходом");
+    console.log("крестик: прощание exit_bye → главная"); }
+  await homeReady("крестик → главная");
+  if (new URL(page.url()).pathname !== "/") throw new Error("крестик привёл не на главную: " + page.url());
   await sleep(500); await shot("letters-menu");
   { const h = await home(); await tapXY(h.targets.letter_locked); await sleep(600);
     if (new URL(page.url()).pathname !== "/") throw new Error("закрытая буква «Б» открыла урок"); }
-  // повторный вход: урок загружается заново → сразу s01
   await homeToLesson();
   console.log("повторный вход в «А»: сразу s01");
-  passed.push("s11_end");
   // крестик посреди урока (аист ещё летит): s01 → главная → «А» → s01
   await checkExit("s01_stork"); await shot("s01-stork-exit");
   { const [x, y] = await target("exit"); await tapNav([x, y], "крестик s01"); }
   await homeReady("крестик → главная");
   await homeToLesson();
-  { const miss = ["s01_stork","s02_intro","s03_sing","s04_words","s05_hear","s06_letter","s07_write","s08_find","s09_sort","s10_say","s11_end"].filter((n) => !exitSeen.has(n));
+  { const miss = ["s01_stork","s02_intro","s03_sing","s04_hear","s05_words","s06_letter","s07_write","s08_find","s09_sort","s10_say","s11_end"].filter((n) => !exitSeen.has(n));
     if (miss.length) throw new Error("нет крестика на: " + miss.join(", ")); }
   console.log("крестик: виден на s01–s11 без перекрытий; выход → главная → «А» → s01 — ок");
   passed.push("exit→главная→А→s01");
@@ -508,7 +560,7 @@ try {
   await shot("debug-subtitles-s02");
   console.log("debug=1: субтитры показаны");
   // рука-подсказка с укороченным таймером: s04, ждём картинку
-  await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&hint_sec=3&step=s04_words`, { waitUntil: "load" });
+  await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&hint_sec=3&step=s05_words`, { waitUntil: "load" });
   await waitFor(state("wait_pic_0"), "idle: s04 wait_pic_0", 60000);
   { const t0 = Date.now(); await sleep(1500);
     if ((await bk()).targets.hint_hand) throw new Error("idle: рука появилась раньше таймера");
@@ -546,7 +598,7 @@ try {
     console.log("idle s09: рука держится >6 с, касание корзинки не прячет, взяли плитку — рука спряталась"); }
   passed.push("idle-hint-drag");
   // бездействие с короткой подсказкой (hint_sec=1): рука показывается, но шаг сам не подтверждается
-  for (const [step, st] of [["s03_sing", "wait_hold"], ["s04_words", "wait_pic_0"], ["s05_hear", "wait_answer_0"], ["s06_letter", "wait_letters"], ["s08_find", "wait_balloons"], ["s09_sort", "wait_drag"]]) {
+  for (const [step, st] of [["s03_sing", "wait_hold"], ["s04_hear", "wait_answer_0"], ["s05_words", "wait_pic_0"], ["s06_letter", "wait_letters"], ["s08_find", "wait_balloons"], ["s09_sort", "wait_drag"]]) {
     await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&hint_sec=1&step=${step}`, { waitUntil: "load" });
     await waitFor(state(st), `idle-noauto: ${step} ${st}`, 60000);
     const b0 = sfxSnap(await bk()); let hand = false; const t0 = Date.now();

@@ -1,5 +1,11 @@
 # Ассеты прототипа: соглашение с художником (урок «А»)
 
+> **27.10.2026 (правки rev1):** новые заглушки — `alya_face_eyes_closed`, `reward_sticker_a`, `reward_album_alphabet`,
+> `pic_cloud_1/2`, `pic_grass_tuft`, `pic_sun`, `pic_sun_rays` (`art_placeholder/`, `tools/make_rev1_placeholders.py`);
+> ждут: Аля по пояс `characters/alya/half/alya_half_*`, позы `alya_pose_point_red/grey`, `alya_pose_arm_left_up/right_up`,
+> вагоны `ui_train_*_right` (пока — зеркало). Звуки `sfx_click`, `sfx_train_clack` — свой синтез, CC0 (`tools/make_sfx.py`).
+> Полный список с размерами и координатами — `../order/lesson-a-revisions-art-spec.md`. `reward_shelf`, `reward_sticker_aist` в уроке больше не используются.
+
 *Ред. 21.10.2026 (с правками методиста: `pic_avtobus` → `pic_alya_card`, `pic_stremyanka*` → `pic_lesenka*`, `pic_apple` → `pic_grib`; раунд 2: `ui_slot` → паровозик `ui_train_engine` / `ui_train_mid` / `ui_train_end`, `reward_star_gold/silver` → `reward_star`, помехи на шариках — `balloon_shape_*`). Код ищет файлы строго по этим путям. Настоящий файл заменяет заглушку один к одному: то же имя, та же папка.*
 
 ## Оформление (согласовано 21.10.2026, раунд 3)
@@ -31,7 +37,7 @@
 
 - **Красный гласных — ровно `#D93A2B`** (в коде — `Assets.VOWEL_RED`). Красный — только у гласных букв и звукового маркера «красный кружок».
 - **Синий и зелёный зарезервированы для согласных**: шарики сцены 7 — нейтральные `pic_balloons_beige`, `pic_balloons_grey`, `pic_balloons_sand`, `pic_balloons_cream`; фигуры-помехи `balloon_shape_*` — **белые**; буквы на шариках — красные `#D93A2B`.
-- **Маленькая «а» — обычная печатная двухъярусная, без засечек**, одна форма во всех материалах. Шрифт прототипа — `res://core/fonts/DejaVuSans-Bold.ttf` (двухъярусная «а»; лицензия — `DejaVu-LICENSE.txt`), им же рисуются заглушки.
+- **Маленькая «а» — однокруглая: кружок и палочка с хвостиком внизу** (правка 27.10.2026; раньше — двухъярусная), одна форма во всех материалах. Шрифт урока — `res://fonts/BukvarBellotaText-Bold.ttf` (Bellota Text, SIL OFL 1.1, `fonts/OFL.txt`; глиф «а» заменён, `tools/make_font.py`). Им же `tools/make_letters.py` перерисовал `letter_a_lower`, `letter_a_lower_trace`, `tile_a_lower`, `tile_sort_a_lower`, `balloon_letter_a_lower`, `pic_basket_small_letter`. DejaVu остался только для кубиков главной.
 - **Кнопки — только значки, без слов**: ▶ старт, стрелки «далее» / «назад», ↻ «ещё раз», домик, красный кружок с «А» / серый кружок с тёмно-серым крестиком (сцена 4), у взрослого — галочка и круговая стрелка.
 - **Ошибка — без красных крестиков**: предмет покачивается и плавно возвращается на место (Tween, `LessonStep.shake()`).
 - `pic_shar` — **жёлтый**; `reward_star` — одна, **золотисто-жёлтая**; паровозик сцены 3 — финальный `ui_train_engine` справа, носом вправо (фонарь `#EFCB6A`).

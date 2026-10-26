@@ -1,5 +1,8 @@
-## Сцена 7. Шарики: лопни все шарики с А и а (3 + 3); помехи — фигуры (треугольник, круг, квадрат, звёздочка),
+## Сцена 8. Шарики: лопни все шарики с А и а (3 + 3); помехи — фигуры (треугольник, круг, квадрат, звёздочка),
 ## потому что других букв ребёнок на уроке «А» ещё не знает.
+## Правки 27.10.2026: звёздочки — по бокам столбиками (слева 3 под большой А, справа 3 под маленькой а; find.stars);
+## лишнее облако сверху (find.clouds); шарики разнесены (два «эшелона» по высоте — соседи не перекрываются);
+## в конце оставшиеся шарики почти одновременно и тихо лопаются, затем появляются буквы.
 extends LessonStep
 
 var balloons: Array = []
@@ -29,9 +32,9 @@ func run() -> void:
 	field.size = Vector2(1024, 768)
 	field.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(field)
-	for i in total:
-		var c := add_pic(cfg.counter_empty, Vector2(512 - (total - 1) * 30 + i * 60, 50), Vector2(48, 48), false)
-		counter.append(c)
+	_add_clouds()
+	field.move_to_front()
+	_add_star_columns()
 	_speed = 970.0 / float(cfg.rise_sec)
 	for i in letters.size():
 		_spawn(letters[i], i, letters.size())
@@ -65,7 +68,9 @@ func _spawn(ch: String, i: int, n: int) -> void:
 	b.set_meta("target", ch in cfg.targets)
 	b.pressed.connect(func(): _on_tap(b))
 	balloons.append(b)
-	b.position.y = 780.0 + (i % 3) * 120.0   # первый подъём — снизу сцены, как раньше; дальше — по кругу в _fly()
+	# первый подъём — снизу сцены; соседние по x шарики — в разных «эшелонах» (find.spread_y), дальше — по кругу в _fly()
+	var sp: Array = cfg.get("spread_y", [0, 280, 140, 420])
+	b.position.y = 780.0 + float(sp[i % sp.size()])
 	var sw := b.create_tween().set_loops()
 	sw.tween_property(b, "rotation", 0.08, 1.2 + (i % 3) * 0.3)
 	sw.tween_property(b, "rotation", -0.08, 1.2 + (i % 3) * 0.3)
@@ -75,7 +80,47 @@ func _x_range() -> Vector2:
 	var z: Dictionary = main.ui_zones()
 	var lo: float = (z.back as Rect2).end.x + BALLOON.x / 2 + 6.0
 	var hi: float = minf((z.exit as Rect2).position.x, (z.next as Rect2).position.x) - BALLOON.x / 2 - 6.0
+	# и не над столбиками звёздочек по бокам
+	var st: Dictionary = cfg.get("stars", {})
+	if not st.is_empty():
+		var half := float(st.get("size", 56)) / 2 + float(st.get("gap", 14))
+		lo = maxf(lo, float(st.get("left_x", 64)) + half + BALLOON.x / 2)
+		hi = minf(hi, float(st.get("right_x", 960)) - half - BALLOON.x / 2)
 	return Vector2(lo, hi)
+
+## Облака сверху (find.clouds: [{pic, center, size, drift_px, drift_sec}]) — медленно плывут туда-сюда, касаний не ловят.
+func _add_clouds() -> void:
+	for cd in cfg.get("clouds", []):
+		var c := add_pic(String(cd.get("pic", "pic_cloud_1")), Vector2(cd.center[0], cd.center[1]), Vector2(cd.size[0], cd.size[1]), false)
+		c.name = "cloud"
+		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var x0 := c.position.x
+		var tw := c.create_tween().set_loops()
+		tw.tween_property(c, "position:x", x0 + float(cd.get("drift_px", 30)), float(cd.get("drift_sec", 14))).set_trans(Tween.TRANS_SINE)
+		tw.tween_property(c, "position:x", x0, float(cd.get("drift_sec", 14))).set_trans(Tween.TRANS_SINE)
+
+## Столбики звёздочек: слева — большая А и под ней 3 звезды (за шарики с А), справа — маленькая а и 3 звезды (за а).
+var stars_big: Array = []
+var stars_small: Array = []
+
+func _add_star_columns() -> void:
+	var st: Dictionary = cfg.get("stars", {})
+	var sz := float(st.get("size", 56))
+	var ys: Array = st.get("star_y", [310, 380, 450])
+	var n_big := 0
+	for ch in cfg.targets:
+		if ch == Assets.lesson.big: n_big += 1
+	var n_small: int = cfg.targets.size() - n_big
+	for side in [[Assets.lesson.big, float(st.get("left_x", 64)), n_big, stars_big, "stars_big"], [Assets.lesson.small, float(st.get("right_x", 960)), n_small, stars_small, "stars_small"]]:
+		var l := add_letter(side[0], Vector2(side[1], float(st.get("letter_y", 236))), int(st.get("letter_h", 70)), Assets.VOWEL_RED)
+		l.name = side[4] + "_letter"
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		for i in int(side[2]):
+			var c := add_pic(cfg.counter_empty, Vector2(side[1], float(ys[mini(i, ys.size() - 1)])), Vector2(sz, sz), false)
+			c.name = "%s_%d" % [side[4], i]
+			side[3].append(c)
+			counter.append(c)
+	main.set_info("s08_stars", {"big": stars_big.size(), "small": stars_small.size()})
 
 ## Плавный подъём; ушёл за верх видимой области — незаметно появляется снизу за её краем (не «прыгает» на виду).
 func _fly(dt: float) -> void:
@@ -106,19 +151,22 @@ func _on_tap(b: TextureButton) -> void:
 		Voice.say(cfg.hit)
 		burst(b.position + b.size / 2, Color("#ffd23c"))
 		_pop_anim(b.position, b.size)
-		counter[popped].texture_normal = Assets.tex(cfg.counter_full)   # пустая звёздочка → золотая
+		# пустая звёздочка → золотая: в столбике своей буквы (А — слева, а — справа)
+		var col: Array = stars_big if b.get_meta("ch") == Assets.lesson.big else stars_small
+		for c in col:
+			if not c.get_meta("full", false):
+				c.set_meta("full", true)
+				c.texture_normal = Assets.tex(cfg.counter_full)
+				pop_in(c)
+				break
 		popped += 1
 		b.queue_free()
 		main.expose("balloon", null)
 		if popped >= total:
 			finished = true
 			main.hint_stop()
-			# оставшиеся шарики летят дальше как летели (без сброса); в центре появляются большая А и маленькая а —
-			# их можно нажать и услышать звук (find.letters_end в lesson.json)
-			for x in balloons:
-				if is_instance_valid(x):
-					x.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			await wait(0.7)
+			# оставшиеся шарики почти одновременно и тихо лопаются (find.end_pop), затем появляются буквы
+			await _pop_rest()
 			if dead: return
 			_show_letters()
 			if not await praise(): return
@@ -134,6 +182,27 @@ func _on_tap(b: TextureButton) -> void:
 			Voice.say(cfg.near_miss_line)
 		else:
 			Voice.say("r_try_01")
+
+func _pop_rest() -> void:
+	var ep: Dictionary = cfg.get("end_pop", {})
+	var step := float(ep.get("stagger_sec", 0.06))
+	var vol := float(ep.get("volume_db", -12.0))
+	if not await wait(float(ep.get("delay_sec", 0.5))): return
+	var n := 0
+	for x in balloons.duplicate():
+		if not is_instance_valid(x):
+			continue
+		x.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var vis: Rect2 = main.visible_rect_local()
+		if x.position.y < vis.end.y and x.position.y + x.size.y > vis.position.y:
+			Voice.sfx("sfx_pop", vol)
+			_pop_anim(x.position, x.size)
+		x.queue_free()
+		n += 1
+		if not await wait(step): return
+	balloons.clear()
+	main.set_info("s08_end_popped", n)
+	if not await wait(float(ep.get("after_sec", 0.4))): return
 
 func _pop_anim(pos: Vector2, sz: Vector2) -> void:
 	var frames := []

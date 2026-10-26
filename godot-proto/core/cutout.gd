@@ -36,6 +36,13 @@ func setup(character: String, frame_size: Vector2) -> Cutout:
 	# если цельная картинка «выше уровнем», чем слои (например, утверждённый эскиз против заглушек слоёв) — берём её
 	if who.ends_with("_closeup"):
 		return _setup_closeup(frame_size)
+	if who.ends_with("_half"):
+		# Аля по пояс (s11): characters/alya/half/alya_half_base + _mouth_0..2 + _eyes_closed; пока художник не нарисовал — крупный план
+		var hb := who.trim_suffix("_half")
+		if Assets.tex("%s/half/%s_half_base" % [hb, hb], false) != null:
+			return _setup_closeup(frame_size, "half", "half_")
+		who = hb + "_closeup"
+		return _setup_closeup(frame_size)
 	var ref_tier := Assets.art_tier("%s/%s_ref" % [who, who])
 	var body_tier := Assets.art_tier("%s/body" % who)
 	ref_mode = ref_tier >= 0 and (body_tier < 0 or ref_tier < body_tier)
@@ -76,10 +83,10 @@ func setup(character: String, frame_size: Vector2) -> Cutout:
 		layers.eyes_closed.visible = false
 	return self
 
-func _setup_closeup(frame_size: Vector2) -> Cutout:
-	var base := who.trim_suffix("_closeup")
-	for part in ["face_base", "face_mouth_0"]:
-		var t := Assets.tex("%s/closeup/%s_%s" % [base, base, part], false)
+func _setup_closeup(frame_size: Vector2, dir := "closeup", pre := "face_") -> Cutout:
+	var base := who.trim_suffix("_closeup").trim_suffix("_half")
+	for part in [pre + "base", pre + "mouth_0"]:
+		var t := Assets.tex("%s/%s/%s_%s" % [base, dir, base, part], false)
 		if t == null:
 			continue
 		var r := TextureRect.new()
@@ -89,9 +96,23 @@ func _setup_closeup(frame_size: Vector2) -> Cutout:
 		r.size = frame_size
 		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(r)
-		layers["mouth_0" if part == "face_mouth_0" else "body"] = r
+		layers["mouth_0" if part == pre + "mouth_0" else "body"] = r
 	for i in 3:
-		_mouth_tex.append(Assets.tex("%s/closeup/%s_face_mouth_%d" % [base, base, i], false))
+		_mouth_tex.append(Assets.tex("%s/%s/%s_%smouth_%d" % [base, dir, base, pre, i], false))
+	# моргание крупного плана: слой глаз закрыты (заглушка art_placeholder/…/alya_face_eyes_closed, ждёт художника)
+	var ec := Assets.tex("%s/%s/%s_%seyes_closed" % [base, dir, base, pre], false)
+	if ec and not layers.is_empty():
+		var r2 := TextureRect.new()
+		r2.texture = ec
+		r2.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		r2.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		r2.size = frame_size
+		r2.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		r2.visible = false
+		add_child(r2)
+		layers["eyes_closed"] = r2
+		layers["eyes_open"] = layers["body"]   # глаза открыты нарисованы в основе: «открыть» = спрятать слой закрытых
+		_closeup_blink = true
 	if layers.is_empty():   # нет крупного плана — обычные слои персонажа
 		who = base
 		return setup(base, frame_size)
@@ -111,6 +132,58 @@ const POSE_CROP_K := 930.0 / 1028.0
 const POSE_CROP_PAD := 6.0
 var _pose_mouth: TextureRect
 var _pose_mouth_tex: Array = []
+var _closeup_blink := false
+var _arm_pose_t := 0.0
+var blinks := 0                 # для теста: сколько раз моргнула
+var last_mouth := 0
+
+## ГУБЫ (общее ядро): кадр рта 0/1/2 по уровню громкости текущей реплики (Voice.mouth_level — огибающая из
+## data/common/lipsync.json; нет огибающей — псевдослучайно). Пороги — lesson.json "lipsync" {open1, open2}.
+## Нет звука — рот закрыт (0). Художник может сдать позже фонемные рты: тот же интерфейс mouth_frame() → номер кадра.
+const LIP_T1 := 0.15
+const LIP_T2 := 0.5
+func mouth_frame() -> int:
+	var lv: float = Voice.mouth_level()
+	last_mouth = 0 if lv < LIP_T1 else (1 if lv < LIP_T2 else 2)
+	return last_mouth
+
+## Поднять руку (сцена 6: левая — к большой А, правая — к маленькой а). side = "l" | "r" — сторона КАДРА
+## (рука, что ближе к левому / правому краю экрана; у Али, стоящей лицом к нам, это её правая / левая рука —
+## в задании «левая рука» = рука со стороны левой буквы). Есть поза художника alya_pose_arm_left_up / _right_up —
+## берём её; нет — поворачиваем слой руки (временно, ждёт художника). sec — сколько держать (0 — до lower_arms()).
+func raise_arm(side: String, sec := 1.6, ang_rad := 2.3, pose_id := "") -> void:
+	var pname := pose_id if pose_id != "" else ("arm_left_up" if side == "l" else "arm_right_up")
+	_lower_arms()
+	if pose(pname):
+		_arm_pose_t = sec
+		raised = side
+		return
+	clear_pose()
+	var part := "arm_l" if side == "l" else "arm_r"
+	if not layers.has(part):
+		return
+	var a: Control = layers[part]
+	# поворот вокруг плеча: левая (в кадре) рука вверх-влево — против часовой (отрицательный угол)
+	var ang := ang_rad if side == "l" else -ang_rad
+	var tw := a.create_tween()
+	tw.tween_property(a, "rotation", ang, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_arm_pose_t = sec
+	raised = side
+
+var raised := ""                # для теста: какая рука поднята сейчас ("l" / "r" / "")
+
+func lower_arms() -> void:
+	_lower_arms()
+
+func _lower_arms() -> void:
+	_arm_pose_t = 0.0
+	if pose_name.begins_with("arm_") or pose_name.begins_with("point_"):
+		clear_pose()
+	for part in ["arm_l", "arm_r"]:
+		if layers.has(part) and absf(layers[part].rotation) > 0.01:
+			var a: Control = layers[part]
+			a.create_tween().tween_property(a, "rotation", 0.0, 0.25)
+	raised = ""
 
 func pose(name: String) -> bool:
 	var id := "%s/poses/%s_pose_%s" % [who, who, name]
@@ -181,13 +254,17 @@ func pose_for(name: String, sec: float) -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if _arm_pose_t > 0.0:
+		_arm_pose_t -= delta
+		if _arm_pose_t <= 0.0:
+			_lower_arms()
 	if pose_name != "":
 		if _pose_mouth and _pose_mouth.visible and _pose_mouth_tex.size() == 3:
 			var pm := 0
 			if singing:
 				pm = 2 if int(_t * 2.0) % 2 == 0 else 1
-			elif talk and Voice.voice.playing:
-				pm = int(_t * 8.0) % 3
+			elif talk:
+				pm = mouth_frame()
 			if _pose_mouth_tex[pm]:
 				_pose_mouth.texture = _pose_mouth_tex[pm]
 		return
@@ -195,14 +272,16 @@ func _process(delta: float) -> void:
 		var closed := sleeping or (_t > _blink_at and _t < _blink_at + 0.15)
 		if _t > _blink_at + 0.15:
 			_blink_at = _t + randf_range(2.5, 4.5)
-		layers.eyes_open.visible = not closed
+			blinks += 1
+		if not _closeup_blink:
+			layers.eyes_open.visible = not closed
 		layers.eyes_closed.visible = closed
 	if layers.has("mouth_0") and _mouth_tex.size() == 3:
 		var m := 0
 		if singing:
 			m = 2
-		elif talk and Voice.voice.playing:
-			m = int(_t * 8.0) % 3
+		elif talk:
+			m = mouth_frame()
 		if _mouth_tex[m]:
 			layers.mouth_0.texture = _mouth_tex[m]
 

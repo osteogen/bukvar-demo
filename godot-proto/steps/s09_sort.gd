@@ -31,6 +31,7 @@ func run() -> void:
 	section("sort")
 	add_bg(cfg.bg)
 	lay = cfg.get("layout", {})
+	_add_sun(cfg.get("sun", {}))
 	var bb: Dictionary = lay.get("basket_big", {})
 	var bs: Dictionary = lay.get("basket_small", {})
 	v3 = bb.has("states") and bs.has("states")
@@ -236,8 +237,7 @@ func _drop(t: Control) -> void:
 		_place(t)
 	elif _drop_rect(wrong).has_point(c):
 		t.set_meta("errors", t.get_meta("errors") + 1)
-		Voice.sfx("sfx_try")
-		pulse(right, 1)
+		Voice.sfx("sfx_try")   # без подсветки верной корзинки: любые подсказки — только после 20 с бездействия
 		# плитка всегда покачивается и плавно возвращается на своё место — сама в корзинку она не попадает
 		shake(t, t.get_meta("home"))
 		hint_tile = t
@@ -250,7 +250,6 @@ func _after_error(right: Control, again: bool) -> void:
 		return
 	_hint()
 	if again:
-		pulse(right, 2)
 		main.hint_now()   # после 2-й ошибки рука сразу ведёт эту плитку к верной корзинке
 
 func _go_home(t: Control) -> void:
@@ -288,6 +287,7 @@ func _place(t: Control) -> void:
 		var fill := add_pic(cfg.fill_pic, b.position + Vector2(60 + n * 60, b.size.y - 60), Vector2(48, 48), false)   # гриб (без красного)
 		pop_in(fill)
 	Voice.sfx("sfx_ok")
+	_drop_say()   # верно положенная плитка звучит: [а] (очередь голоса — без наложения)
 	placed += 1
 	main.log_event("tile", {"ch": t.get_meta("ch"), "errors": t.get_meta("errors")})
 	if placed >= tiles.size():
@@ -309,6 +309,43 @@ func _place(t: Control) -> void:
 		if placed % 2 == 0:
 			praise()
 		_hint()
+
+## Звук буквы при верном сбросе: sort.drop_say {audio, fallback, max_sec}; нет файла — тишина (субтитр в ?debug=1).
+func _drop_say() -> void:
+	var ds: Dictionary = cfg.get("drop_say", {})
+	if ds.is_empty():
+		return
+	var id := String(ds.get("audio", "a_aaa"))
+	if Voice._stream(id) == null and String(ds.get("fallback", "")) != "":
+		id = String(ds.get("fallback"))
+	main.set_info("s09_drop_audio", id)
+	main.set_info("s09_drop_says", int(main.info.get("s09_drop_says", 0)) + 1)
+	Voice.tap_say(id, float(ds.get("max_sec", 1.8)))
+
+## Солнце по центру сверху (над ананасами) с длинными полупрозрачными лучами; статичное, касания не ловит.
+## sort.sun {pic, rays, center, size, rays_size, rays_apex (точка схода лучей внутри картинки лучей, доли), rays_alpha}.
+func _add_sun(sd: Dictionary) -> void:
+	if sd.is_empty():
+		return
+	var c := _v(sd.get("center"), Vector2(512, 62))
+	var rs := _v(sd.get("rays_size"), Vector2(700, 380))
+	var apex := _v(sd.get("rays_apex"), Vector2(0.5, 0.053))
+	var rt := Assets.tex(String(sd.get("rays", "pic_sun_rays")), false)
+	if rt:
+		var r := TextureRect.new()
+		r.name = "sun_rays"
+		r.texture = rt
+		r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		r.stretch_mode = TextureRect.STRETCH_SCALE
+		r.size = rs
+		r.position = c - rs * apex
+		r.modulate.a = float(sd.get("rays_alpha", 1.0))
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(r)
+	var s := add_pic(String(sd.get("pic", "pic_sun")), c, _v(sd.get("size"), Vector2(104, 104)), false)
+	s.name = "sun"
+	s.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	main.set_info("s09_sun", [c.x, c.y])
 
 # ---------- v3: плитка → ананас ----------
 func _morph_total() -> float:
@@ -383,14 +420,7 @@ func _on_basket_done_tap(b: TextureButton) -> void:
 	main.set_info("s09_done_audio", id if id != "" and Voice._stream(id) != null else "")
 	if id == "" or Voice._stream(id) == null:
 		return   # записи ещё нет — молча, только подскок
-	Voice.stop_voice()
-	Voice.voice.stream = Voice._stream(id)
-	Voice.voice.play()
-	var my := Voice._token
-	var mx := float(dt.get("max_sec", 1.8))
-	await get_tree().create_timer(mx).timeout
-	if Voice._token == my and is_instance_valid(self) and Voice.voice.stream == Voice._stream(id):
-		Voice.voice.stop()
+	Voice.tap_say(id, float(dt.get("max_sec", 1.8)))   # очередь голоса: без наложения, без дублей
 
 func _bounce(b: Control, px: float, sec: float) -> void:
 	if b.has_meta("bounce_y"):

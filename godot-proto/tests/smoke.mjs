@@ -1,4 +1,4 @@
-// Проверка web-сборки Godot в headless Chrome: загрузка, ошибки, тап, твин, награда.
+// Быстрая проверка web-сборки урока (build/) в headless Chrome: загрузка, COOP/COEP, WebGL2, ошибки JS, s01 → «Далее» → s02.
 // THROTTLE=1 — эмуляция сети ~10 Мбит/с, RTT 40 мс (условный «хороший 4G»).
 import { createRequire } from "module"; import { spawn } from "child_process"; import path from "path"; import { fileURLToPath } from "url";
 const require = createRequire(import.meta.url);
@@ -19,20 +19,20 @@ try {
   page.on("console", (m) => { logs.push(m.type() + ": " + m.text()); if (m.type() === "error") errors.push(m.text()); });
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
   const t0 = Date.now();
-  await page.goto(`http://127.0.0.1:${PORT}/index.html`, { waitUntil: "load" });
-  await page.waitForFunction(() => (window.__godot_steps || []).includes("ready"), { timeout: 180000 });
+  await page.goto(`http://127.0.0.1:${PORT}/index.html?test=1&fast=1`, { waitUntil: "load" });
+  // урок (сборка build/ без главной): загрузка → s01 «Аист приносит буквы» (было: старый прототип legacy_v1 с __godot_steps)
+  await page.waitForFunction(() => window.__bk && window.__bk.step === "s01_stork", { timeout: 180000 });
   t.ready = Date.now() - t0; t.bytes = bytes;
   t.crossOriginIsolated = await page.evaluate(() => self.crossOriginIsolated);
   t.webgl2 = await page.evaluate(() => !!document.createElement("canvas").getContext("webgl2"));
   await page.screenshot({ path: path.join(ROOT, "screenshots/01-ready.png") });
-  await page.waitForFunction(() => window.__godot_steps.includes("hint"), { timeout: 10000 });
-  await sleep(300); await page.screenshot({ path: path.join(ROOT, "screenshots/02-hint.png") });
-  await page.mouse.click(320, 380);
-  await page.waitForFunction(() => window.__godot_steps.includes("tapped"), { timeout: 5000 });
-  await sleep(700); await page.screenshot({ path: path.join(ROOT, "screenshots/03-word.png") });
-  await page.waitForFunction(() => window.__godot_steps.includes("end"), { timeout: 8000 });
-  await page.screenshot({ path: path.join(ROOT, "screenshot.png") });
-  t.steps = await page.evaluate(() => window.__godot_steps.join(" → "));
+  // аист садится, появляется «Далее» → касание → s02
+  await page.waitForFunction(() => window.__bk.state === "done" && window.__bk.targets && window.__bk.targets.next, { timeout: 40000 });
+  await sleep(600);
+  const nx = await page.evaluate(() => window.__bk.targets.next); await page.mouse.click(nx[0], nx[1]);
+  await page.waitForFunction(() => window.__bk.step === "s02_intro", { timeout: 15000 });
+  await sleep(500); await page.screenshot({ path: path.join(ROOT, "screenshot.png") });
+  t.steps = await page.evaluate(() => "s01_stork → " + window.__bk.step);
 } catch (e) { errors.push("test: " + (e.stack || e)); }
 finally { if (browser) await browser.close(); srv.kill(); }
 console.log(JSON.stringify(t, null, 1));

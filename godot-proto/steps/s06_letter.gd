@@ -1,8 +1,16 @@
-## Сцена 5. Буква А (ред. 25.10.2026): большая А и маленькая а сразу по центру парой; Аля (персонаж, крупно, ниже букв)
-## говорит и чуть покачивается, пока звучит голос. Пока Аля описывает букву, называемые части подсвечиваются
-## по таймлайну из данных (letter.lines.*.highlights, секунды от начала звука).
-## Касание буквы — её реплика с подсветкой (повторное касание — повтор). Когда нажаты обе — итоговая реплика,
-## затем «Далее». Ответов здесь нет — ничего не подтверждается. Деревянной «лесенки» и карточки Али больше нет.
+## Сцена 6. Буква А: большая А и маленькая а по центру парой; Аля (персонаж, ниже букв) говорит, губы — по огибающей
+## голоса (Cutout.mouth_frame). Пока Аля описывает букву, называемые части подсвечиваются по таймлайну из данных
+## (letter.lines.*.highlights, секунды от начала звука).
+## Правки урока А (27.10.2026):
+##  • в начале Аля по очереди показывает обе буквы: «Больша́я» — поднимает ЛЕВУЮ руку (к большой А слева),
+##    «Ма́ленькая» — ПРАВУЮ (к маленькой а справа); слова «большая»/«маленькая» — отдельные файлы (w_bolshaya,
+##    w_malenkaya), их можно склеивать с любой буквой;
+##  • касание буквы — снова рука к ней, слово «большая»/«маленькая» и новый текст для 4–7 лет про эту букву
+##    (a_letter_06 — большая, a_letter_07 — маленькая) с точной подсветкой частей;
+##  • касание во время реплики — Аля сразу переключается на нажатую букву (реплики не накладываются: очередь
+##    сбрасывается, затем звучит новая);
+##  • подсказка — только через 20 с бездействия (рука на ещё не нажатую букву + «Нажми на любую букву!»).
+## Когда нажаты обе — итоговая реплика, затем «Далее». Ответов здесь нет — ничего не подтверждается.
 extends LessonStep
 
 ## Подсветка части буквы: полупрозрачная жёлтая полоса поверх штриха (чуть шире его — видно и ореол) по линии / овалу
@@ -69,16 +77,12 @@ func run() -> void:
 	main.expose("small", _small_btn)
 	_big_btn.pressed.connect(_on_letter.bind("big"))
 	_small_btn.pressed.connect(_on_letter.bind("small"))
-	# 3) вступление: «…Вот большая Аа. Вот маленькая Аа. Нажми на любую!» — с «Нажми» обе буквы мягко пульсируют
+	# 3) вступление: последовательность реплик letter.lines.intro_seq (рука + подсветка у каждой)
 	main.set_state("intro")
-	var intro: Dictionary = cfg.lines.intro
-	if intro.has("pulse_from"):
-		var pt := create_tween()
-		pt.tween_interval(float(intro.pulse_from) if not Voice.fast else 0.0)
-		pt.tween_callback(func(): _soft_pulse("big"); _soft_pulse("small"))
-	if not await _play_line(intro): return
-	_soft_pulse("big")
-	_soft_pulse("small")
+	_line_token += 1
+	var my := _line_token
+	for line in cfg.lines.intro_seq:
+		if not await _play_line(line, my): return
 	_waiting = true
 	main.set_state("wait_letters")
 
@@ -134,10 +138,14 @@ func _hl_reset() -> void:
 	main.set_info("s06_hl", [])
 
 ## Реплика с таймлайном подсветки. Возвращает false, если сцена закрыта или реплику перебили другой.
-func _play_line(line: Dictionary) -> bool:
-	_line_token += 1
-	var my := _line_token
+func _play_line(line: Dictionary, my: int) -> bool:
+	if my != _line_token: return false
 	_hl_reset()
+	var arm := String(line.get("arm", ""))
+	if arm != "" and alya:
+		alya.raise_arm(arm, maxf(0.6, Assets.line_dur(String(line.audio)) if not Voice.fast else 0.25) + float(line.get("arm_hold", 0.6)))
+		main.set_info("s06_arm", arm)
+		main.set_info("s06_arms", (main.info.get("s06_arms", []) as Array) + [arm])
 	var fs := float(cfg.get("hl", {}).get("fade_sec", 0.15))
 	var k := 1.0
 	if Voice.fast:
@@ -188,23 +196,28 @@ func _on_letter(letter: String) -> void:
 		return
 	_idle = 0.0
 	main.hint_stop()
-	_stop_pulse()   # «пока одна не нажата» — после первого касания пульс прекращается
+	_stop_pulse()
 	_seen[letter] = true
 	main.set_info("s06_seen", _seen.duplicate())
 	main.set_info("s06_last", letter)
-	var line: Dictionary = cfg.lines.tap_big if letter == "big" else cfg.lines.tap_small
-	if not await _play_line(line): return
+	# касание прерывает текущее описание: очередь голоса сбрасывается, затем — реплики нажатой буквы
+	Voice.stop_voice()
+	_line_token += 1
+	var my := _line_token
+	var seq: Array = cfg.lines.tap_big if letter == "big" else cfg.lines.tap_small
+	for line in seq:
+		if not await _play_line(line, my): return
 	if _seen.big and _seen.small and not _outro_done:
 		_outro_done = true
 		_waiting = false
-		if not await _play_line(cfg.lines.outro):
+		if not await _play_line(cfg.lines.outro, my):
 			if dead: return
 		_waiting = true
 		main.set_info("s06_outro", true)
 		finish()
 
-## 5 с без касаний (letter.idle_hint.sec; ?hint_sec меньше — берётся он) — рука на ещё не нажатую букву и
-## отрезок «Нажми на любую!» из a_letter_01 (from…to, секунды). Нет файла — только рука.
+## Подсказка — через 20 с без касаний (main.idle_hint_sec; letter.idle_hint.sec может только увеличить; в тесте —
+## ?hint_sec): рука на ещё не нажатую букву и реплика letter.idle_hint.audio («Нажми на любую букву!»).
 func _process(dt: float) -> void:
 	_t += dt
 	if alya and is_instance_valid(alya):
@@ -220,28 +233,17 @@ func _process(dt: float) -> void:
 		return
 	_idle += dt
 	var ih: Dictionary = cfg.get("idle_hint", {})
-	var lim := minf(float(ih.get("sec", 5)), float(main.idle_hint_sec))
+	var lim := float(main.idle_hint_sec)
+	if not main.test_mode or not Assets.params.has("hint_sec"):
+		lim = maxf(float(ih.get("sec", 20)), lim)
 	if _idle < lim:
 		return
 	_idle = -2.0   # следующая подсказка — после паузы
 	var tgt: Control = _small_btn if _seen.big else _big_btn
 	main.hint_start(func(): return tgt, "")
-	main.hint_now()
 	main.set_info("s06_idle_hints", int(main.info.get("s06_idle_hints", 0)) + 1)
-	_play_range(String(ih.get("audio", "a_letter_01")), float(ih.get("from", 0)), float(ih.get("to", 0)))
+	tap_say(String(ih.get("audio", "a_letter_08")))
 
 func _input(ev: InputEvent) -> void:
 	if ev is InputEventMouseButton or ev is InputEventScreenTouch:
 		_idle = 0.0
-
-func _play_range(id: String, from: float, to: float) -> void:
-	var s := Voice._stream(id)
-	if s == null or to <= from:
-		return
-	Voice.stop_voice()
-	Voice.voice.stream = s
-	Voice.voice.play(from)
-	var my := Voice._token
-	await get_tree().create_timer(to - from).timeout
-	if Voice._token == my and is_instance_valid(self):
-		Voice.voice.stop()

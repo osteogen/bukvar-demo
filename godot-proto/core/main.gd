@@ -39,11 +39,21 @@ var log_entries: Array = []
 var _targets: Dictionary = {}       # имя -> Control (для автотеста)
 var state := ""
 var started_ms := 0
+## Пройденные сцены (вызвали finish()): при возврате к такой сцене «Далее» видна сразу (DESIGN_RULES §2).
+## Сбрасывается кнопкой «Ещё раз» в конце урока (restart()).
+var completed: Dictionary = {}
+var exiting := false               # крестик нажат: Аля прощается, потом уходим
+## Шрифт урока (Bellota Text Bold, SIL OFL 1.1; в файле «а» заменена на однокруглую с хвостиком — fonts/README.md).
+const FONT_PATH := "res://fonts/BukvarBellotaText-Bold.ttf"
+## Щелчок механической клавиатуры на каждой кнопке интерфейса (свой синтез, CC0 — tools/make_sfx.py).
+## Свой звук кнопки — meta "click_sfx" (пустая строка — без щелчка).
+const CLICK_SFX := "sfx_click"
 
 # подсказка-рука
 var _hint_target: Callable
 var _hint_drag_to: Callable
 var _hint_voice := ""
+var _hint_on_show: Callable         # доп. подсказка при показе руки (напр. искры у кружков паровозика) — тоже только через 20 с
 var _hint_active := false
 var _hint_force := false            # hint_now(): показать руку сразу (после реплики), не дожидаясь 20 с
 var _hint_count := 0
@@ -68,6 +78,9 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var th := Theme.new()
 	th.default_font_size = 30
+	var fnt = load(FONT_PATH)
+	if fnt:
+		th.default_font = fnt
 	theme = th
 	steps = Assets.lesson.get("steps", [])
 	stage = Control.new()
@@ -262,8 +275,19 @@ func _ui_button(pic: String, pos: Vector2, sz: Vector2) -> TextureButton:
 	b.position = pos
 	b.size = sz
 	b.pivot_offset = sz / 2
+	b.focus_mode = Control.FOCUS_NONE
+	click_on(b)
 	overlay.add_child(b)
 	return b
+
+## Щелчок клавиатуры на нажатие кнопки (общее правило урока: каждая кнопка навигации щёлкает, если у неё нет своего звука).
+## Подключается первым, до обработчика кнопки, — щелчок звучит раньше перехода.
+func click_on(b: BaseButton, sfx_id := CLICK_SFX) -> void:
+	b.set_meta("click_sfx", sfx_id)
+	b.pressed.connect(func():
+		var id := String(b.get_meta("click_sfx", ""))
+		if id != "":
+			Voice.sfx(id))
 
 ## Субтитры реплик — только для отладки (?debug=1). В демо и пилоте на экране ребёнка из текста — только А/а.
 func _on_caption(text: String) -> void:
@@ -288,8 +312,24 @@ func goto(i: int) -> void:
 	_enter("res://steps/%s.tscn" % screen)
 	back_btn.visible = index > 0
 	exit_btn.visible = true                  # s01–s11: везде в уроке — выход на главный экран букв
+	exit_btn.disabled = false
+	exiting = false
 	expose("exit", exit_btn if exit_btn.visible else null)
 	current.call_deferred("run")
+	# вернулись к уже пройденной сцене — «Далее» сразу на месте (без пульсации и руки): можно идти дальше, не проходя заново
+	if completed.has(screen) and index < steps.size() - 1:
+		show_next(true, false)
+
+## Шаг закончен (LessonStep.finish()): запоминаем, чтобы при возврате «Далее» была видна сразу.
+func mark_done(step_name := "") -> void:
+	completed[step_name if step_name != "" else screen] = true
+	set_info("completed", completed.keys())
+
+## «Ещё раз» в конце урока: урок с начала, как в первый раз.
+func restart() -> void:
+	log_event("restart", {})
+	completed.clear()
+	goto(0)
 
 ## Экран всех букв (пока активна только «А»). Сюда ведут крестик и «домой» в s11.
 func show_letters() -> void:
@@ -307,9 +347,30 @@ func start_lesson() -> void:
 func exit_to_letters() -> void:
 	if screen == "letters_menu":
 		return
+	if exiting:
+		return
+	exiting = true
+	exit_btn.disabled = true
 	log_event("exit", {})
-	Voice.sfx("sfx_whoosh")
+	# Аля прощается («Пока! Увидимся!»), потом уходим. Нет файла — немая реплика dur с; ждём не дольше BYE_MAX_SEC.
+	hint_stop()
+	Voice.stop_all()
+	if current:
+		current.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	set_info("exit_bye", BYE_LINE)
+	set_state("exit_bye")
+	var t0 := Time.get_ticks_msec()
+	var has_audio := Voice._stream(BYE_LINE) != null
+	if has_audio or Assets.line_text(BYE_LINE) != "":
+		await Voice.say(BYE_LINE, BYE_MAX_SEC)
+	if not has_audio:
+		await get_tree().create_timer(0.3).timeout
+	set_info("exit_bye_ms", Time.get_ticks_msec() - t0)
 	go_home()
+
+const BYE_LINE := "c_bye_01"
+const BYE_MAX_SEC := 2.5
 
 ## Домой, к экрану букв. В вебе — на HTML-главную (../), с теми же параметрами адреса, кроме step;
 ## не в вебе — экран букв внутри Godot. Сюда ведут крестик и «домой» в s11.
@@ -348,7 +409,6 @@ func _enter(path: String) -> void:
 	set_state("enter")
 
 func next_step() -> void:
-	Voice.sfx("sfx_whoosh")
 	if index >= steps.size() - 1:
 		goto(0)
 	else:
@@ -357,10 +417,12 @@ func next_step() -> void:
 func prev_step() -> void:
 	goto(maxi(0, index - 1))
 
-func show_next(on: bool) -> void:
+## loud — пульсация ×3 и рука через 20 с (сцена только что пройдена); false — просто видна (возврат к пройденной сцене).
+func show_next(on: bool, loud := true) -> void:
 	next_btn.visible = on
 	expose("next", next_btn if on else null)
-	if on:
+	next_btn.scale = Vector2.ONE
+	if on and loud:
 		var tw := next_btn.create_tween().set_loops(3)
 		tw.tween_property(next_btn, "scale", Vector2(1.15, 1.15), 0.3)
 		tw.tween_property(next_btn, "scale", Vector2.ONE, 0.3)
@@ -399,7 +461,8 @@ func hint_tip() -> Vector2:
 	var a = hint_cfg.get("tip", [0.208, 0.042])
 	return Vector2(float(a[0]), float(a[1])) * hint_size()
 
-func hint_start(target: Callable, voice := "h_tap_01", drag_to := Callable()) -> void:
+func hint_start(target: Callable, voice := "h_tap_01", drag_to := Callable(), on_show := Callable()) -> void:
+	_hint_on_show = on_show
 	_hint_target = target
 	_hint_voice = voice
 	_hint_drag_to = drag_to
@@ -414,9 +477,17 @@ func hint_start(target: Callable, voice := "h_tap_01", drag_to := Callable()) ->
 		_hint_count = 0
 
 ## Показать руку как можно скорее (после ошибок): как только закончится текущая реплика. Ответ по-прежнему ждём от ребёнка.
+## ОБЩЕЕ ПРАВИЛО (правки урока А, 27.10.2026; DESIGN_RULES §4): любые подсказки — рука, искры, мерцание — только после
+## idle_hint_sec (20 с) бездействия, в том числе после ошибок. hint_now() поэтому лишь перезапускает отсчёт; старое
+## поведение «рука сразу после 2-й ошибки» — только если урок явно включит lesson.json "hint_now_after_errors": true.
 func hint_now() -> void:
-	if _hint_active:
+	if not _hint_active:
+		return
+	if bool(Assets.lesson.get("hint_now_after_errors", false)):
 		_hint_force = true
+	else:
+		_hint_idle = 0.0
+		set_info("hint_now_deferred", int(info.get("hint_now_deferred", 0)) + 1)
 
 func hint_stop() -> void:
 	_hint_active = false
@@ -467,7 +538,9 @@ func _show_hand() -> void:
 	_hint_idle = 0.0
 	var every := int(hint_cfg.get("voice_every_shows", 2))
 	if every > 0 and _hint_count % every == 0 and _hint_voice != "":
-		Voice.say(_hint_voice)
+		Voice.tap_say(_hint_voice)
+	if _hint_on_show.is_valid():
+		_hint_on_show.call()
 	hand.visible = true
 	_animate_hand()   # сначала ставим руку к цели, потом публикуем её (иначе тест мог прочитать старое положение)
 	expose("hint_hand", hand)

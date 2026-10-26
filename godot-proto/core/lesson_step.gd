@@ -20,11 +20,18 @@ func run() -> void:
 	pass
 
 # ---------- ожидание ----------
-func say(id: String) -> bool:
+## Реплика ведущей через общую очередь (Voice): ждёт своей очереди и конца; реплики не накладываются.
+func say(id: String, max_sec := -1.0, from_sec := 0.0) -> bool:
 	if dead:
 		return false
-	await Voice.say(id)
+	await Voice.say(id, max_sec, from_sec)
 	return not dead
+
+## Реакция на нажатие ребёнка (не ждём): не дублирует звучащую ту же реплику и не копит очередь (Voice.tap_say).
+func tap_say(id: String, max_sec := -1.0, from_sec := 0.0) -> bool:
+	if dead:
+		return false
+	return Voice.tap_say(id, max_sec, from_sec)
 
 func wait(sec: float) -> bool:
 	if dead:
@@ -47,6 +54,7 @@ func retry(n: int = 1) -> bool:
 
 func finish() -> void:
 	if not dead:
+		main.mark_done()
 		main.show_next(true)
 		main.set_state("done")
 
@@ -98,7 +106,34 @@ func add_pic(id: String, center: Vector2, sz := Vector2.ZERO, clickable := true)
 	add_child(b)
 	if id == String(Assets.lesson.get("sound_dot", "ui_circle_flat")) or id == "ui_circle_flat":
 		cream_underlay(b)
+	if is_red_circle(id):
+		dot_letter(b)
 	return b
+
+## Красные кружки урока (кружок-звук, «да, есть звук» в сцене 4) — lesson.red_circles.
+func is_red_circle(id: String) -> bool:
+	var ids: Array = Assets.lesson.get("red_circles", [String(Assets.lesson.get("sound_dot", "ui_circle_flat")), "ui_circle_flat"])
+	return ids.has(id)
+
+## ОБЩЕЕ ПРАВИЛО (DESIGN_RULES §3): на каждом красном кружке — изучаемая буква ЧЁРНЫМ (lesson.dot_letter, по умолчанию
+## заглавная буква урока). Буква — ребёнок кружка: двигается и масштабируется вместе с ним. Размер — dot_letter_frac диаметра.
+func dot_letter(n: Control) -> Label:
+	if n.has_node("dot_letter"):
+		return n.get_node("dot_letter")
+	var l := Label.new()
+	l.name = "dot_letter"
+	l.text = String(Assets.lesson.get("dot_letter", Assets.lesson.get("big", "А")))
+	var d := minf(n.size.x, n.size.y)
+	l.add_theme_font_size_override("font_size", int(d * float(Assets.lesson.get("dot_letter_frac", 0.62))))
+	l.add_theme_color_override("font_color", Color(String(Assets.lesson.get("dot_letter_color", "#1E1A16"))))
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.size = n.size
+	l.position = Vector2(0, -d * 0.03)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.set_meta("no_overlap_check", true)
+	n.add_child(l)
+	return l
 
 ## DESIGN_RULES.md §3: красная буква / красный кружок на насыщенном тёплом фоне (bg_room_evening и др. из
 ## lesson.cream_underlay_bgs) — только на кремовой подложке #F7F0DE (как карточки s10). Подложка — ребёнок узла,
@@ -125,8 +160,10 @@ func cream_underlay(n: Control, pad := 0.22) -> void:
 
 ## Общая рамка-карточка ui_card_frame (рисует иллюстратор) под картинкой: ребёнок узла, рисуется за ним
 ## (show_behind_parent), чуть больше картинки — двигается и масштабируется вместе с ней. Нет файла — ничего не делаем.
-func add_card_frame(pic: Control, pad := 0.06, backing := Color(0, 0, 0, 0)) -> void:
-	# непрозрачная подложка внутри рамки (кремовая #F7F0DE в сцене 9 — как у карточки Али в s06)
+## ОБЩЕЕ ПРАВИЛО (DESIGN_RULES §3): у карточки с картинкой всегда сплошная кремовая подложка #F7F0DE (фон сцены сквозь
+## картинку не просвечивает); прозрачная — только явно backing = Color(0,0,0,0).
+func add_card_frame(pic: Control, pad := 0.06, backing := Assets.CREAM) -> void:
+	# непрозрачная подложка внутри рамки
 	if backing.a > 0.0:
 		var bk := Panel.new()
 		var sb := StyleBoxFlat.new()
