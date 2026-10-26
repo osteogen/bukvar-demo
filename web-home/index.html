@@ -63,8 +63,8 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
   opacity: .85; transition: transform .12s ease-out; }
 #info-btn.press { transform: scale(.9); }
 #info-btn svg { display: block; flex: none; pointer-events: none; }   /* «i» нарисована (точка + ножка), её рамка = центр круга */
-/* шестерёнка — настройки: голый значок без круга и рамки (цвет и «вес» — как у буквы «i»), справа от «Я» в следующей клетке сетки;
-   зона касания ≥ 44×44 px, значок по центру клетки. Место ставит layout(). */
+/* шестерёнка — настройки: голый значок без круга и рамки (цвет и «вес» — как у буквы «i»), зеркально кнопке «i» (справа, на том же уровне);
+   зона касания ≥ 44×44 px, значок по центру зоны. Место ставит placeInfo(). */
 #set-btn { position: absolute; box-sizing: border-box; padding: 0; margin: 0; border: 0; background: transparent; cursor: pointer; outline: none;
   -webkit-appearance: none; appearance: none; display: flex; align-items: center; justify-content: center; opacity: .85;
   transition: transform .12s ease-out; -webkit-tap-highlight-color: transparent; }
@@ -324,12 +324,11 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
   // 9×4 / 11×3, на узких 5×7 / 4×9 — та, что даёт самый крупный кубик (неполный последний ряд — по центру), под ней ряд из 6 разделов — всегда в одну строку, кнопки масштабируются по ширине экрана. Сетка и ряд —
   // по центру по X; на высоких экранах (телефон вертикально) блок «сетка + ряд» — по центру по высоте, «i» — под ним слева.
   var s = 1, cube = 124, cube7 = 124, gx = 0, gy = 0, cols = 7, ax0 = 0, ay0 = 0, capPx = CAP;
-  // шестерёнка: в клетке после «Я»; если ряд «Я» полный (11×3) — справа от сетки, в боковом поле: поле должно вместить
-  // зону касания 44 px + 2 px до кубика, иначе сетка ужимается ровно настолько (по центру — как раньше)
-  var GEAR_TAP = 44, GEAR_M = GEAR_TAP + 2;
-  function gridFit(n, aw, ah, fullW) {
+  // шестерёнка — зеркально «i» относительно вертикальной середины рабочей области (тот же уровень по высоте),
+  // зона касания не меньше 44 px (см. placeInfo)
+  var GEAR_TAP = 44;
+  function gridFit(n, aw, ah) {
     var rows = Math.ceil(ALPHABET.length / n);
-    if (ALPHABET.length % n === 0 && fullW) aw = Math.min(aw, fullW - 2 * GEAR_M);
     return Math.min(aw / ((n - 1) * SX + 1), ah / ((rows - 1) * SY + 1));
   }
   // видимая область: минимум из всех источников (visualViewport — без панелей браузера; dvh-зонд; innerHeight; clientHeight),
@@ -345,7 +344,7 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
   }
   var lastKey = "", vpInfo = null;
   var infoRect = null;
-  function layout() { layoutPass(0); if (!placeInfo()) { layoutPass(infoSize() + 8); placeInfo(true); } }
+  function layout() { layoutPass(0); if (!placeInfo()) { layoutPass(gearSize(infoSize()) + 8); placeInfo(true); } }
   // размер «i»: примерно половина кнопки, 32…42 px
   var btnNow = 64;
   function infoSize() { return Math.round(Math.max(32, Math.min(42, btnNow * 0.5))); }
@@ -353,28 +352,48 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
   // место для «i» (по порядку): 1) слева от ряда кнопок, в нижнем левом углу (планшет); 2) под рядом, у левого края —
   // если ниже ряда есть свободная полоса (телефон вертикально); 3) пустая клетка слева в последнем ряду кубиков (ряд из 5
   // стоит по центру); 4) ряд кнопок ужимается и освобождает угол (force). Никогда — на кубиках, кнопках и подписях.
+  // Шестерёнка в каждом случае — зеркально «i»: тот же центр по высоте, справа на том же расстоянии от R0, что «i» от L0.
+  // Ряд кнопок и последний ряд букв стоят по центру, поэтому зеркальное место тоже свободно (проверяется: gearFree).
+  function gearSize(iS) { var gS = Math.max(GEAR_TAP, iS); if ((gS - iS) % 2) gS++; return gS; }   // та же чётность — центр без полпикселя
+  function gearFree(g, x, y, iS) {
+    var gS = gearSize(iS), d = (gS - iS) / 2, L = g.L0 + g.R0 - x - iS - d, T = y - d, R = L + gS, B = T + gS;
+    if (L < g.L0 || R > g.R0 || T < g.T0 || B > g.B0) return false;
+    var hit = function (l, t, r, b) { return L < r && R > l && T < b && B > t; };
+    if (hit(g.bx, g.barTop, g.bx + g.rw, g.barTop + g.rowH)) return false;   // кнопки разделов с подписями
+    for (var k = 0; k < cubes.length; k++) {
+      var cl = parseFloat(cubes[k].style.left), ct = parseFloat(cubes[k].style.top);
+      if (hit(cl, ct, cl + g.cube, ct + g.cube)) return false;
+    }
+    return true;
+  }
+  function placeGear(x, y, iS) {
+    var gS = gearSize(iS), gG = Math.round(Math.max(26, Math.min(36, iS * 0.84)));
+    setBtn.style.width = setBtn.style.height = gS + "px";
+    setBtn.style.left = Math.round(geo.L0 + geo.R0 - x - iS / 2 - gS / 2) + "px"; setBtn.style.top = Math.round(y + iS / 2 - gS / 2) + "px";
+    setBtn.firstChild.setAttribute("width", gG); setBtn.firstChild.setAttribute("height", gG);
+  }
   function placeInfo(force) {
     var g = geo, iS = infoSize(), x, y, ok = false;
     if (g.bx - g.L0 >= EDGE_X + iS + 8 || force) {
       x = Math.max(g.L0 + EDGE_X, Math.min(g.L0 + Math.round(28 * s), g.bx - iS - 8));
-      y = g.barTop + (g.btn - iS) / 2; y = Math.min(y, g.B0 - EDGE_B - iS); ok = true;
+      y = g.barTop + (g.btn - iS) / 2; y = Math.min(y, g.B0 - EDGE_B - iS); ok = force || gearFree(g, Math.round(x), Math.round(y), iS);
     } else if (g.B0 - g.rowB >= iS + 2 * EDGE_B + 8) {
       x = g.L0 + Math.max(EDGE_X, Math.min(g.rowL, Math.round(g.aw * 0.1)));
       var free = g.B0 - g.rowB;
       y = g.B0 - iS - Math.max(EDGE_B, Math.round(Math.min(free - iS - 8, free * 0.25)));
-      ok = y >= g.rowB + 8;
+      ok = y >= g.rowB + 8 && gearFree(g, Math.round(x), Math.round(y), iS);
     }
     if (!ok && g.lastOff >= 1 && iS <= g.cube) {
       var cellR = g.gx + g.lastOff * g.stx - (g.stx - g.cube);   // правый край свободного места до первого кубика ряда
       x = Math.max(g.L0 + EDGE_X, g.gx + (Math.min(cellR, g.gx + g.cube) - g.gx - iS) / 2);
       y = g.lastTop + g.cube - iS - Math.round(g.cube * 0.06);
-      ok = x + iS <= cellR - 4;
+      ok = x + iS <= cellR - 4 && gearFree(g, Math.round(x), Math.round(y), iS);
     }
     if (!ok) return false;
     x = Math.round(x); y = Math.round(y);
     infoBtn.style.width = infoBtn.style.height = iS + "px"; infoBtn.style.left = x + "px"; infoBtn.style.top = y + "px";
     var gi = Math.round(iS * 0.66); infoBtn.firstChild.setAttribute("width", gi); infoBtn.firstChild.setAttribute("height", gi);
-    infoRect = [x, y, iS];
+    infoRect = [x, y, iS]; placeGear(x, y, iS);
     return true;
   }
   // подписи: ширина = шаг ряда − 2 px (соседние не касаются); перенос по словам; если слово не влезает — шрифт меньше
@@ -419,8 +438,8 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
     var areaH = ah - top - padB - rowH - rgap, areaW = aw - 2 * side;
     // выбор сетки (как до ряда B): 7×5 остаётся, если другая сетка не даёт кубик крупнее хотя бы на 12 %; на широких /
     // горизонтальных — 9×4 или 11×3, на узких / вертикальных — 5×7 или 4×9. Высота ряда разделов уже вычтена из areaH.
-    var c7 = gridFit(7, areaW, areaH, aw), best = 7, bestC = c7;
-    (aw >= ah ? [9, 11] : [5, 4]).forEach(function (n) { var c = gridFit(n, areaW, areaH, aw); if (c > bestC) { best = n; bestC = c; } });
+    var c7 = gridFit(7, areaW, areaH), best = 7, bestC = c7;
+    (aw >= ah ? [9, 11] : [5, 4]).forEach(function (n) { var c = gridFit(n, areaW, areaH); if (c > bestC) { best = n; bestC = c; } });
     if (bestC < c7 * 1.12) { best = 7; bestC = c7; }
     var capC = 124 * s * 1.35;
     cols = best; cube = Math.max(20, Math.floor(Math.min(bestC, capC))); cube7 = Math.max(20, Math.floor(Math.min(c7, capC)));
@@ -438,17 +457,6 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
       b.firstChild.style.fontSize = fs.toFixed(1) + "px";
     }
     ax0 = gx; ay0 = gy;
-    // шестерёнка: клетка сразу справа от «Я»; если «Я» — последняя в полном ряду, то первая клетка следующего ряда
-    var gCol = lastOff + lastN, gRowTop = gy + (lrows - 1) * sty, gG = Math.round(Math.max(26, Math.min(36, infoSize() * 0.84))), gS, gL;
-    if (gCol <= cols - 1 + 1e-6) {   // свободная клетка после «Я»: значок по центру клетки
-      gS = Math.max(GEAR_TAP, Math.min(Math.round(stx), cube));
-      gL = Math.round(gx + (gCol - 1) * stx) + Math.round(stx) + (cube - gS) / 2;   // от «Я» ровно на шаг сетки (без лишнего полпикселя от округления)
-    } else {   // ряд полный: по центру бокового поля справа от «Я»
-      var gR = gx + gw, mR = R0 - gR; gS = Math.max(GEAR_TAP, Math.min(cube, Math.floor(mR - 4))); gL = gR + (mR - gS) / 2;
-    }
-    setBtn.style.width = setBtn.style.height = gS + "px";
-    setBtn.style.left = Math.round(gL) + "px"; setBtn.style.top = Math.round(gRowTop + (cube - gS) / 2) + "px";
-    setBtn.firstChild.setAttribute("width", gG); setBtn.firstChild.setAttribute("height", gG);
     topbar.style.top = T0 + "px"; topbar.style.height = top + "px";
     // ряд: по центру, равные промежутки
     var barTop = Math.round(gy + gh + rgap), rw = 6 * btn + 5 * bgap, bx = Math.round(L0 + (aw - rw) / 2);
@@ -459,7 +467,7 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
       r.style.left = (bx + j * (btn + bgap)) + "px"; r.style.top = "0px";
     }
     btnNow = btn;
-    geo = { L0: L0, B0: B0, aw: aw, bx: bx, barTop: barTop, btn: btn, gx: gx, stx: stx, cube: cube, lastOff: lastOff, lastTop: Math.round(gy + (lrows - 1) * sty),
+    geo = { L0: L0, R0: R0, T0: T0, B0: B0, aw: aw, rw: rw, rowH: rowH, bx: bx, barTop: barTop, btn: btn, gx: gx, stx: stx, cube: cube, lastOff: lastOff, lastTop: Math.round(gy + (lrows - 1) * sty),
       gridB: gy + gh, rowB: barTop + rowH, rowL: bx - L0 };
     stage.style.visibility = "visible";
     lastKey = [vw, vh, V.it, V.ir, V.ib, V.il].join(",");
@@ -492,7 +500,7 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
       scale: s, cube: cube, cube7: cube7, cols: cols, button: btns[0].offsetWidth, viewport: vpInfo,
       info_rect: rect(infoBtn), cube_rects: cubes.map(rect), button_rects: btns.map(rect), caption_rects: caps.map(rect), caption_font: capPx,
       sections: btns.map(function (b) { return b.dataset.section; }), knocks: knocks, audio_state: actx ? actx.state : "none",
-      settings_rect: rect(setBtn), settings_glyph: rect(setBtn.firstChild), seq_order: seqOn(), open_letters: openNow.join(""), study_order: STUDY_ORDER.join(""),
+      settings_rect: rect(setBtn), settings_glyph: rect(setBtn.firstChild), work_x: [geo.L0, geo.R0], seq_order: seqOn(), open_letters: openNow.join(""), study_order: STUDY_ORDER.join(""),
       info_text_len: infoText.textContent.length, info_scroll: [infoScroll.scrollHeight, infoScroll.clientHeight] };
   }
   publish(); setInterval(publish, 250);
