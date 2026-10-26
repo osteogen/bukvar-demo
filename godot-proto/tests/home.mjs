@@ -3,7 +3,8 @@
 // Проверяет: главная не тянет Godot (*.wasm/*.pck/index.js), её вес; раскладка (сетка букв сверху — 7×5 на 4:3, 9×4/11×3 на широких,
 // 5×7/4×9 на узких — самый крупный кубик с учётом ряда кнопок; под ней ряд из 6 значков-
 // разделов с подписями, вариант B, без подложек) на 4:3, 16:10, 16:9 и телефонах без прокрутки и наложений: все 6 — в одну строку,
-// не налезают друг на друга, на буквы и на «i»; значки загрузились; кнопки только «нажимаются»; закрытая буква качается и никуда не ведёт; руки-подсказки на главной НЕТ;
+// не налезают друг на друга, на буквы и на «i»; значки загрузились; кнопки только «нажимаются» + «тук»; закрытая буква качается, «тук» (не чаще 1/200 мс) и никуда не ведёт; руки-подсказки на главной НЕТ;
+// все 33 буквы открыты по умолчанию; шестерёнка (голый значок, клетка справа от «Я») → настройки «Открывать буквы по последовательности изучения» (localStorage);
 // кнопка «i» (левый нижний угол, не на кубиках/кнопках) → страница сведений (общая для всех уроков, текст web-home/info.html) → тёмно-серый крестик → буквы;
 // тап «А» → мгновенный отклик → lesson-a/ с параметрами → сразу s01 (экрана s00 нет); крестик и «?step=» → обратно на главную.
 // Запуск: PORT=<свободный> node tests/home.mjs [папка-сайта, по умолчанию ../site]
@@ -82,6 +83,9 @@ try {
             capFs: c && parseFloat(getComputedStyle(c).fontSize), capColor: c && getComputedStyle(c).color, capWeight: c && getComputedStyle(c).fontWeight,
             capOverflow: c ? c.scrollWidth - c.clientWidth : 0, bg: getComputedStyle(e).backgroundColor, border: getComputedStyle(e).borderTopWidth, shadow: getComputedStyle(e).boxShadow }; }),
         info: R(document.getElementById("info-btn")),
+        gear: (() => { const e = document.getElementById("set-btn"), cs = getComputedStyle(e); return { ...R(e), glyph: R(e.querySelector("svg")),
+          bg: cs.backgroundColor, border: cs.borderTopWidth, radius: cs.borderTopLeftRadius }; })(),
+        cubeBg: [...document.querySelectorAll(".cube")].map((e) => e.style.backgroundImage),
         fs: parseFloat(getComputedStyle(document.querySelector(".cube span")).fontSize), home: window.__home };
     });
     const where = `${w}×${h}`, inside = (r) => r.l >= 0 && r.t >= 0 && r.r <= L.vw + 0.5 && r.b <= L.vh + 0.5;
@@ -125,6 +129,20 @@ try {
     ok(I.l < L.vw / 3 && I.t > L.vh / 2, `${where}: «i» не в левом нижнем углу ${JSON.stringify(I)}`);
     L.cubes.forEach((c, i) => ok(apart(I, c), `${where}: «i» на кубике ${i}`));
     L.btns.forEach((b, i) => { ok(apart(I, b), `${where}: «i» на кнопке ${i + 1}`); ok(apart(I, b.capR), `${where}: «i» на подписи ${i + 1}`); });
+    // шестерёнка: голый значок (без круга/рамки), зона касания ≥ 44, в клетке справа от «Я» (или в первой клетке следующего ряда), ни на чём не лежит
+    const G = L.gear, Ya = L.cubes[32];
+    ok(inside(G) && G.w >= 44 && G.h >= 44, `${where}: шестерёнка вне окна или зона касания < 44 ${JSON.stringify(G)}`);
+    ok(/rgba\(0, 0, 0, 0\)|transparent/.test(G.bg) && parseFloat(G.border) === 0, `${where}: у шестерёнки есть круг/рамка (${G.bg}, ${G.border})`);
+    ok(L.home.study_order === "АУМХОШРСЫЛНКПТВЗЖЬИЕДБГЙЧЭЁЯЮЦЩФЪ", `${where}: STUDY_ORDER ${L.home.study_order}`);
+    ok(G.glyph.w >= 24 && G.glyph.w <= 38, `${where}: значок шестерёнки ${G.glyph.w} px (нужно ≈ «i»)`);
+    const gc = [(G.l + G.r) / 2, (G.t + G.b) / 2], yc = [(Ya.l + Ya.r) / 2, (Ya.t + Ya.b) / 2], stx = L.cubes[1].l - L.cubes[0].l;
+    const fullRow = 33 % L.home.cols === 0;   // 11×3: ряд «Я» полный — шестерёнка в боковом поле справа, по центру «Я» по высоте
+    ok(Math.abs(gc[1] - yc[1]) < 1.5 && (fullRow ? G.l >= Ya.r - 0.5 && G.r <= L.vw + 0.5 : Math.abs(gc[0] - yc[0] - stx) < 1.5),
+      `${where}: шестерёнка не ${fullRow ? "в поле справа от" : "в клетке после"} «Я» (${gc} / «Я» ${yc}, шаг ${stx}, ${JSON.stringify(G)})`);
+    L.cubes.forEach((c, i) => ok(apart(G, c, 0), `${where}: шестерёнка на кубике ${i}`));
+    L.btns.forEach((b, i) => { ok(apart(G, b) && apart(G, b.capR), `${where}: шестерёнка на кнопке/подписи ${i + 1}`); });
+    ok(apart(G, I), `${where}: шестерёнка на «i»`);
+    if (!L.home.seq_order) ok(L.cubeBg.every((s) => !/_lock/.test(s)), `${where}: по умолчанию все буквы должны быть открыты`);
     // кнопки/подписи не налезают на кубики
     L.btns.forEach((b, i) => L.cubes.forEach((c, k) => { ok(apart(b, c, 0) && apart(b.capR, c, 0), `${where}: кнопка ${i + 1} на кубике ${k}`); }));
     return L;
@@ -186,22 +204,32 @@ try {
   passed.push("home: раскладка — буквы, ряд разделов, «i»");
   // 3) кнопки-разделы: нажимаются (сжатие), но никуда не ведут
   await view(1024, 768);
-  { const u0 = page.url(), s = await home(); const [x, y] = s.targets.buttons[2];
+  { const u0 = page.url(), s = await home(); const [x, y] = s.targets.buttons[2]; const k0 = s.knocks;
     await page.touchscreen.touchStart(x, y);
     await sleep(150);
+    ok(await page.evaluate(() => document.querySelector('.rb[data-slot="3"]').classList.contains("wobble")), "закрытый раздел не качнулся");
+    ok((await home()).knocks === k0 + 1, "закрытый раздел без «тук»");
     const pressed = await page.evaluate(() => { const b = document.querySelector('.rb[data-slot="3"]'); return b.classList.contains("press") && getComputedStyle(b).transform; });
     await page.touchscreen.touchEnd(); await sleep(500);
     const sc = pressed && /matrix\(([-\d.e]+)/.exec(pressed); ok(sc && +sc[1] < 0.95, "кнопка не сжалась при нажатии: " + pressed);
     ok(page.url() === u0 && (await home()).state === "wait_letter", "кнопка раздела что-то сделала");
     ok(!(await page.evaluate(() => document.querySelector(".rb.press"))), "кнопка осталась нажатой");
-    console.log("кнопка 3: сжатие при касании (" + pressed + "), действий нет"); }
+    console.log("кнопка 3: сжатие при касании (" + pressed + "), «тук» + покачивание, действий нет"); }
   passed.push("home: кнопки — только отклик");
   // 4) закрытая буква; руки-подсказки на главной нет (ни по умолчанию, ни с ?hint_sec)
   reqs.length = 0;
   await page.goto(`${BASE}/?test=1&hint_sec=1`, { waitUntil: "load" });
   await until(home, (s) => s.state === "wait_letter", "home ready");
-  { const s = await home(); await tapAt(s.targets.letter_locked); await sleep(120);
-    ok(await page.evaluate(() => document.querySelector(".cube.locked.wobble") !== null), "закрытая «Б» не качнулась");
+  { const s = await home(), k0 = s.knocks || 0; await tapAt(s.targets.letter_locked); await sleep(120);
+    ok(await page.evaluate(() => document.querySelector('.cube.nolesson.wobble[data-letter="Б"]') !== null), "«Б» (урока нет) не качнулась");
+    const a = await home(); ok(a.knocks === k0 + 1, "закрытая «Б» без «тук»: " + JSON.stringify([k0, a.knocks]));
+    await sleep(300);
+    // троттлинг: второй тап через ≈40 мс не даёт нового «тук», через 250 мс — даёт
+    await page.touchscreen.tap(...s.targets.letter_locked); await sleep(40); await page.touchscreen.tap(...s.targets.letter_locked); await sleep(60);
+    const b = await home(); ok(b.knocks === a.knocks + 1, "«тук» не ограничен 200 мс: " + JSON.stringify([a.knocks, b.knocks]));
+    await sleep(250); await page.touchscreen.tap(...s.targets.letter_locked); await sleep(60);
+    const c = await home(); ok(c.knocks === b.knocks + 1, "повторный «тук» через 250 мс не прозвучал");
+    console.log(`закрытая «Б»: «тук» + покачивание; троттлинг 200 мс работает (knocks ${k0}→${c.knocks}, AudioContext: ${c.audio_state})`);
     await sleep(600); ok(page.url().startsWith(`${BASE}/?`), "закрытая «Б» куда-то увела"); }
   { const t0 = Date.now();
     while (Date.now() - t0 < 22000) {
@@ -219,7 +247,7 @@ try {
     { const s = await home(); await tapAt(s.targets.info_btn); }
     const s = await until(home, (s) => s.state === "info" && s.info_text_len > 800, `«i» → сведения (${w}×${h})`, 5000);
     const txt = await page.evaluate(() => document.getElementById("info-text").innerText);
-    for (const k of ["Как построен урок", "Подсказки и голос", "только когда ребёнок сам выберет правильный вариант", "Советы родителям"]) ok(txt.includes(k), `сведения: нет раздела «${k}»`);
+    for (const k of ["Порядок изучения букв", "Порядок изучения: А, У, М, Х, О, Ш", "разделительный вместе с Ъ", "Как построен урок", "Подсказки и голос", "только когда ребёнок сам выберет правильный вариант", "Советы родителям"]) ok(txt.includes(k), `сведения: нет раздела «${k}»`);
     ok(!/Урок «А»|буква «А»/.test(txt), "сведения про один урок «А», а должны быть общими");
     const vis = await page.evaluate(() => { const r = document.getElementById("info").getBoundingClientRect(); const x = getComputedStyle(document.getElementById("info-close"), "::before");
       return { cover: r.width >= innerWidth - 1 && r.height >= innerHeight - 1, cross: x.backgroundColor }; });
@@ -247,6 +275,45 @@ try {
   }
   await view(1024, 768);
   passed.push("home: «i» → сведения → буквы");
+  // 4в) шестерёнка → настройки (вид как у сведений, крестик справа) → «Открывать буквы по последовательности изучения»
+  await page.setViewport({ width: 1024, height: 768, hasTouch: true, isMobile: false });
+  await page.goto(`${BASE}/?test=1`, { waitUntil: "load" }); await page.evaluate(() => localStorage.clear());
+  for (const [w, h] of [[1366, 768], [390, 844], [844, 390]]) {
+    await page.setViewport({ width: w, height: h, hasTouch: true, isMobile: w < 600 });
+    await page.goto(`${BASE}/?test=1`, { waitUntil: "load" });
+    await until(home, (s) => s.state === "wait_letter", `home ${w}×${h}`); await sleep(900);
+    const L = await checkLayout(w, h); ok(L.home.open_letters.length === 33 && !L.home.seq_order, `${w}×${h}: по умолчанию открыты не все буквы`);
+    await shot(`home-gear-${w}x${h}`);
+    { const s = await home(); await tapAt(s.targets.settings_btn); }
+    const s = await until(home, (s) => s.state === "settings" && s.targets.settings_close, `шестерёнка → настройки (${w}×${h})`, 5000);
+    const P = await page.evaluate(() => ({ txt: document.getElementById("settings-text").innerText, checked: document.getElementById("set-seq").checked,
+      cover: document.getElementById("settings").getBoundingClientRect().width >= innerWidth - 1, bg: getComputedStyle(document.getElementById("settings")).backgroundColor,
+      ibg: getComputedStyle(document.getElementById("info")).backgroundColor }));
+    ok(P.txt.includes("Открывать буквы по последовательности изучения") && !P.checked && P.cover && P.bg === P.ibg, `настройки ${w}×${h}: ${JSON.stringify(P)}`);
+    const [cx, cy] = s.targets.settings_close; ok(cx > w * 0.8 && cy < 90, `крестик настроек не справа вверху (${cx},${cy})`);
+    await noScroll(`настройки ${w}×${h}`);
+    await shot(`home-settings-${w}x${h}`);
+    await tapAt(s.targets.settings_close);
+    await until(home, (s) => s.state === "wait_letter", `крестик настроек → буквы (${w}×${h})`, 5000);
+    console.log(`шестерёнка ${w}×${h}: зона ${L.gear.w}×${L.gear.h}, значок ${L.gear.glyph.w} px, «Я» ${L.cubes[32].l},${L.cubes[32].t} → шестерёнка ${L.gear.l},${L.gear.t}; настройки открылись, галочка снята, крестик → буквы`);
+  }
+  { // включить настройку: открыта только «А» (порядок пока — заглушка), остальные бледные (_lock) и «тук»; сохраняется после перезагрузки
+    let s = await home(); await tapAt(s.targets.settings_btn);
+    s = await until(home, (s) => s.state === "settings" && s.targets.settings_seq, "настройки"); await tapAt(s.targets.settings_seq); await sleep(150);
+    s = await home(); ok(s.seq_order && s.open_letters === "А" && (await page.evaluate(() => localStorage.getItem("bukvar.studyOrderLock"))) === "1", "галочка не включила порядок: " + JSON.stringify([s.seq_order, s.open_letters]));
+    await tapAt(s.targets.settings_close); await until(home, (s) => s.state === "wait_letter", "назад к буквам");
+    await page.goto(`${BASE}/?test=1`, { waitUntil: "load" }); await until(home, (s) => s.state === "wait_letter", "перезагрузка"); await sleep(1300);
+    const L = await checkLayout(844, 390); ok(L.home.seq_order && L.cubeBg.filter((b) => /_lock/.test(b)).length === 32 && !/_lock/.test(L.cubeBg[0]), "после перезагрузки порядок не сохранился / не 32 закрытых");
+    await shot("home-seq-844x390");
+    s = await home(); const k0 = s.knocks; await tapAt(s.targets.letter_locked); await sleep(120);
+    ok((await home()).knocks === k0 + 1 && await page.evaluate(() => document.querySelector('.cube.locked.wobble[data-letter="Б"]') !== null), "закрытая «Б» (по порядку) без «тук»/покачивания");
+    // выключить — снова все открыты
+    s = await home(); await tapAt(s.targets.settings_btn); s = await until(home, (s) => s.state === "settings" && s.targets.settings_seq, "настройки 2");
+    await tapAt(s.targets.settings_seq); await sleep(150); s = await home(); ok(!s.seq_order && s.open_letters.length === 33, "галочка не выключилась");
+    await tapAt(s.targets.settings_close); await until(home, (s) => s.state === "wait_letter", "назад к буквам 2");
+    console.log(`настройка «по последовательности»: вкл → открыта только «А» (первая в STUDY_ORDER; прогресс пока не сохраняется), 32 буквы бледные и «тук», сохраняется в localStorage; выкл → все 33 открыты`); }
+  await view(1024, 768);
+  passed.push("home: шестерёнка → настройки → порядок букв");
   // 5) тап «А» → отклик → lesson-a/ (параметры переданы) → сразу s01 (экрана для взрослого s00 нет)
   await page.goto(`${BASE}/?test=1&fast=1&junior=1&debug=1&hint_sec=30&foo=bar`, { waitUntil: "load" });
   await until(home, (s) => s.state === "wait_letter", "home ready (А)");
@@ -255,6 +322,7 @@ try {
   { const s = await home(); const t0 = Date.now();
     await page.touchscreen.touchStart(...s.targets.letter_a);
     const pressed = await page.evaluate(() => document.getElementById("cube-a").classList.contains("press"));
+    ok(((await home()).knocks || 0) === (s.knocks || 0), "«А» издала «тук» закрытой буквы");
     await page.touchscreen.touchEnd();
     const fb = await page.evaluate(() => document.getElementById("cube-a").className);
     console.log(`тап «А»: отклик сразу (press=${pressed}, затем «${fb}») за ${Date.now() - t0} мс`);
