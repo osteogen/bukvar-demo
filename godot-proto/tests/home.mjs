@@ -84,7 +84,7 @@ try {
             capOverflow: c ? c.scrollWidth - c.clientWidth : 0, bg: getComputedStyle(e).backgroundColor, border: getComputedStyle(e).borderTopWidth, shadow: getComputedStyle(e).boxShadow }; }),
         info: R(document.getElementById("info-btn")),
         gear: (() => { const e = document.getElementById("set-btn"), cs = getComputedStyle(e); return { ...R(e), glyph: R(e.querySelector("svg")),
-          bg: cs.backgroundColor, border: cs.borderTopWidth, radius: cs.borderTopLeftRadius }; })(),
+          bg: cs.backgroundColor, border: cs.borderTopWidth, radius: cs.borderTopLeftRadius, fill: getComputedStyle(e.querySelector("path")).fill, op: cs.opacity }; })(),
         cubeBg: [...document.querySelectorAll(".cube")].map((e) => e.style.backgroundImage),
         fs: parseFloat(getComputedStyle(document.querySelector(".cube span")).fontSize), home: window.__home };
     });
@@ -134,6 +134,8 @@ try {
     ok(inside(G) && G.w >= 44 && G.h >= 44, `${where}: шестерёнка вне окна или зона касания < 44 ${JSON.stringify(G)}`);
     ok(/rgba\(0, 0, 0, 0\)|transparent/.test(G.bg) && parseFloat(G.border) === 0, `${where}: у шестерёнки есть круг/рамка (${G.bg}, ${G.border})`);
     ok(L.home.study_order === "АУМХОШРСЫЛНКПТВЗЖЬИЕДБГЙЧЭЁЯЮЦЩФЪ", `${where}: STUDY_ORDER ${L.home.study_order}`);
+    // бледная (не бросается в глаза), но видна: #B5AA97 без доп. прозрачности; «i» — прежний #5A5A5A
+    ok(G.fill === "rgb(181, 170, 151)" && +G.op === 1, `${where}: цвет шестерёнки ${G.fill}, opacity ${G.op} (нужно #B5AA97, 1)`);
     ok(G.glyph.w >= 24 && G.glyph.w <= 38, `${where}: значок шестерёнки ${G.glyph.w} px (нужно ≈ «i»)`);
     const gc = [(G.l + G.r) / 2, (G.t + G.b) / 2], ic = [(I.l + I.r) / 2, (I.t + I.b) / 2], [WL, WR] = L.home.work_x;
     L.mirror = { dy: gc[1] - ic[1], dx: (WR - gc[0]) - (ic[0] - WL) };

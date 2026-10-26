@@ -63,13 +63,16 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
   opacity: .85; transition: transform .12s ease-out; }
 #info-btn.press { transform: scale(.9); }
 #info-btn svg { display: block; flex: none; pointer-events: none; }   /* «i» нарисована (точка + ножка), её рамка = центр круга */
-/* шестерёнка — настройки: голый значок без круга и рамки (цвет и «вес» — как у буквы «i»), зеркально кнопке «i» (справа, на том же уровне);
+/* шестерёнка — настройки: голый значок без круга и рамки, бледнее «i» (#B5AA97 на #ECE3D0 ≈ 1,8:1 — видна, но не бросается
+   в глаза; при нажатии темнее), «вес» — как у «i», зеркально кнопке «i» (справа, на том же уровне);
    зона касания ≥ 44×44 px, значок по центру зоны. Место ставит placeInfo(). */
 #set-btn { position: absolute; box-sizing: border-box; padding: 0; margin: 0; border: 0; background: transparent; cursor: pointer; outline: none;
-  -webkit-appearance: none; appearance: none; display: flex; align-items: center; justify-content: center; opacity: .85;
+  -webkit-appearance: none; appearance: none; display: flex; align-items: center; justify-content: center;
   transition: transform .12s ease-out; -webkit-tap-highlight-color: transparent; }
 #set-btn svg { display: block; pointer-events: none; }
+#set-btn svg path { fill: #B5AA97; transition: fill .12s; }
 #set-btn.press { transform: scale(.9); }
+#set-btn.press svg path, #set-btn:focus-visible svg path { fill: #9C907C; }
 #set-btn:focus-visible, #info-btn:focus-visible { outline: 3px solid #2F6DB5; outline-offset: 2px; }
 /* страница сведений: лёгкий HTML-слой поверх главной (Godot не грузится); текст — web-home/info.html */
 #info, #settings { position: fixed; inset: 0; z-index: 20; display: none; background: #F7F0DE; color: #3C3228; }
@@ -102,7 +105,7 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
   <div id="bottombar" role="toolbar" aria-label="Кнопки"></div>
   <button id="info-btn" type="button" aria-label="Для взрослых: как устроен Букварь"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"
     fill="#5A5A5A"><circle cx="12" cy="6.8" r="1.8"/><rect x="10.55" y="10.2" width="2.9" height="8.8" rx="1.2"/></svg></button>
-  <button id="set-btn" type="button" aria-label="Настройки для взрослых"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="#5A5A5A" fill-rule="evenodd" d="M19.55 9.67 L22.39 9.89 L22.39 14.11 L19.55 14.33 L18.99 15.69 L20.84 17.86 L17.86 20.84 L15.69 18.99 L14.33 19.55 L14.11 22.39 L9.89 22.39 L9.67 19.55 L8.31 18.99 L6.14 20.84 L3.16 17.86 L5.01 15.69 L4.45 14.33 L1.61 14.11 L1.61 9.89 L4.45 9.67 L5.01 8.31 L3.16 6.14 L6.14 3.16 L8.31 5.01 L9.67 4.45 L9.89 1.61 L14.11 1.61 L14.33 4.45 L15.69 5.01 L17.86 3.16 L20.84 6.14 L18.99 8.31Z M15.3 12A3.3 3.3 0 1 0 8.7 12A3.3 3.3 0 1 0 15.3 12Z"/></svg></button>
+  <button id="set-btn" type="button" aria-label="Настройки для взрослых"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="#B5AA97" fill-rule="evenodd" d="M19.55 9.67 L22.39 9.89 L22.39 14.11 L19.55 14.33 L18.99 15.69 L20.84 17.86 L17.86 20.84 L15.69 18.99 L14.33 19.55 L14.11 22.39 L9.89 22.39 L9.67 19.55 L8.31 18.99 L6.14 20.84 L3.16 17.86 L5.01 15.69 L4.45 14.33 L1.61 14.11 L1.61 9.89 L4.45 9.67 L5.01 8.31 L3.16 6.14 L6.14 3.16 L8.31 5.01 L9.67 4.45 L9.89 1.61 L14.11 1.61 L14.33 4.45 L15.69 5.01 L17.86 3.16 L20.84 6.14 L18.99 8.31Z M15.3 12A3.3 3.3 0 1 0 8.7 12A3.3 3.3 0 1 0 15.3 12Z"/></svg></button>
 </div>
 <div id="info" role="dialog" aria-modal="true" aria-label="Как устроен Букварь">
   <div id="info-scroll"><div id="info-text"></div></div>
