@@ -1,7 +1,8 @@
 // Тест HTML-главной (web-home/ в корне сайта) + переход в урок lesson-a/ и обратно, в headless Chrome касаниями.
 // Сайт собирается как в CI:  bash tests/assemble_site.sh   (корень = web-home/, lesson-a/ = build/)
-// Проверяет: главная не тянет Godot (*.wasm/*.pck/index.js), её вес; раскладка (место под меню, кубики, черта, 6 пустых
-// круглых кнопок) на 4:3, 16:10, 16:9 и телефонах без прокрутки и наложений; кнопки только «нажимаются»; закрытая буква качается и никуда не ведёт; руки-подсказки на главной НЕТ;
+// Проверяет: главная не тянет Godot (*.wasm/*.pck/index.js), её вес; раскладка (сетка букв 7×5 сверху, под ней ряд из 6 значков-
+// разделов с подписями, вариант B, без подложек) на 4:3, 16:10, 16:9 и телефонах без прокрутки и наложений: все 6 — в одну строку,
+// не налезают друг на друга, на буквы и на «i»; значки загрузились; кнопки только «нажимаются»; закрытая буква качается и никуда не ведёт; руки-подсказки на главной НЕТ;
 // кнопка «i» (левый нижний угол, не на кубиках/кнопках) → страница сведений (общая для всех уроков, текст web-home/info.html) → тёмно-серый крестик → буквы;
 // тап «А» → мгновенный отклик → lesson-a/ с параметрами → сразу s01 (экрана s00 нет); крестик и «?step=» → обратно на главную.
 // Запуск: PORT=<свободный> node tests/home.mjs [папка-сайта, по умолчанию ../site]
@@ -67,15 +68,18 @@ try {
     ok(total < 1.5e6, "главная тяжелее 1,5 МБ");
     ok(!(await page.evaluate(() => document.getElementById("hand"))), "на главной осталась рука-подсказка"); }
   passed.push("home: без Godot");
-  // 2) раскладка: верхняя полоса под меню, кубики, черта, 6 круглых кнопок — всё в окне, без прокрутки и наложений
+  // 2) раскладка: кубики 7×5, ряд из 6 разделов с подписями, «i» — всё в окне, без прокрутки и наложений
   async function checkLayout(w, h) {
     await view(w, h); await noScroll(`${w}×${h}`);
     const L = await page.evaluate(() => {
       const R = (e) => { const r = e.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height }; };
       return { vw: innerWidth, vh: innerHeight, top: R(document.getElementById("topbar")),
-        cubes: [...document.querySelectorAll(".cube")].map(R), div: document.getElementById("divider") && R(document.getElementById("divider")),
-        divColor: getComputedStyle(document.getElementById("divider")).backgroundColor,
-        btns: [...document.querySelectorAll("#bottombar .rb")].map((e) => ({ ...R(e), slot: e.dataset.slot, label: e.getAttribute("aria-label"), text: e.textContent, kids: e.children.length })),
+        cubes: [...document.querySelectorAll(".cube")].map(R),
+        btns: [...document.querySelectorAll("#bottombar .rb")].map((e) => { const im = e.querySelector("img"), c = e.querySelector(".cap");
+          return { ...R(e), slot: e.dataset.slot, section: e.dataset.section, label: e.getAttribute("aria-label"), img: im && im.getAttribute("src"),
+            imgOk: !!(im && im.complete && im.naturalWidth >= 200), imgR: im && R(im), cap: c && c.textContent, capR: c && R(c),
+            capFs: c && parseFloat(getComputedStyle(c).fontSize), capColor: c && getComputedStyle(c).color, capWeight: c && getComputedStyle(c).fontWeight,
+            capOverflow: c ? c.scrollWidth - c.clientWidth : 0, bg: getComputedStyle(e).backgroundColor, border: getComputedStyle(e).borderTopWidth, shadow: getComputedStyle(e).boxShadow }; }),
         info: R(document.getElementById("info-btn")),
         fs: parseFloat(getComputedStyle(document.querySelector(".cube span")).fontSize), home: window.__home };
     });
@@ -86,34 +90,58 @@ try {
       const a = cubesSorted[i], b = cubesSorted[j]; ok(a.r <= b.l + 0.5 || b.r <= a.l + 0.5 || a.b <= b.t + 0.5 || b.b <= a.t + 0.5, `${where}: кубики ${i} и ${j} налезают`); }
     ok(L.cubes.length === 33 && L.cubes.every(inside), `${where}: кубики за краем окна`);
     const cubesTop = Math.min(...L.cubes.map((c) => c.t)), cubesBot = Math.max(...L.cubes.map((c) => c.b));
-    ok(cubesTop >= L.top.h - 1 && L.top.h >= Math.min(72, 72 * L.home.scale * 0.6) - 1, `${where}: нет места под верхнее меню (полоса ${L.top.h}, кубики с ${cubesTop})`);
-    ok(L.div && inside(L.div) && L.div.h >= 3 && L.div.h <= Math.max(5, 4 * L.home.scale + 1) && L.div.t >= cubesBot, `${where}: черта не под кубиками ${JSON.stringify(L.div)}`);
-    ok(!/rgb\((2[0-9]{2}), ([0-9]{1,2}), /.test(L.divColor), `${where}: черта красная? ${L.divColor}`);
-    const gl = Math.min(...L.cubes.map((c) => c.l)), gr = Math.max(...L.cubes.map((c) => c.r));
-    ok(L.div.w > (gr - gl) * 0.8 && L.div.w <= (gr - gl) + 1, `${where}: ширина черты ${L.div.w} не по сетке ${gr - gl}`);
+    ok(cubesTop >= L.top.h - 1 && cubesTop >= 8 - 0.5, `${where}: кубики у самого верха (${cubesTop})`);
+    ok(L.home.cols === 7, `${where}: сетка ${L.home.cols} столбцов, нужно 7×5`);
+    const SEC = ["alfavit", "slogi", "slova", "chitaem", "nakleyki", "zhesty"], CAPS = ["Алфавит", "Слоги", "Слова", "Читаем", "Мои наклейки", "Язык жестов"];
     ok(L.btns.length === 6, `${where}: кнопок ${L.btns.length}, нужно 6`);
     L.btns.forEach((b, i) => {
-      ok(b.slot === String(i + 1) && b.label && !b.text.trim() && !b.kids, `${where}: кнопка ${i + 1} не пустая / без data-slot`);
-      ok(inside(b) && b.t > L.div.b, `${where}: кнопка ${i + 1} вне окна или над чертой ${JSON.stringify(b)}`);
-      ok(Math.abs(b.w - b.h) < 1 && b.w >= 44, `${where}: кнопка ${i + 1} ${b.w}×${b.h} (меньше 44 или не круг)`);
+      ok(b.slot === String(i + 1) && b.section === SEC[i] && b.label && b.label.startsWith(CAPS[i]), `${where}: кнопка ${i + 1} — не «${CAPS[i]}» (${b.section}, ${b.label})`);
+      ok(b.img === `assets/home_${i + 1}_${SEC[i]}.png` && b.imgOk, `${where}: значок ${i + 1} не загрузился (${b.img})`);
+      ok(b.cap === CAPS[i] && b.capR && b.capR.h > 0 && b.capOverflow <= 0, `${where}: подпись ${i + 1} «${b.cap}» не видна или не влезает`);
+      ok(/rgba\(0, 0, 0, 0\)|transparent/.test(b.bg) && parseFloat(b.border) === 0 && b.shadow === "none", `${where}: у значка ${i + 1} есть подложка/рамка (${b.bg}, ${b.border}, ${b.shadow})`);
+      ok(+b.capWeight >= 700 && /rgb\(60, 50, 40\)/.test(b.capColor), `${where}: подпись ${i + 1} не тёмная жирная (${b.capColor}, ${b.capWeight})`);
+      ok(Math.abs((b.capR.l + b.capR.r) / 2 - (b.l + b.r) / 2) < 1 && b.capR.t >= b.b - 0.5, `${where}: подпись ${i + 1} не по центру под значком`);
+      ok(inside(b) && inside(b.capR) && b.t > cubesBot, `${where}: кнопка ${i + 1} вне окна или не под буквами ${JSON.stringify(b.capR)}`);
+      ok(Math.abs(b.w - b.h) < 1 && b.w >= 44, `${where}: кнопка ${i + 1} ${b.w}×${b.h} (меньше 44 или не квадрат)`);
       ok(b.l >= 12 - 0.5 && b.r <= L.vw - 12 + 0.5, `${where}: кнопка ${i + 1} ближе 12 px к боковому краю (${b.l.toFixed(1)}…${b.r.toFixed(1)} из ${L.vw})`);
-      ok(b.b <= L.vh - 8 - b.w * 0.06, `${where}: кнопка ${i + 1} ближе 8 px к низу (низ с «толщиной» ${(b.b + b.w * 0.055).toFixed(1)} из ${L.vh})`);
-      if (i) ok(b.l - L.btns[i - 1].r >= 5 && Math.abs((b.l - L.btns[i - 1].r) - (L.btns[1].l - L.btns[0].r)) < 1.5 && Math.abs(b.t - L.btns[0].t) < 1, `${where}: кнопки неровно`);
+      ok(b.capR.b <= L.vh - 8 + 0.5, `${where}: подпись ${i + 1} ближе 8 px к низу (${b.capR.b.toFixed(1)} из ${L.vh})`);
+      ok(b.capFs >= 9 && (Math.min(w, h) < 600 || b.capFs >= 11), `${where}: подпись ${i + 1} мелкая (${b.capFs} px)`);
+      // один ряд: одинаковый верх, равные промежутки ≥ 5 px; подписи соседей не налезают друг на друга
+      if (i) { const p = L.btns[i - 1];
+        ok(b.l - p.r >= 5 && Math.abs((b.l - p.r) - (L.btns[1].l - L.btns[0].r)) < 1.5 && Math.abs(b.t - L.btns[0].t) < 1, `${where}: кнопки не в один ряд / неровно`);
+        ok(p.capR.r <= b.capR.l + 0.5, `${where}: подписи ${i} и ${i + 1} налезают`); }
     });
+    ok(L.btns[0].w >= Math.min(108 * L.home.scale, 52) - 1 || L.vw < 380, `${where}: кнопки мельче макета (${L.btns[0].w})`);
     const rowC = (L.btns[0].l + L.btns[5].r) / 2; ok(Math.abs(rowC - L.vw / 2) < 2, `${where}: ряд кнопок не по центру`);
     ok(L.fs / L.home.cube > 0.4, `${where}: буквы мелкие`);
-    // «i»: в окне, круг ≥ 32 px, в левой нижней части, ни на кубиках, ни на кнопках, ни на черте
+    // «i»: в окне, круг ≥ 32 px, в левой нижней части, ни на кубиках, ни на кнопках, ни на подписях
     const I = L.info, apart = (a, b, m = 2) => a.r + m <= b.l || b.r + m <= a.l || a.b + m <= b.t || b.b + m <= a.t;
     ok(inside(I) && I.w >= 32 && Math.abs(I.w - I.h) < 1, `${where}: «i» вне окна или мала ${JSON.stringify(I)}`);
     ok(I.l < L.vw / 3 && I.t > L.vh / 2, `${where}: «i» не в левом нижнем углу ${JSON.stringify(I)}`);
     L.cubes.forEach((c, i) => ok(apart(I, c), `${where}: «i» на кубике ${i}`));
-    L.btns.forEach((b, i) => ok(apart(I, { ...b, b: b.b + b.w * 0.07 }), `${where}: «i» на кнопке ${i + 1}`));
-    ok(apart(I, L.div, 1), `${where}: «i» на черте`);
+    L.btns.forEach((b, i) => { ok(apart(I, b), `${where}: «i» на кнопке ${i + 1}`); ok(apart(I, b.capR), `${where}: «i» на подписи ${i + 1}`); });
+    // кнопки/подписи не налезают на кубики
+    L.btns.forEach((b, i) => L.cubes.forEach((c, k) => { ok(apart(b, c, 0) && apart(b.capR, c, 0), `${where}: кнопка ${i + 1} на кубике ${k}`); }));
     return L;
   }
   await sleep(1400);
-  { const L = await checkLayout(1024, 768); ok(L.home.cols === 7 && L.btns[0].w === 88, `4:3: сетка ${L.home.cols} столбцов, кнопка ${L.btns[0].w} (нужно 7 и 88)`); }
+  { const L = await checkLayout(1024, 768); ok(L.home.cols === 7 && L.btns[0].w === 108 && Math.round(L.btns[1].l - L.btns[0].l) === 122 && L.btns[0].capFs === 15,
+      `4:3: сетка ${L.home.cols} столбцов, кнопка ${L.btns[0].w}, шаг ${L.btns[1].l - L.btns[0].l}, подпись ${L.btns[0].capFs} (по макету 7, 108, 122, 15)`);
+    ok(L.btns.every((b) => b.capR.h < b.capFs * 1.5), "4:3: подписи должны быть в одну строку"); console.log(`1024×768: кубик ${L.home.cube}, ряд x=${L.btns[0].l}…${L.btns[5].r}, y=${L.btns[0].t}`); }
   await sleep(600); await shot("home-4x3");
+  // заданная проверка: 6 кнопок в один ряд без наложений (на кнопках, подписях, буквах и «i») — 1366×768, 1024×768, 768×1024, 390×844, 360×640
+  for (const [w, h] of [[1366, 768], [1024, 768], [768, 1024], [390, 844], [360, 640]]) {
+    const L = await checkLayout(w, h), B = L.btns;
+    const rows = new Set(B.map((b) => Math.round(b.t))).size, all = B.flatMap((b) => [b, b.capR]);
+    for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) {
+      const A = B[i], C = B[j], sep = (a, b) => a.r <= b.l + 0.5 || b.r <= a.l + 0.5 || a.b <= b.t + 0.5 || b.b <= a.t + 0.5;
+      ok(sep(A, C) && sep(A.capR, C.capR) && sep(A, C.capR) && sep(A.capR, C), `${w}×${h}: кнопки ${i + 1} и ${j + 1} налезают`); }
+    ok(rows === 1 && B.every((b, i) => !i || b.l > B[i - 1].r), `${w}×${h}: кнопки не в один ряд`);
+    const lines = B.map((b) => Math.round(b.capR.h / (b.capFs * 1.12)));
+    console.log(`один ряд ${w}×${h}: кнопка ${B[0].w}, шаг ${(B[1].l - B[0].l).toFixed(0)}, подпись ${B[0].capFs} px, строк ${lines.join("/")}; кубик ${L.home.cube}; «i» ${L.info.l},${L.info.t}`);
+    if (w === 390 && h === 844) ok(B[0].w === 52 && B[0].capFs === 11 && lines[4] === 2 && lines[5] === 2 && lines[0] === 1, `390×844: по макету кнопка 52, подпись 11, «Мои / наклейки» и «Язык / жестов» в 2 строки (${B[0].w}, ${B[0].capFs}, ${lines})`);
+  }
+  passed.push("home: 6 кнопок в один ряд без наложений (5 размеров)");
   { const L = await checkLayout(1366, 768); ok(L.home.cols >= 7, "16:9: сетка"); }
   await shot("home-16x9");
   { const L = await checkLayout(1280, 800); }
@@ -127,14 +155,13 @@ try {
     // Android-планшет Chrome
     [1280, 680], [1280, 720], [800, 1180], [960, 540], [1340, 750],
     // телефоны: альбомная / портретная
-    [844, 340], [740, 300], [915, 370], [390, 660], [360, 620], [320, 560], [390, 844], [375, 667], [430, 932]];
+    [844, 340], [740, 300], [915, 370], [390, 660], [360, 620], [320, 560], [390, 844], [375, 667], [430, 932], [360, 640], [768, 1024]];
   for (const [w, h] of SIZES) {
     const L = await checkLayout(w, h);
     if (Math.min(w, h) >= 600) ok(L.btns[0].w >= 64, `${w}×${h}: на планшете кнопка ${L.btns[0].w} < 64`);
-    if (Math.abs(w / h - 4 / 3) < 0.12) ok(L.home.cols === 7, `${w}×${h}: на 4:3 должно быть 7×5, а ${L.home.cols}`);
     sizes.push(`${w}×${h}: ${L.home.cols} стлб, кубик ${L.home.cube}, кнопка ${L.btns[0].w}`);
   }
-  console.log("раскладка (без прокрутки, черта, 6 кнопок и «i» в окне, без наложений):\n    " + sizes.join("\n    "));
+  console.log("раскладка (без прокрутки, 7×5, 6 разделов в один ряд и «i» в окне, без наложений):\n    " + sizes.join("\n    "));
   // скриншоты тесных случаев
   for (const [w, h, n] of [[1180, 740, "home-ipad-safari"], [1280, 680, "home-android-chrome"], [844, 340, "home-phone"], [360, 620, "home-portrait-phone"], [390, 844, "home-390x844"]]) {
     await checkLayout(w, h); await sleep(300); await shot(n); }
@@ -143,8 +170,8 @@ try {
     await page.setViewport({ width: w, height: h, hasTouch: true, isMobile: false }); await sleep(250);
     const L = await checkLayout(w, h); }
   console.log("пересчёт при смене размера окна без перезагрузки: 1180×820 → 1180×740 → 820×1180 → 360×620 → 1024×768");
-  passed.push("home: раскладка с чертой и кнопками");
-  // 3) круглые кнопки: нажимаются (сжатие), но никуда не ведут
+  passed.push("home: раскладка — буквы, ряд разделов, «i»");
+  // 3) кнопки-разделы: нажимаются (сжатие), но никуда не ведут
   await view(1024, 768);
   { const u0 = page.url(), s = await home(); const [x, y] = s.targets.buttons[2];
     await page.touchscreen.touchStart(x, y);
@@ -152,7 +179,7 @@ try {
     const pressed = await page.evaluate(() => { const b = document.querySelector('.rb[data-slot="3"]'); return b.classList.contains("press") && getComputedStyle(b).transform; });
     await page.touchscreen.touchEnd(); await sleep(500);
     const sc = pressed && /matrix\(([-\d.e]+)/.exec(pressed); ok(sc && +sc[1] < 0.95, "кнопка не сжалась при нажатии: " + pressed);
-    ok(page.url() === u0 && (await home()).state === "wait_letter", "пустая кнопка что-то сделала");
+    ok(page.url() === u0 && (await home()).state === "wait_letter", "кнопка раздела что-то сделала");
     ok(!(await page.evaluate(() => document.querySelector(".rb.press"))), "кнопка осталась нажатой");
     console.log("кнопка 3: сжатие при касании (" + pressed + "), действий нет"); }
   passed.push("home: кнопки — только отклик");
