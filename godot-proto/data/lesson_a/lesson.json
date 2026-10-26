@@ -5,17 +5,207 @@
  "small": "а",
  "host": "alya",
  "steps": [
-  "s01_intro",
-  "s02_sing",
-  "s03_words",
-  "s04_hear",
-  "s05_letter",
-  "s06_write",
-  "s07_find",
-  "s08_sort",
-  "s09_say",
-  "s10_end"
+  "s01_stork",
+  "s02_intro",
+  "s03_sing",
+  "s04_words",
+  "s05_hear",
+  "s06_letter",
+  "s07_write",
+  "s08_find",
+  "s09_sort",
+  "s10_say",
+  "s11_end"
  ],
+ "stork": {
+  "_about": "Сцена 1 «Аист приносит буквы» (steps/s01_stork.gd). Все числа — art/lesson_a/s01_dlya_koda.txt (раунд 13, §2–§4): координаты — логическая сцена 1024×768, точки пути — положение PIV летящего аиста. Вход справа и падение букв в txt не заданы — значения здесь (enter_speed, drop_sec).",
+  "bg": "bg_meadow",
+  "tree": {
+   "id": "pic_nest_tree",
+   "pos": [
+    180,
+    100
+   ],
+   "size": [
+    380,
+    380
+   ]
+  },
+  "nest": {
+   "sit": "stork_nest_sit",
+   "flap": [
+    "stork_nest_flap_1",
+    "stork_nest_flap_2"
+   ],
+   "front": "pic_nest",
+   "origin": [
+    250,
+    24
+   ],
+   "size": [
+    272,
+    248
+   ],
+   "pivot": [
+    121,
+    132
+   ],
+   "land": [
+    371,
+    156
+   ],
+   "touch": [
+    298,
+    52,
+    458,
+    214
+   ],
+   "land_scale": [
+    0.61,
+    1.0
+   ],
+   "land_sec": 0.2
+  },
+  "fly": {
+   "_frames": "кадры 280×242 лог., смотрят ВЛЕВО; при движении вправо — зеркало x' = 280 − x (PIV тоже)",
+   "carry": [
+    "stork_fly_carry_up",
+    "stork_fly_carry_down"
+   ],
+   "open": [
+    "stork_fly_open_up",
+    "stork_fly_open_down"
+   ],
+   "size": [
+    280,
+    242
+   ],
+   "pivot": [
+    145.75,
+    127.5
+   ],
+   "scale": 0.8,
+   "wing_sec": 0.15,
+   "flip_sec": 0.15,
+   "_hang": "крепление букв (верхняя середина буквы) в кадре, лог. px при масштабе 1; высоты при масштабе 1 (×0,8 в полёте). Буквы — под аистом.",
+   "hang_carry": {
+    "big": [
+     1.5,
+     129.5
+    ],
+    "small": [
+     18.0,
+     124.7
+    ]
+   },
+   "hang_open": {
+    "big": [
+     5.4,
+     136.3
+    ],
+    "small": [
+     20.5,
+     128.1
+    ]
+   },
+   "hang_height": {
+    "big": 60,
+    "small": 42
+   },
+   "enter": [
+    [
+     1380,
+     375
+    ],
+    [
+     1200,
+     375
+    ],
+    [
+     1040,
+     375
+    ],
+    [
+     900,
+     375
+    ],
+    [
+     770,
+     355
+    ],
+    [
+     680,
+     335
+    ]
+   ],
+   "enter_speed": 370,
+   "whoosh": "sfx_whoosh",
+   "rise_to": [
+    500,
+    178
+   ],
+   "rise_sec": 0.6,
+   "circle": {
+    "center": [
+     500,
+     150
+    ],
+    "rx": 110,
+    "ry": 28,
+    "t0_deg": 90,
+    "t1_deg": 630,
+    "sec": 2.0
+   },
+   "approach_sec": 0.4,
+   "approach_arc": 10
+  },
+  "letters": {
+   "_rects": "рамки глифов на земле [x0,y0,x1,y1] (по непрозрачным пикселям спрайта, с белой обводкой); подложки нет",
+   "big": [
+    389.4,
+    320,
+    625.9,
+    600
+   ],
+   "small": [
+    649.9,
+    404,
+    814.6,
+    600
+   ],
+   "drop_sec": 0.7,
+   "land_squash": 0.08,
+   "tap_pad": [
+    12,
+    12,
+    20,
+    20
+   ],
+   "_tap_pad": "поля зоны касания буквы: слева, сверху, справа, снизу (справа/снизу ≤ 20 px)",
+   "bounce_px": 14,
+   "bounce_sec": 0.32
+  },
+  "voice_appear": "a_word_02",
+  "voice_at_x": 1150,
+  "_voice_at_x": "a_word_02 звучит, когда PIV аиста проходит x ≤ voice_at_x (аист показался на 4:3)",
+  "stork_tap": {
+   "audio": "a_word_02",
+   "flap_frame_sec": 0.14,
+   "flap_cycles": 3
+  },
+  "letter_tap": {
+   "audio": "a_aaa",
+   "fallback": "a_find_03",
+   "max_sec": 1.8
+  },
+  "hint_target": "big",
+  "_unlock_tap": "Первый жест на странице урока (иначе iOS не даст звука): если на lesson-a/ ещё не было касания, на экране луг, дерево и пустое гнездо; гнездо мягко пульсирует, через hint_sec — рука на гнезде; любое касание запускает влёт аиста. В тесте — только с ?gate=1.",
+  "unlock_tap": {
+   "enabled": true,
+   "pulse_scale": 1.05,
+   "pulse_sec": 0.8
+  }
+ },
  "intro": {
   "host": "alya",
   "bunny": "bunny",
@@ -28,7 +218,7 @@
   ],
   "song": "a_intro_02",
   "after_tap": "a_intro_04",
-  "_unlock_tap": "Первый жест на странице урока (иначе iOS не даст звука): если на lesson-a/ ещё не было касания, сцена 1 показывает Алю и зайку, Аля мягко пульсирует, через hint_sec — рука; любое касание запускает сцену. В тесте — только с ?gate=1.",
+  "_unlock_tap": "Сцена 2 (колыбельная). Тот же первый жест, если урок открыт сразу со сцены 2 (?step=2): Аля и зайка на экране, Аля мягко пульсирует, через hint_sec — рука; любое касание запускает сцену. Со сцены 1 касание уже было — сразу дальше. В тесте — только с ?gate=1.",
   "unlock_tap": {
    "enabled": true,
    "pulse_scale": 1.05,
@@ -46,11 +236,15 @@
    "a_sing_02",
    "a_sing_03"
   ],
-  "loop": "a_sing_loop",
+  "loop": "a_aaa",
   "hold_goal_sec": 2.0,
   "after_hold": "a_sing_04",
   "circle": "ui_circle_flat",
-  "waves": "ui_sound_waves"
+  "waves": "ui_sound_waves",
+  "loop_fallback": "a_find_03",
+  "_loop": "Решение методиста 26.10.2026: при удержании кружка по кругу звучит a_aaa (заменяет a_sing_loop); пока записи нет — a_find_03. Сразу после a_sing_01 один раз звучит образец sample (та же замена).",
+  "sample": "a_aaa",
+  "sample_fallback": "a_find_03"
  },
  "words": {
   "bg": "bg_meadow",
@@ -595,9 +789,9 @@
   "bg": "bg_meadow",
   "intro": "a_sort_01",
   "fill_pic": "pic_grib",
-  "_done_tap": "После конца сцены касание любой корзинки — «А-а-а» голосом Али + подскок; до конца корзинки не реагируют. Нет файла audio (a_sort_aaa — протяжный дубль, пока не записан) — fallback a_find_03 «А!» (есть); нет и его — только подскок.",
+  "_done_tap": "После конца сцены касание любой корзинки — «А-а-а» голосом Али + подскок; до конца корзинки не реагируют. Нет файла audio (a_aaa «А-а-а» — общая запись сцен 1, 3, 9; заменяет a_sort_aaa; пока не записан) — fallback a_find_03 «А!» (есть); нет и его — только подскок.",
   "done_tap": {
-   "audio": "a_sort_aaa",
+   "audio": "a_aaa",
    "fallback": "a_find_03",
    "max_sec": 1.8,
    "bounce_px": 14,

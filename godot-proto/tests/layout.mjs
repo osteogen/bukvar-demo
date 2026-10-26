@@ -1,9 +1,9 @@
 // Тест раскладки (DESIGN_RULES.md, §2): на всех экранах кнопки «назад», «Далее», крестик целиком на экране и
-// не перекрывают карточки, картинки, буквы и другие интерактивные предметы — на каждом шаге s01…s10.
-// Плюс: s04 «Слышу звук?» — каждая карточка по центру, ряд отвеченных карточек по центру, касание карточки в ряду
-// говорит слово и ничего не подтверждает; s07 «Шарики» — летящие шарики (позиции в разные моменты) и итоговые А/а
-// не заходят под кнопки; s03 «Паровозик» — рельсы от края до края экрана, поезд въезжает и уезжает из-за краёв,
-// по пути не заходит под кнопки (снимки в пути — screenshots/layout/<экран>-s03-train-ride.png).
+// не перекрывают карточки, картинки, буквы и другие интерактивные предметы — на каждом шаге s01…s11.
+// Плюс: s05 «Слышу звук?» — каждая карточка по центру, ряд отвеченных карточек по центру, касание карточки в ряду
+// говорит слово и ничего не подтверждает; s08 «Шарики» — летящие шарики (позиции в разные моменты) и итоговые А/а
+// не заходят под кнопки; s04 «Паровозик» — рельсы от края до края экрана, поезд въезжает и уезжает из-за краёв,
+// по пути не заходит под кнопки (снимки в пути — screenshots/layout/<экран>-s04-train-ride.png).
 // Запуск: PORT=<свободный> node tests/layout.mjs   (VPS="390x844,1024x768" — свои экраны; SITE=папка сайта)
 import { createRequire } from "module"; import { spawn } from "child_process"; import path from "path"; import fs from "fs"; import { fileURLToPath } from "url";
 const require = createRequire(import.meta.url);
@@ -16,7 +16,7 @@ const srv = spawn("node", [path.join(ROOT, "tests/serve.mjs"), SITE, String(PORT
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // телефон портрет/альбом, 4:3, 16:9, 16:10, iPhone 390×844 (там «назад» перекрывал карточку «мак»), планшет-портрет
 const VPS = (process.env.VPS || "1024x768,1366x768,1280x800,844x390,390x844,360x640,768x1024").split(",");
-const STEPS = ["s01_intro", "s02_sing", "s03_words", "s04_hear", "s05_letter", "s06_write", "s07_find", "s08_sort", "s09_say", "s10_end"];
+const STEPS = ["s01_stork", "s02_intro", "s03_sing", "s04_words", "s05_hear", "s06_letter", "s07_write", "s08_find", "s09_sort", "s10_say", "s11_end"];
 const errors = [], notes = []; let page;
 const bk = () => page.evaluate(() => window.__bk || {}).catch(() => ({}));
 async function waitFor(fn, desc, timeout = 40000) {
@@ -42,7 +42,7 @@ async function sampleOverlaps(where, n, gap) {
 }
 async function open(step, extra = "") {
   await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&step=${step}${extra}`, { waitUntil: "load" });
-  const s = await waitFor((s) => s.step === step && /^(wait|done|drive)/.test(s.state || ""), "open " + step, 60000);
+  const s = await waitFor((s) => s.step === step && /^(wait|done|drive|fly_in)/.test(s.state || ""), "open " + step, 60000);
   K = (await page.evaluate(() => innerWidth)) / s.visible_rect[2];
   return s;
 }
@@ -60,74 +60,86 @@ try {
       // 1) все шаги: несколько замеров (анимации, въезд поезда, шарики)
       for (const st of STEPS) {
         await open(st);
-        await sampleOverlaps(`${vp} ${st}`, st === "s07_find" ? 12 : 4, st === "s07_find" ? 700 : 500);
+        // s01: весь полёт аиста (влёт → круг → посадка, ≈ 5,5 с) и после посадки
+        const [n, gap] = st === "s08_find" ? [12, 700] : st === "s01_stork" ? [70, 100] : [4, 500];
+        await sampleOverlaps(`${vp} ${st}`, n, gap);
+        if (st === "s01_stork") {   // аист сел, «Далее» на экране; касание аиста в гнезде и буквы «а» (зона у края) — работают
+          const d = await waitFor((s) => s.state === "done" && s.targets.next && s.targets.stork_nest, vp + " s01 посадка");
+          checkButtonsOnScreen(d, vp + " s01 посадка");
+          await tapT("stork_nest"); await tapT("small");
+          const q = await bk();
+          if (q.info.s01_word_taps !== 1 || q.info.s01_letter_taps !== 1)
+            throw new Error(`${vp} s01: касание аиста/«а» не сработало (${q.info.s01_word_taps}/${q.info.s01_letter_taps})`);
+          await page.screenshot({ path: path.join(SHOTS, `${vp}-s01-landed.png`) });
+          notes.push(`${vp} s01: полёт без перекрытий, «Далее» на экране, касания аиста и «а» работают`);
+        }
       }
-      // 2) s04: карточки по центру, ряд по центру, касание карточки в ряду
+      // 2) s05: карточки по центру, ряд по центру, касание карточки в ряду
       { const ans = ["yes", "no", "yes", "no", "yes"]; let y0 = null;
-        await open("s04_hear");
+        await open("s05_hear");
         for (let i = 0; i < 5; i++) {
-          const s = await waitFor((s) => s.state === "wait_answer_" + i, "s04 answer " + i);
+          const s = await waitFor((s) => s.state === "wait_answer_" + i, "s05 answer " + i);
           await sleep(450);
-          const s1 = await bk(); const [cx, cy] = s1.stage_center; const [x, y, cw, ch] = s1.info.s04_card;
+          const s1 = await bk(); const [cx, cy] = s1.stage_center; const [x, y, cw, ch] = s1.info.s05_card;
           const mx = x + cw / 2, my = y + ch / 2;
-          if (!near(mx, cx, 3)) throw new Error(`${vp} s04: карточка ${i + 1} не по центру (x ${Math.round(mx)} vs ${Math.round(cx)})`);
-          if (y0 === null) y0 = my - cy; else if (!near(my - cy, y0, 3)) throw new Error(`${vp} s04: карточка ${i + 1} на другой высоте`);
-          await sampleOverlaps(`${vp} s04 слово ${i + 1}`, 2, 300);
+          if (!near(mx, cx, 3)) throw new Error(`${vp} s05: карточка ${i + 1} не по центру (x ${Math.round(mx)} vs ${Math.round(cx)})`);
+          if (y0 === null) y0 = my - cy; else if (!near(my - cy, y0, 3)) throw new Error(`${vp} s05: карточка ${i + 1} на другой высоте`);
+          await sampleOverlaps(`${vp} s05 слово ${i + 1}`, 2, 300);
           await tapT(ans[i]);
         }
-        const s = await waitFor((s) => s.state === "done" && s.info.s04_row, "s04 done", 40000);
-        const row = s.info.s04_row; const [cx] = s.stage_center;
+        const s = await waitFor((s) => s.state === "done" && s.info.s05_row, "s05 done", 40000);
+        const row = s.info.s05_row; const [cx] = s.stage_center;
         const mid = row.reduce((a, [x, , cw]) => a + x + cw / 2, 0) / row.length;
-        if (!near(mid, cx, 3)) throw new Error(`${vp} s04: ряд карточек не по центру (${Math.round(mid)} vs ${Math.round(cx)}) ${JSON.stringify(row.map((r) => r.map(Math.round)))}`);
-        if (new Set(row.map(([, y, , ch]) => Math.round(y + ch / 2))).size !== 1) throw new Error(`${vp} s04: карточки ряда на разной высоте`);
-        await sampleOverlaps(`${vp} s04 ряд`, 2, 300);
+        if (!near(mid, cx, 3)) throw new Error(`${vp} s05: ряд карточек не по центру (${Math.round(mid)} vs ${Math.round(cx)}) ${JSON.stringify(row.map((r) => r.map(Math.round)))}`);
+        if (new Set(row.map(([, y, , ch]) => Math.round(y + ch / 2))).size !== 1) throw new Error(`${vp} s05: карточки ряда на разной высоте`);
+        await sampleOverlaps(`${vp} s05 ряд`, 2, 300);
         const ok0 = (s.sfx_counts || {}).sfx_ok || 0;
         await tapT("row_card_0"); await sleep(700); await tapT("row_card_3"); await sleep(700);
         const s2 = await bk();
-        if (s2.info.s04_word_taps !== 2) throw new Error(`${vp} s04: касание карточки в ряду не сработало (${s2.info.s04_word_taps})`);
-        if (s2.info.s04_word_last !== "a_hear_05") throw new Error(`${vp} s04: карточка «дом» сказала ${s2.info.s04_word_last}`);
-        if (s2.state !== "done" || ((s2.sfx_counts || {}).sfx_ok || 0) !== ok0) throw new Error(`${vp} s04: касание карточки в ряду что-то подтвердило`);
-        await page.screenshot({ path: path.join(SHOTS, `${vp}-s04-row.png`) });
-        notes.push(`${vp} s04: 5 карточек по центру, ряд по центру, касания ряда — слово, без подтверждения`); }
-      // 2б) s03: рельсы от края до края экрана (плитка без растяжения); поезд въезжает целиком из-за края,
+        if (s2.info.s05_word_taps !== 2) throw new Error(`${vp} s05: касание карточки в ряду не сработало (${s2.info.s05_word_taps})`);
+        if (s2.info.s05_word_last !== "a_hear_05") throw new Error(`${vp} s05: карточка «дом» сказала ${s2.info.s05_word_last}`);
+        if (s2.state !== "done" || ((s2.sfx_counts || {}).sfx_ok || 0) !== ok0) throw new Error(`${vp} s05: касание карточки в ряду что-то подтвердило`);
+        await page.screenshot({ path: path.join(SHOTS, `${vp}-s05-row.png`) });
+        notes.push(`${vp} s05: 5 карточек по центру, ряд по центру, касания ряда — слово, без подтверждения`); }
+      // 2б) s04: рельсы от края до края экрана (плитка без растяжения); поезд въезжает целиком из-за края,
       //     уезжает целиком за другой край; во время езды кнопки ничего не перекрывают
-      { let s = await open("s03_words");
-        const r = s.info.s03_rails; const v = s.visible_rect; const kk = s.content_rect[2] / 1024;
+      { let s = await open("s04_words");
+        const r = s.info.s04_rails; const v = s.visible_rect; const kk = s.content_rect[2] / 1024;
         const vl = (v[0] - s.content_rect[0]) / kk, vr = (v[0] + v[2] - s.content_rect[0]) / kk;
-        if (!r || r.x0 > vl + 0.5 || r.x1 < vr - 0.5) throw new Error(`${vp} s03: рельсы не на всю ширину (${r && [r.x0, r.x1].map(Math.round)} при экране ${[vl, vr].map(Math.round)})`);
-        if (Math.abs(r.kx - r.ky) > 1e-6) throw new Error(`${vp} s03: рельсы растянуты (${r.kx}×${r.ky})`);
-        const di = (await waitFor((s) => s.info && s.info.s03_drive_in, vp + " s03 drive_in")).info.s03_drive_in;
+        if (!r || r.x0 > vl + 0.5 || r.x1 < vr - 0.5) throw new Error(`${vp} s04: рельсы не на всю ширину (${r && [r.x0, r.x1].map(Math.round)} при экране ${[vl, vr].map(Math.round)})`);
+        if (Math.abs(r.kx - r.ky) > 1e-6) throw new Error(`${vp} s04: рельсы растянуты (${r.kx}×${r.ky})`);
+        const di = (await waitFor((s) => s.info && s.info.s04_drive_in, vp + " s04 drive_in")).info.s04_drive_in;
         const offIn = di.dir === "rtl" ? di.from >= di.vis_r : di.from + di.w <= di.vis_l;
-        if (!offIn || di.vis_l > vl + 0.5 || di.vis_r < vr - 0.5) throw new Error(`${vp} s03: поезд въезжает не из-за края экрана ${JSON.stringify(di)}`);
+        if (!offIn || di.vis_l > vl + 0.5 || di.vis_r < vr - 0.5) throw new Error(`${vp} s04: поезд въезжает не из-за края экрана ${JSON.stringify(di)}`);
         let shot = false;
         for (let n = 0; n < 200; n++) { s = await bk(); if (s.state !== "drive_in_0") break;
-          checkButtonsOnScreen(s, vp + " s03 въезд"); if ((s.ui_overlaps || []).length) throw new Error(`${vp} s03 въезд: ${s.ui_overlaps.join("; ")}`);
-          if (!shot && s.targets.train) { const tx = s.targets.train[0]; if (tx > v[2] * 0.2 && tx < v[2] * 0.45) { await page.screenshot({ path: path.join(SHOTS, `${vp}-s03-train-ride.png`) }); shot = true; } }
+          checkButtonsOnScreen(s, vp + " s04 въезд"); if ((s.ui_overlaps || []).length) throw new Error(`${vp} s04 въезд: ${s.ui_overlaps.join("; ")}`);
+          if (!shot && s.targets.train) { const tx = s.targets.train[0]; if (tx > v[2] * 0.2 && tx < v[2] * 0.45) { await page.screenshot({ path: path.join(SHOTS, `${vp}-s04-train-ride.png`) }); shot = true; } }
           await sleep(60); }
-        await waitFor((s) => s.state === "wait_pic_0", vp + " s03 wait_pic_0");
+        await waitFor((s) => s.state === "wait_pic_0", vp + " s04 wait_pic_0");
         await tapT("pic");
-        s = await waitFor((s) => s.state === "wait_slot_0" && s.info && s.info.s03_right !== undefined, vp + " s03 wait_slot_0");
-        await tapT("slot" + s.info.s03_right);
-        await waitFor((s) => /^(ok|drive_out)_0$/.test(s.state), vp + " s03 верный ответ");
-        for (let n = 0; n < 300; n++) { s = await bk(); if (s.info && s.info.s03_left === 0) break;
-          checkButtonsOnScreen(s, vp + " s03 выезд"); if ((s.ui_overlaps || []).length) throw new Error(`${vp} s03 выезд: ${s.ui_overlaps.join("; ")}`);
+        s = await waitFor((s) => s.state === "wait_slot_0" && s.info && s.info.s04_right !== undefined, vp + " s04 wait_slot_0");
+        await tapT("slot" + s.info.s04_right);
+        await waitFor((s) => /^(ok|drive_out)_0$/.test(s.state), vp + " s04 верный ответ");
+        for (let n = 0; n < 300; n++) { s = await bk(); if (s.info && s.info.s04_left === 0) break;
+          checkButtonsOnScreen(s, vp + " s04 выезд"); if ((s.ui_overlaps || []).length) throw new Error(`${vp} s04 выезд: ${s.ui_overlaps.join("; ")}`);
           await sleep(60); }
-        const dout = (await waitFor((s) => s.info && s.info.s03_left === 0, vp + " s03 уехал", 20000)).info;
-        const d = dout.s03_drive_out; const offOut = d.dir === "rtl" ? d.to + d.w <= d.vis_l : d.to >= d.vis_r;
-        if (!offOut) throw new Error(`${vp} s03: поезд уехал не за край экрана ${JSON.stringify(d)}`);
-        if (dout.s03_cards_visible !== 0) throw new Error(`${vp} s03: карточка осталась после отъезда`);
-        notes.push(`${vp} s03: рельсы ${Math.round(r.x0)}…${Math.round(r.x1)} при экране ${Math.round(vl)}…${Math.round(vr)} (плитка ${Math.round(r.tile_w)}, ×${r.kx.toFixed(3)}); въезд ${Math.round(di.from)}→${Math.round(di.to)}, выезд ${Math.round(d.from)}→${Math.round(d.to)}, без перекрытий${shot ? ", снимок в пути" : ""}`); }
-      // 3) s07: лопаем все шарики с А/а, затем А и а в центре; шарики летят дальше
-      { await open("s07_find");
+        const dout = (await waitFor((s) => s.info && s.info.s04_left === 0, vp + " s04 уехал", 20000)).info;
+        const d = dout.s04_drive_out; const offOut = d.dir === "rtl" ? d.to + d.w <= d.vis_l : d.to >= d.vis_r;
+        if (!offOut) throw new Error(`${vp} s04: поезд уехал не за край экрана ${JSON.stringify(d)}`);
+        if (dout.s04_cards_visible !== 0) throw new Error(`${vp} s04: карточка осталась после отъезда`);
+        notes.push(`${vp} s04: рельсы ${Math.round(r.x0)}…${Math.round(r.x1)} при экране ${Math.round(vl)}…${Math.round(vr)} (плитка ${Math.round(r.tile_w)}, ×${r.kx.toFixed(3)}); въезд ${Math.round(di.from)}→${Math.round(di.to)}, выезд ${Math.round(d.from)}→${Math.round(d.to)}, без перекрытий${shot ? ", снимок в пути" : ""}`); }
+      // 3) s08: лопаем все шарики с А/а, затем А и а в центре; шарики летят дальше
+      { await open("s08_find");
         for (let n = 0; n < 200; n++) { const s = await bk(); if (s.state === "done") break;
-          checkButtonsOnScreen(s, vp + " s07"); if ((s.ui_overlaps || []).length) throw new Error(`${vp} s07: ${s.ui_overlaps.join("; ")}`);
+          checkButtonsOnScreen(s, vp + " s08"); if ((s.ui_overlaps || []).length) throw new Error(`${vp} s08: ${s.ui_overlaps.join("; ")}`);
           if (s.targets && s.targets.balloon) { const [x, y] = s.targets.balloon; await page.touchscreen.tap(x * K, y * K); }
           await sleep(350); }
-        await waitFor((s) => s.targets && s.targets.end_big && s.targets.end_small, vp + " s07 А/а", 10000);
-        await sampleOverlaps(`${vp} s07 итог А/а + шарики`, 8, 500);
-        await page.screenshot({ path: path.join(SHOTS, `${vp}-s07-letters.png`) });
-        notes.push(`${vp} s07: шарики и А/а без перекрытий`); }
-      notes.push(`${vp}: шаги s01–s10 без перекрытий, кнопки на экране`);
+        await waitFor((s) => s.targets && s.targets.end_big && s.targets.end_small, vp + " s08 А/а", 10000);
+        await sampleOverlaps(`${vp} s08 итог А/а + шарики`, 8, 500);
+        await page.screenshot({ path: path.join(SHOTS, `${vp}-s08-letters.png`) });
+        notes.push(`${vp} s08: шарики и А/а без перекрытий`); }
+      notes.push(`${vp}: шаги s01–s11 без перекрытий, кнопки на экране`);
     } catch (e) { errors.push(String(e.message || e)); try { await page.screenshot({ path: path.join(SHOTS, `FAIL-${vp}.png`) }); } catch {} }
   }
   await browser.close();

@@ -101,7 +101,7 @@ func add_pic(id: String, center: Vector2, sz := Vector2.ZERO, clickable := true)
 	return b
 
 ## DESIGN_RULES.md §3: красная буква / красный кружок на насыщенном тёплом фоне (bg_room_evening и др. из
-## lesson.cream_underlay_bgs) — только на кремовой подложке #F7F0DE (как карточки s09). Подложка — ребёнок узла,
+## lesson.cream_underlay_bgs) — только на кремовой подложке #F7F0DE (как карточки s10). Подложка — ребёнок узла,
 ## рисуется за ним и двигается вместе с ним. На остальных фонах ничего не делаем.
 func cream_underlay(n: Control, pad := 0.22) -> void:
 	var bgs: Array = Assets.lesson.get("cream_underlay_bgs", ["bg_room_evening"])
@@ -126,7 +126,7 @@ func cream_underlay(n: Control, pad := 0.22) -> void:
 ## Общая рамка-карточка ui_card_frame (рисует иллюстратор) под картинкой: ребёнок узла, рисуется за ним
 ## (show_behind_parent), чуть больше картинки — двигается и масштабируется вместе с ней. Нет файла — ничего не делаем.
 func add_card_frame(pic: Control, pad := 0.06, backing := Color(0, 0, 0, 0)) -> void:
-	# непрозрачная подложка внутри рамки (кремовая #F7F0DE в сцене 9 — как у карточки Али в s05)
+	# непрозрачная подложка внутри рамки (кремовая #F7F0DE в сцене 9 — как у карточки Али в s06)
 	if backing.a > 0.0:
 		var bk := Panel.new()
 		var sb := StyleBoxFlat.new()
@@ -295,3 +295,44 @@ func tap_area(over: Control) -> Button:
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	add_child(b)
 	return b
+
+# ---------- первый жест на странице урока (звук на iOS) ----------
+## Общий шаг для сцены 1 (s01_stork, lesson.stork.unlock_tap) и сцены 2 (s02_intro, intro.unlock_tap — если урок открыт
+## сразу с неё). В вебе: navigator.userActivation.hasBeenActive (касание уже было — сразу дальше). В тесте (?test=1) —
+## только с ?gate=1, чтобы сквозные тесты не ждали лишнего касания. Пока ждём: pulse_node мягко пульсирует, через hint_sec —
+## рука на нём, состояние "wait_unlock"; любое касание (в любом месте экрана) — дальше.
+## Шаг, у которого свой _input (s06_letter), этот шаг не использует (в Godot 4 _input наследника заменяет этот).
+signal _unlocked
+
+func needs_unlock(u: Dictionary) -> bool:
+	if not bool(u.get("enabled", true)) or not OS.has_feature("web"):
+		return false
+	if main.has_meta("audio_unlocked"):
+		return false      # на этой странице уже коснулись (сцена 1 → «Далее» → сцена 2): второй раз не ждём
+	if main.test_mode and not Assets.flag("gate"):
+		return false
+	var active = JavaScriptBridge.eval("(navigator.userActivation && navigator.userActivation.hasBeenActive) ? 1 : 0", true)
+	return int(active) != 1 or Assets.flag("gate")
+
+func unlock_gate(pulse_node: Control, u: Dictionary) -> bool:
+	if dead:
+		return false
+	if not needs_unlock(u):
+		return true
+	var sc := float(u.get("pulse_scale", 1.05))
+	var half := float(u.get("pulse_sec", 0.8)) / 2
+	var tw := pulse_node.create_tween().set_loops()
+	tw.tween_property(pulse_node, "scale", Vector2(sc, sc), half)
+	tw.tween_property(pulse_node, "scale", Vector2.ONE, half)
+	main.hint_start(func(): return pulse_node, "")
+	main.set_state("wait_unlock")
+	await _unlocked
+	main.set_meta("audio_unlocked", true)
+	tw.kill()
+	pulse_node.scale = Vector2.ONE
+	main.hint_stop()
+	return not dead
+
+func _input(ev: InputEvent) -> void:
+	if main and main.state == "wait_unlock" and (ev is InputEventScreenTouch or ev is InputEventMouseButton) and ev.pressed:
+		_unlocked.emit()

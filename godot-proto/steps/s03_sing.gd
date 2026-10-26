@@ -1,4 +1,6 @@
-## Сцена 2. Поющий звук: нажми и держи красный кружок 2 с.
+## Сцена 3. Поющий звук: нажми и держи красный кружок 2 с.
+## Звук «а-а-а» — a_aaa (решение методиста 26.10.2026, заменяет a_sing_loop): один раз образцом сразу после a_sing_01
+## и по кругу, пока кружок нажат. Пока записи a_aaa нет — sing.loop_fallback / sample_fallback (a_find_03).
 extends LessonStep
 
 var circle: TextureButton
@@ -42,6 +44,7 @@ func run() -> void:
 	bar_fill.size = Vector2(0, 36)
 	add_child(bar_fill)
 	if not await say(cfg.lines[0]): return
+	if not await _sample(): return
 	circle.visible = true
 	pop_in(circle)
 	if not await say(cfg.lines[1]): return
@@ -57,9 +60,29 @@ func _down() -> void:
 	holding = true
 	press_t = Time.get_ticks_msec()
 	Voice.stop_voice()
-	Voice.loop_start(cfg.loop)
+	Voice.loop_start(_audio(String(cfg.loop), String(cfg.get("loop_fallback", ""))))
 	face.singing = true
 	main.hint_stop()
+
+## Запись или запасная (нет записи — пустая строка).
+func _audio(id: String, fallback: String) -> String:
+	if Assets.sound(id) != null:
+		return id
+	return fallback if fallback != "" and Assets.sound(fallback) != null else ""
+
+## Образец протяжного «а-а-а» после a_sing_01: Аля поёт (рот открыт), один раз.
+func _sample() -> bool:
+	var id := _audio(String(cfg.get("sample", "")), String(cfg.get("sample_fallback", "")))
+	main.set_info("s03_sample", id)
+	if id == "":
+		return not dead
+	face.singing = true
+	var t0 := Time.get_ticks_msec()
+	var ok := await say(id)
+	if not dead:
+		face.singing = false
+	main.set_info("s03_sample_ms", Time.get_ticks_msec() - t0)
+	return ok
 
 func _up() -> void:
 	if done: return

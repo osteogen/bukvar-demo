@@ -1,8 +1,8 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://steps/s02_sing.gd" id="1"]
+[ext_resource type="Script" path="res://steps/s05_hear.gd" id="1"]
 
-[node name="s02_sing" type="Control"]
+[node name="s05_hear" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0

@@ -175,7 +175,7 @@ func _show_letters() -> void:
 			pulse(l, 1)
 			Voice.say(voice))
 		main.expose(p[4], hit)
-	main.set_info("s07_letters", true)
+	main.set_info("s08_letters", true)
 
 func _process(_d: float) -> void:
 	_fly(_d)

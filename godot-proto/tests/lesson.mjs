@@ -1,9 +1,10 @@
-// Сквозной тест урока «А» в headless Chrome: проходит все шаги s01…s10 КАСАНИЯМИ (touch-события, как на планшете),
+// Сквозной тест урока «А» в headless Chrome: проходит все шаги s01…s11 КАСАНИЯМИ (touch-события, как на планшете),
 // делает ошибки там, где это нужно для проверки реакций, снимает скриншоты.
 // Сайт как в CI: корень — HTML-главная (web-home/), урок — lesson-a/ (сборка: bash tests/assemble_site.sh).
-// Вход: главная → «А» → lesson-a/ → сразу s01 (экрана для взрослого s00 больше нет) → s01…s10.
-// Звук на iOS: в вебе без жеста на странице s01 ждёт касания (Аля пульсирует, wait_unlock); в тесте выключено, ?gate=1 — включить.
-// Плюс: крестик выхода на s01–s10 (виден, ни с чем не пересекается) → главная → «А» → s01; «домой» в s10 → главная;
+// Вход: главная → «А» → lesson-a/ → сразу s01 «Аист приносит буквы» (экрана для взрослого s00 больше нет) → s01…s11.
+// Звук на iOS: в вебе без жеста на странице s01 ждёт касания (пустое гнездо пульсирует, wait_unlock); s02 — так же, если урок
+// открыт сразу с неё (?step=2); в тесте выключено, ?gate=1 — включить.
+// Плюс: крестик выхода на s01–s11 (виден, ни с чем не пересекается) → главная → «А» → s01; «домой» в s11 → главная;
 // рука-подсказка после бездействия (?hint_sec=3 — укороченный таймер; по умолчанию 20 с из data/common/hint.json): держится до нужного действия,
 // касание цели / начало перетаскивания прячет её, касание мимо — нет. На главной руки нет (tests/home.mjs).
 // Запуск: PORT=<свободный> node tests/lesson.mjs     (TOUCH=0 — мышью; URLQ="audio=stream" — доп. параметры; SITE=папка сайта)
@@ -19,7 +20,7 @@ const srv = spawn("node", [path.join(ROOT, "tests/serve.mjs"), SITE, String(PORT
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [], logs = [], passed = []; let browser, page;
 // Без ?debug=1 субтитров быть не должно, а из текста на экране ребёнка — только А/а
-// (исключение: открытая взрослым панель итога в s10).
+// (исключение: открытая взрослым панель итога в s11).
 const textViolations = new Set();
 const ALLOWED = new Set(["А", "а"]);
 const bk = async () => {
@@ -88,11 +89,11 @@ async function tapNav(xy, what) {
   try { await Promise.all([page.waitForNavigation({ waitUntil: "load", timeout: 15000 }), tapXY(xy)]); }
   catch (e) { throw new Error(`нет перехода после «${what}» (${page.url()}): ${e.message}`); }
 }
-async function homeToLesson() {   // главная: тап «А» → lesson-a/ → сразу s01
+async function homeToLesson() {   // главная: тап «А» → lesson-a/ → сразу s01 (аист влетает)
   const h = await homeReady("перед «А»"); await sleep(400);
   await tapNav(h.targets.letter_a, "А на главной");
   if (!/\/lesson-a\/(index\.html)?\?/.test(page.url())) throw new Error("«А» открыла не lesson-a/: " + page.url());
-  const s = await waitFor((s) => s.step === "s01_intro" && s.state === "wait_alya", "lesson-a → s01 (без экрана s00)", 120000);
+  const s = await waitFor((s) => s.step === "s01_stork" && /^(fly_in|drop|rise|circle|approach|land|done)$/.test(s.state), "lesson-a → s01 (без экрана s00)", 120000);
   await sleep(600);   // свежая загрузка Godot: первые ~300 мс касания не доходят
   return s;
 }
@@ -132,6 +133,62 @@ async function next(fromStep) {
   await waitFor((s) => s.step && s.step !== fromStep, "leave " + fromStep);
   passed.push(fromStep);
 }
+// s01 «Аист приносит буквы»: полёт (без касаний, без «Далее», без перекрытий кнопок) → буквы на земле → посадка → «Далее».
+// Касание аиста в гнезде: a_word_02 + взмах, повторное касание во время реплики не перезапускает; касание букв: a_aaa / a_find_03 + подскок.
+async function stork() {
+  const seen = new Set(), overl = new Set(); let nextEarly = null, shotDrop = false, shotCircle = false, tapFly = false;
+  const t0 = Date.now();
+  while (Date.now() - t0 < 30000) {
+    const s = await bk();
+    if (s.step !== "s01_stork") throw new Error("s01: ушли со сцены сами: " + s.step);
+    seen.add(s.state);
+    for (const o of s.ui_overlaps || []) overl.add(s.state + ":" + o);
+    if (s.targets.next && s.state !== "done") nextEarly = s.state;
+    if (s.state === "done") break;
+    if (s.state === "rise" && !shotDrop) { shotDrop = true; await shot("s01-stork-drop"); }
+    if (s.state === "circle" && !shotCircle && s.info.s01_fly_rect && s.info.s01_fly_rect[0] < 420) { shotCircle = true; await shot("s01-stork-circle"); }
+    if (s.state === "circle" && !tapFly && s.targets.stork) {   // касание летящего аиста — ничего
+      tapFly = true; await tapXY(s.targets.stork);
+      const a = await bk(); if ((a.info.s01_word_taps || 0) || (a.info.s01_flaps || 0)) throw new Error("s01: летящий аист принял касание");
+    }
+    await sleep(60);
+  }
+  const s = await waitFor(state("done"), "s01 done (аист сел)", 5000);
+  const i = s.info;
+  for (const st of ["fly_in", "rise", "circle", "approach"]) if (!seen.has(st)) throw new Error("s01: не видели фазу " + st + " (" + [...seen] + ")");
+  if (nextEarly) throw new Error("s01: «Далее» появилась до посадки (" + nextEarly + ")");
+  if (overl.size) throw new Error("s01: кнопки перекрывают аиста/буквы: " + [...overl].join(", "));
+  if (i.s01_appear_voice !== "a_word_02") throw new Error("s01: на появлении аиста не прозвучала a_word_02");
+  if (!((s.sfx_counts || {}).sfx_whoosh >= 1)) throw new Error("s01: нет sfx_whoosh на влёте");
+  const d = i.s01_drop_at || {};
+  const near = (p, q, e = 3) => p && Math.hypot(p[0] - q[0], p[1] - q[1]) <= e;
+  if (!near(d.big, [564.6, 336.6]) || !near(d.small, [577.8, 333])) throw new Error("s01: буквы отцепились не там: " + JSON.stringify(d));
+  if (!near(i.s01_land_pos, [371, 156], 0.5)) throw new Error("s01: посадка не в LAND: " + JSON.stringify(i.s01_land_pos));
+  if (Math.abs(i.s01_circle_sec - 2.0) > 0.35) throw new Error("s01: круг " + i.s01_circle_sec + " с вместо 2,0");
+  const g = i.s01_ground;
+  const kA = 280 / 765, ka = 196 / 563;   // спрайт буквы 693×812 / 520×610, глиф с обводкой от (20;20), 646×765 / 473×563
+  if (!g || Math.abs(g.big[1] - (320 - 20 * kA)) > 0.2 || Math.abs(g.big[3] - (600 + 27 * kA)) > 0.2 || Math.abs(g.small[3] - (600 + 27 * ka)) > 0.2 || Math.abs(g.small[0] - (649.9 - 20 * ka)) > 0.2) throw new Error("s01: «А» на земле не на базовой линии: " + JSON.stringify(g));
+  if (!i.s01_letters_down) throw new Error("s01: буквы не встали");
+  await sleep(300); await shot("s01-stork-landed");
+  // касание аиста: реплика + взмах; второе касание во время реплики — не перезапускает
+  await tap("stork_nest"); await tap("stork_nest");
+  let a = (await bk()).info;
+  if (a.s01_word_taps !== 2 || a.s01_word_plays !== 1 || a.s01_flaps !== 1) throw new Error("s01: касание аиста: " + JSON.stringify([a.s01_word_taps, a.s01_word_plays, a.s01_flaps]));
+  await shot("s01-stork-flap");
+  if ((await bk()).state !== "done" || !(await bk()).targets.next) throw new Error("s01: касание аиста повлияло на «Далее»");
+  await sleep(2300); await tap("stork_nest");
+  a = (await bk()).info;
+  if (a.s01_word_plays !== 2) throw new Error("s01: после конца реплики касание аиста не звучит");
+  // буквы: подскок + a_aaa (пока нет записи — a_find_03)
+  await tap("big"); await sleep(200); await tap("small"); await sleep(400);
+  a = (await bk()).info;
+  if (a.s01_letter_taps !== 2) throw new Error("s01: касания букв не засчитаны: " + a.s01_letter_taps);
+  if (!["a_aaa", "a_find_03"].includes(a.s01_aaa_audio)) throw new Error("s01: буква — не a_aaa/a_find_03: " + a.s01_aaa_audio);
+  if (!(a.s01_bounce_peak && a.s01_bounce_peak.px > 5)) throw new Error("s01: буква не подпрыгнула");
+  console.log(`s01: фазы ${[...seen].join("→")}; круг ${i.s01_circle_sec} с; буквы отцепились ${JSON.stringify(d)}; посадка ${i.s01_land_pos}; ` +
+    `«Далее» только после посадки; кнопки ни с чем не пересекаются; аист: касаний ${a.s01_word_taps}, реплик ${a.s01_word_plays}, взмахов ${a.s01_flaps}; ` +
+    `буквы: ${a.s01_letter_taps} касания, звук ${a.s01_aaa_audio}`);
+}
 try {
   await sleep(800);
   browser = await puppeteer.launch({ executablePath: "/usr/bin/google-chrome", headless: "new",
@@ -149,144 +206,149 @@ try {
   console.log("ready ms (главная → урок → s01)", Date.now() - t0);
   passed.push("главная→«А»→s01");
   { const s = await bk(); if (s.targets.start || s.targets.junior) throw new Error("на старте урока остались «Начнём!»/младший режим"); }
-  // s01
-  await shot("s01-intro"); await tap("alya");
-  await sleep(900); await shot("s01-intro-sing");   // песенка у кроватки (поза alya_pose_sing_crib)
-  await waitFor(state("done"), "s01 done"); await next("s01_intro");
-  // s02: «нажми и держи»
-  await waitFor(state("wait_hold"), "s02 wait_hold"); await shot("s02-sing");
+  // s01: аист приносит буквы
+  await stork();
+  await next("s01_stork");
+  // s02
+  await waitFor(state("wait_alya"), "s02 wait_alya (после s01 касание уже было — без ожидания)", 30000);
+  await sleep(300);
+  await shot("s02-intro"); await tap("alya");
+  await sleep(900); await shot("s02-intro-sing");   // песенка у кроватки (поза alya_pose_sing_crib)
+  await waitFor(state("done"), "s02 done"); await next("s02_intro");
+  // s03: «нажми и держи»
+  await waitFor(state("wait_hold"), "s03 wait_hold"); await shot("s03-sing");
   { // короткие нажатия (неудачные попытки) не засчитываются — шаг ждёт удержания
     const c = await target("circle"); const b0 = sfxSnap(await bk());
     for (let n = 0; n < 3; n++) { await drag(c, c, 1, 200); await sleep(900); }
-    await assertNoConfirm("s02 (3 коротких нажатия)", "wait_hold", b0); noConfirmChecked.push("s02");
+    await assertNoConfirm("s03 (3 коротких нажатия)", "wait_hold", b0); noConfirmChecked.push("s03");
     await drag(c, c, 1, 2400); }
-  await waitFor(state("done"), "s02 done"); await shot("s02-sing-done"); await next("s02_sing");
-  // s03: поезд въезжает слева → картинка → окошко; на каждом слове две ошибки (середина), потом верно (начало)
+  await waitFor(state("done"), "s03 done"); await shot("s03-sing-done"); await next("s03_sing");
+  // s04: поезд въезжает слева → картинка → окошко; на каждом слове две ошибки (середина), потом верно (начало)
   for (let i = 0; i < 3; i++) {
     { // въезд: центр состава движется слева направо; паровоз справа
-      const s0 = await waitFor((s) => (s.state === "drive_in_" + i || s.state === "wait_pic_" + i) && s.targets && s.targets.train, "s03 train " + i);
+      const s0 = await waitFor((s) => (s.state === "drive_in_" + i || s.state === "wait_pic_" + i) && s.targets && s.targets.train, "s04 train " + i);
       const x0 = s0.targets.train[0];
-      const s1 = await waitFor(state("wait_pic_" + i), "s03 pic " + i);
+      const s1 = await waitFor(state("wait_pic_" + i), "s04 pic " + i);
       const x1 = s1.targets.train[0];
-      if (s0.state === "drive_in_" + i && !(x1 > x0 + 20)) throw new Error(`s03: поезд ${i} не въехал слева направо (${x0} → ${x1})`);
-      if (Math.abs(x1 - 512) > 40) throw new Error(`s03: поезд ${i} остановился не по центру (${x1})`);
-      if (s1.info.s03_cards_visible !== 1) throw new Error(`s03: на сцене ${s1.info.s03_cards_visible} карточек вместо одной (слово ${i})`);
-      console.log(`s03 слово ${i + 1}: поезд въехал ${s0.state === "drive_in_" + i ? Math.round(x0) + "→" : ""}${Math.round(x1)}, карточек на сцене: 1`);
+      if (s0.state === "drive_in_" + i && !(x1 > x0 + 20)) throw new Error(`s04: поезд ${i} не въехал слева направо (${x0} → ${x1})`);
+      if (Math.abs(x1 - 512) > 40) throw new Error(`s04: поезд ${i} остановился не по центру (${x1})`);
+      if (s1.info.s04_cards_visible !== 1) throw new Error(`s04: на сцене ${s1.info.s04_cards_visible} карточек вместо одной (слово ${i})`);
+      console.log(`s04 слово ${i + 1}: поезд въехал ${s0.state === "drive_in_" + i ? Math.round(x0) + "→" : ""}${Math.round(x1)}, карточек на сцене: 1`);
     }
     await tap("pic");
-    await waitFor(state("wait_slot_" + i), "s03 slot " + i);
+    await waitFor(state("wait_slot_" + i), "s04 slot " + i);
     { const st = "wait_slot_" + i; const b0 = sfxSnap(await bk()); const tx = (await bk()).targets.train[0];
       for (let n = 0; n < 2; n++) { await tap("slot1"); await sleep(1300); }
-      const s = await assertNoConfirm(`s03 слово ${i + 1} (2 ошибки)`, st, b0);
-      if (Math.abs(s.targets.train[0] - tx) > 8) throw new Error(`s03: поезд поехал без верного ответа (слово ${i + 1})`);
-      await hintNear(`s03 слово ${i + 1}`, "slot0");
-      if (i === 0) noConfirmChecked.push("s03"); }
+      const s = await assertNoConfirm(`s04 слово ${i + 1} (2 ошибки)`, st, b0);
+      if (Math.abs(s.targets.train[0] - tx) > 8) throw new Error(`s04: поезд поехал без верного ответа (слово ${i + 1})`);
+      await hintNear(`s04 слово ${i + 1}`, "slot0");
+      if (i === 0) noConfirmChecked.push("s04"); }
     // «Далее» не должна появляться, пока не посажен кружок у третьей картинки
     const nx = await page.evaluate(() => !!(window.__bk && window.__bk.targets && window.__bk.targets.next));
-    if (nx) throw new Error("s03: кнопка «Далее» видна до третьей картинки (картинка " + (i + 1) + ")");
+    if (nx) throw new Error("s04: кнопка «Далее» видна до третьей картинки (картинка " + (i + 1) + ")");
     if (i === 1) { await tap("slot2"); await sleep(1200); }
     await tap("slot0");
     { // после верного ответа поезд уезжает вправо, карточка отгаданного слова исчезает
-      const s0 = await waitFor((s) => s.state === "drive_out_" + i || (s.info && s.info.s03_left === i), "s03 drive_out " + i, 20000);
+      const s0 = await waitFor((s) => s.state === "drive_out_" + i || (s.info && s.info.s04_left === i), "s04 drive_out " + i, 20000);
       const x0 = s0.targets.train ? s0.targets.train[0] : 0;
-      const s1 = await waitFor((s) => s.info && s.info.s03_left === i, "s03 left " + i, 20000);
-      if (s1.info.s03_cards_visible !== 0) throw new Error(`s03: карточка слова ${i + 1} осталась после отъезда поезда`);
-      console.log(`s03 слово ${i + 1}: поезд уехал вправо (от x=${Math.round(x0)}), карточек осталось: ${s1.info.s03_cards_visible}`);
+      const s1 = await waitFor((s) => s.info && s.info.s04_left === i, "s04 left " + i, 20000);
+      if (s1.info.s04_cards_visible !== 0) throw new Error(`s04: карточка слова ${i + 1} осталась после отъезда поезда`);
+      console.log(`s04 слово ${i + 1}: поезд уехал вправо (от x=${Math.round(x0)}), карточек осталось: ${s1.info.s04_cards_visible}`);
     }
   }
-  await waitFor(state("done"), "s03 done");
-  if (!(await page.evaluate(() => !!(window.__bk.targets && window.__bk.targets.next)))) throw new Error("s03: нет «Далее» после третьей картинки");
-  console.log("s03: «Далее» появилась только после третьей картинки");
-  await shot("s03-words-done"); await next("s03_words");
-  // s04: есть/нет (на «кот» — одна ошибка)
+  await waitFor(state("done"), "s04 done");
+  if (!(await page.evaluate(() => !!(window.__bk.targets && window.__bk.targets.next)))) throw new Error("s04: нет «Далее» после третьей картинки");
+  console.log("s04: «Далее» появилась только после третьей картинки");
+  await shot("s04-words-done"); await next("s04_words");
+  // s05: есть/нет (на «кот» — одна ошибка)
   const ans = ["yes", "no", "yes", "no", "yes"];
   for (let i = 0; i < 5; i++) {
-    await waitFor(state("wait_answer_" + i), "s04 answer " + i);
-    if (i === 0) await shot("s04-hear");
+    await waitFor(state("wait_answer_" + i), "s05 answer " + i);
+    if (i === 0) await shot("s05-hear");
     if (i === 1) { // «кот»: две ошибки подряд — шаг ждёт, рука показывает «нет»
       const b0 = sfxSnap(await bk());
       for (let n = 0; n < 2; n++) { await tap("yes"); await sleep(1600); }
-      await assertNoConfirm("s04 «кот» (2 ошибки)", "wait_answer_1", b0);
-      await hintNear("s04 «кот»", "no"); noConfirmChecked.push("s04"); }
+      await assertNoConfirm("s05 «кот» (2 ошибки)", "wait_answer_1", b0);
+      await hintNear("s05 «кот»", "no"); noConfirmChecked.push("s05"); }
     await tap(ans[i]);
   }
-  await waitFor((s) => s.state === "done" && s.info.s04_row, "s04 done"); await sleep(300); await shot("s04-hear-done");
+  await waitFor((s) => s.state === "done" && s.info.s05_row, "s05 done"); await sleep(300); await shot("s05-hear-done");
   { // ряд отвеченных карточек по центру; касание карточки в ряду — слово голосом Али, без подтверждения
-    const s = await bk(); const mid = s.info.s04_row.reduce((a, [x, , w]) => a + x + w / 2, 0) / s.info.s04_row.length;
-    if (Math.abs(mid - s.stage_center[0]) > 3) throw new Error(`s04: ряд карточек не по центру (${mid})`);
+    const s = await bk(); const mid = s.info.s05_row.reduce((a, [x, , w]) => a + x + w / 2, 0) / s.info.s05_row.length;
+    if (Math.abs(mid - s.stage_center[0]) > 3) throw new Error(`s05: ряд карточек не по центру (${mid})`);
     const ok0 = s.sfx_counts.sfx_ok || 0; await tap("row_card_0"); await sleep(600);
     const s2 = await bk();
-    if (s2.info.s04_word_last !== "a_hear_02" || s2.state !== "done" || (s2.sfx_counts.sfx_ok || 0) !== ok0) throw new Error("s04: касание карточки «мак» в ряду: " + JSON.stringify(s2.info));
-    console.log("s04: ряд по центру, касание «мак» в ряду → a_hear_02, без подтверждения"); }
-  await next("s04_hear");
-  // s05
-  await waitFor(state("wait_letters"), "s05 letters"); await shot("s05-letter");
-  { // s05 (ред. 25.10.2026): Аля-персонаж, без «лесенки»; касание одной буквы — только её реплика с подсветкой частей
+    if (s2.info.s05_word_last !== "a_hear_02" || s2.state !== "done" || (s2.sfx_counts.sfx_ok || 0) !== ok0) throw new Error("s05: касание карточки «мак» в ряду: " + JSON.stringify(s2.info));
+    console.log("s05: ряд по центру, касание «мак» в ряду → a_hear_02, без подтверждения"); }
+  await next("s05_hear");
+  // s06
+  await waitFor(state("wait_letters"), "s06 letters"); await shot("s06-letter");
+  { // s06 (ред. 25.10.2026): Аля-персонаж, без «лесенки»; касание одной буквы — только её реплика с подсветкой частей
     const s0 = await bk();
-    if (!s0.targets.alya) throw new Error("s05: нет Али-персонажа");
+    if (!s0.targets.alya) throw new Error("s06: нет Али-персонажа");
     const b0 = sfxSnap(s0);
     await tap("big");
-    await waitFor((s) => s.info.s05_seen && s.info.s05_seen.big, "s05: касание большой А");
+    await waitFor((s) => s.info.s06_seen && s.info.s06_seen.big, "s06: касание большой А");
     await sleep(1200);
-    await assertNoConfirm("s05 (нажата только большая А)", "wait_letters", b0, 300); noConfirmChecked.push("s05");
-    const hl = (await bk()).info.s05_hl_seen || [];
-    for (const p of ["big:left", "big:right", "big:bar"]) if (!hl.includes(p)) throw new Error("s05: не подсветилась часть " + p + " " + JSON.stringify(hl));
+    await assertNoConfirm("s06 (нажата только большая А)", "wait_letters", b0, 300); noConfirmChecked.push("s06");
+    const hl = (await bk()).info.s06_hl_seen || [];
+    for (const p of ["big:left", "big:right", "big:bar"]) if (!hl.includes(p)) throw new Error("s06: не подсветилась часть " + p + " " + JSON.stringify(hl));
     await tap("big"); await sleep(400);   // повтор реплики — по-прежнему без подтверждения
-    if ((await bk()).state !== "wait_letters") throw new Error("s05: повторное касание А завершило сцену");
+    if ((await bk()).state !== "wait_letters") throw new Error("s06: повторное касание А завершило сцену");
     await tap("small");
-    const s1 = await waitFor(state("done"), "s05 done");
-    const hl1 = s1.info.s05_hl_seen || [];
-    for (const p of ["small:round", "small:stick", "big", "small"]) if (!hl1.includes(p)) throw new Error("s05: не подсветилось " + p + " " + JSON.stringify(hl1));
-    if (!s1.info.s05_outro) throw new Error("s05: не было итоговой реплики a_letter_04");
-    console.log("s05: подсветка частей по таймлайну " + JSON.stringify(hl1) + "; итог a_letter_04 → «Далее»");
+    const s1 = await waitFor(state("done"), "s06 done");
+    const hl1 = s1.info.s06_hl_seen || [];
+    for (const p of ["small:round", "small:stick", "big", "small"]) if (!hl1.includes(p)) throw new Error("s06: не подсветилось " + p + " " + JSON.stringify(hl1));
+    if (!s1.info.s06_outro) throw new Error("s06: не было итоговой реплики a_letter_04");
+    console.log("s06: подсветка частей по таймлайну " + JSON.stringify(hl1) + "; итог a_letter_04 → «Далее»");
   }
-  await next("s05_letter");
-  // s06: обводка 3 штрихов (первый — сначала мимо дорожки)
-  await waitFor(state("wait_stroke_0"), "s06 stroke 0"); await shot("s06-write");
+  await next("s06_letter");
+  // s07: обводка 3 штрихов (первый — сначала мимо дорожки)
+  await waitFor(state("wait_stroke_0"), "s07 stroke 0"); await shot("s07-write");
   { // три штриха мимо дорожки: штрих не засчитывается сам (была автоприёмка после 3-й неудачи)
     const b0 = sfxSnap(await bk());
     for (let n = 0; n < 3; n++) { const a = await target("stroke_start"); await drag(a, [a[0] + 200, a[1] + 40]); await sleep(n === 1 ? 3200 : 1500); }
-    await assertNoConfirm("s06 (3 штриха мимо)", "wait_stroke_0", b0, 500); noConfirmChecked.push("s06");
+    await assertNoConfirm("s07 (3 штриха мимо)", "wait_stroke_0", b0, 500); noConfirmChecked.push("s07");
     await sleep(1500); }
   for (let k = 0; k < 3; k++) {
-    await waitFor(state("wait_stroke_" + k), "s06 stroke " + k);
+    await waitFor(state("wait_stroke_" + k), "s07 stroke " + k);
     const a = await target("stroke_start"), b = await target("stroke_end");
     await drag(a, b, 24);
-    if (k === 0) { await sleep(200); await shot("s06-write-stroke1"); }
+    if (k === 0) { await sleep(200); await shot("s07-write-stroke1"); }
   }
-  await waitFor(state("done"), "s06 done"); await shot("s06-write-done"); await next("s06_write");
-  // s07: шарики
-  await waitFor(state("wait_balloons"), "s07 balloons"); await sleep(3000); await shot("s07-find");
+  await waitFor(state("done"), "s07 done"); await shot("s07-write-done"); await next("s07_write");
+  // s08: шарики
+  await waitFor(state("wait_balloons"), "s08 balloons"); await sleep(3000); await shot("s08-find");
   { // два касания шариков-помех: ни один шарик с А/а не лопается сам
     const b0 = sfxSnap(await bk()); let nw = 0;
     for (let n = 0; n < 40 && nw < 2; n++) { const s = await bk();
       if (s.targets.wrong_balloon) { const w = s.targets.wrong_balloon; TOUCH ? await page.touchscreen.tap(w[0], w[1]) : await page.mouse.click(w[0], w[1]); nw++; await sleep(900); }
       else await sleep(300); }
-    if (nw < 2) throw new Error("s07: не нашлось шариков-помех для проверки");
-    await assertNoConfirm("s07 (2 ошибки)", "wait_balloons", b0, 1500); noConfirmChecked.push("s07"); }
+    if (nw < 2) throw new Error("s08: не нашлось шариков-помех для проверки");
+    await assertNoConfirm("s08 (2 ошибки)", "wait_balloons", b0, 1500); noConfirmChecked.push("s08"); }
   for (let n = 0; n < 120; n++) {
     const s = await bk(); if (s.state === "done") break;
     if (s.targets && s.targets.balloon) { const b = s.targets.balloon; TOUCH ? await page.touchscreen.tap(b[0], b[1]) : await page.mouse.click(b[0], b[1]); }
     await sleep(400);
   }
-  await waitFor(state("done"), "s07 done");
+  await waitFor(state("done"), "s08 done");
   { // после последнего шарика: оставшиеся летят дальше плавно (без сброса), в центре — большая А и маленькая а со звуком
-    await waitFor((s) => s.targets && s.targets.end_big && s.targets.end_small, "s07: А и а в центре", 8000);
-    await sleep(800); await shot("s07-find-letters");
+    await waitFor((s) => s.targets && s.targets.end_big && s.targets.end_small, "s08: А и а в центре", 8000);
+    await sleep(800); await shot("s08-find-letters");
     await tap("end_big"); await sleep(500); await tap("end_small"); await sleep(500);
     const s1 = await bk();
     const [bx] = s1.targets.end_big, [sx] = s1.targets.end_small;
-    if (!(bx < sx)) throw new Error("s07: большая А не слева от маленькой а");
-    if (!s1.targets.next) throw new Error("s07: нет «Далее» после шариков");
-    console.log(`s07: после шариков — А (${s1.targets.end_big.map(Math.round)}) и а (${s1.targets.end_small.map(Math.round)}) в центре, нажимаются`);
+    if (!(bx < sx)) throw new Error("s08: большая А не слева от маленькой а");
+    if (!s1.targets.next) throw new Error("s08: нет «Далее» после шариков");
+    console.log(`s08: после шариков — А (${s1.targets.end_big.map(Math.round)}) и а (${s1.targets.end_small.map(Math.round)}) в центре, нажимаются`);
   }
-  await next("s07_find");
-  // s08: корзинки (первая плитка — сначала в чужую корзинку)
-  await waitFor(state("wait_drag"), "s08 drag"); await shot("s08-sort");
+  await next("s08_find");
+  // s09: корзинки (первая плитка — сначала в чужую корзинку)
+  await waitFor(state("wait_drag"), "s09 drag"); await shot("s09-sort");
   { // до конца сцены корзинки на касание не отвечают
     const b0 = sfxSnap(await bk()); await tap("basket_big"); await sleep(600);
-    const s = await bk(); if (s.info && s.info.s08_done_taps !== undefined) throw new Error("s08: корзинка ответила на касание до конца сцены");
-    await assertNoConfirm("s08 (касание корзинки до конца)", "wait_drag", b0); }
+    const s = await bk(); if (s.info && s.info.s09_done_taps !== undefined) throw new Error("s09: корзинка ответила на касание до конца сцены");
+    await assertNoConfirm("s09 (касание корзинки до конца)", "wait_drag", b0); }
   let wrongDone = false;
   for (let n = 0; n < 20; n++) {
     const s = await bk(); if (s.state === "done") break;
@@ -298,113 +360,140 @@ try {
         for (let k = 0; k < 2; k++) { const s2 = await bk(); const t2 = s2.targets.tile, bb = s2.targets.tile_basket;
           const o2 = (bb[0] === s2.targets.basket_big[0]) ? s2.targets.basket_small : s2.targets.basket_big;
           await drag(t2, o2, 16); await sleep(1600); }
-        await assertNoConfirm("s08 (2 ошибки)", "wait_drag", { ...b0, sfx_pop: (sfxSnap(await bk())).sfx_pop }); noConfirmChecked.push("s08");
-        { const i8 = (await bk()).info || {}; if ((i8.s08_state_big || 0) !== 0 || (i8.s08_state_small || 0) !== 0) throw new Error(`s08: после ошибок корзинка наполнилась (${i8.s08_state_big}/${i8.s08_state_small})`); }
+        await assertNoConfirm("s09 (2 ошибки)", "wait_drag", { ...b0, sfx_pop: (sfxSnap(await bk())).sfx_pop }); noConfirmChecked.push("s09");
+        { const i8 = (await bk()).info || {}; if ((i8.s09_state_big || 0) !== 0 || (i8.s09_state_small || 0) !== 0) throw new Error(`s09: после ошибок корзинка наполнилась (${i8.s09_state_big}/${i8.s09_state_small})`); }
         wrongDone = true; continue; }
       await drag(t, b, 16);
-      if (n === 2) await shot("s08-sort-progress");
+      if (n === 2) await shot("s09-sort-progress");
     }
     await sleep(700);
   }
-  await waitFor(state("done"), "s08 done"); await shot("s08-sort-done");
-  { const s = await waitFor((s) => s.info && s.info.s08_state_big === 4 && s.info.s08_state_small === 4, "s08 v3: обе корзинки полные (состояние 4)", 6000);
-    console.log(`s08 v3: корзинки в состоянии ${s.info.s08_state_big}/${s.info.s08_state_small}`); passed.push("s08-v3-states"); }
+  await waitFor(state("done"), "s09 done"); await shot("s09-sort-done");
+  { const s = await waitFor((s) => s.info && s.info.s09_state_big === 4 && s.info.s09_state_small === 4, "s09 v3: обе корзинки полные (состояние 4)", 6000);
+    console.log(`s09 v3: корзинки в состоянии ${s.info.s09_state_big}/${s.info.s09_state_small}`); passed.push("s09-v3-states"); }
   { // после конца: касание корзинки — «А-а-а» + подскок
-    await waitFor((s) => s.info && s.info.s08_done_taps === 0, "s08: корзинки слушают касания");
+    await waitFor((s) => s.info && s.info.s09_done_taps === 0, "s09: корзинки слушают касания");
     for (const [k, name] of [[1, "basket_big"], [2, "basket_small"]]) {
       await tap(name); await sleep(400);
-      const s = await bk(); const pk = s.info.s08_bounce_peak || {}; const up = pk.n === k ? pk.px : 0; if (s.info.s08_done_taps !== k) throw new Error(`s08: касание ${name} после конца не сработало`);
-      if (up < 3) throw new Error(`s08: ${name} не подпрыгнула (${up.toFixed(1)} px)`);
-      console.log(`s08: после конца касание ${name} — подскок ${up.toFixed(0)} px, звук: ${s.info.s08_done_audio || "(нет файла — тихо)"}`);
+      const s = await bk(); const pk = s.info.s09_bounce_peak || {}; const up = pk.n === k ? pk.px : 0; if (s.info.s09_done_taps !== k) throw new Error(`s09: касание ${name} после конца не сработало`);
+      if (up < 3) throw new Error(`s09: ${name} не подпрыгнула (${up.toFixed(1)} px)`);
+      console.log(`s09: после конца касание ${name} — подскок ${up.toFixed(0)} px, звук: ${s.info.s09_done_audio || "(нет файла — тихо)"}`);
       await sleep(400); }
-    passed.push("s08-done-basket-aaa"); }
-  await next("s08_sort");
-  // s09: кнопка взрослого (задание 2 — «ещё раз», затем «✓»; задание 4 — два раза «ещё раз» → серебряная звезда)
+    passed.push("s09-done-basket-aaa"); }
+  await next("s09_sort");
+  // s10: кнопка взрослого (задание 2 — «ещё раз», затем «✓»; задание 4 — два раза «ещё раз» → серебряная звезда)
   for (let i = 0; i < 4; i++) {
     if (i === 0) { // пока звучит задание 9.1, дуги загораются по очереди
       const lit = new Set(); const t0 = Date.now();
-      while (Date.now() - t0 < 30000) { const s = await bk(); if (s.info && s.info.s09_arcs_lit !== undefined) lit.add(s.info.s09_arcs_lit); if (s.state === "wait_parent_0") break; await sleep(40); }
-      console.log("s09 9.1: замечено дуг горящими:", [...lit].sort().join(","));
-      if (![1, 2, 3].some((n) => lit.has(n))) throw new Error("s09: дуги на карточке 9.1 не загорались");
+      while (Date.now() - t0 < 30000) { const s = await bk(); if (s.info && s.info.s10_arcs_lit !== undefined) lit.add(s.info.s10_arcs_lit); if (s.state === "wait_parent_0") break; await sleep(40); }
+      console.log("s10 9.1: замечено дуг горящими:", [...lit].sort().join(","));
+      if (![1, 2, 3].some((n) => lit.has(n))) throw new Error("s10: дуги на карточке 9.1 не загорались");
     }
-    await waitFor(state("wait_parent_" + i), "s09 parent " + i);
+    await waitFor(state("wait_parent_" + i), "s10 parent " + i);
     await sleep(1100);   // кнопка игнорирует нажатия чаще 1 раза в секунду
-    if (i === 0) { await checkExit("s09 (кнопка взрослого)"); await shot("s09-say-parent-button"); }
+    if (i === 0) { await checkExit("s10 (кнопка взрослого)"); await shot("s10-say-parent-button"); }
     { // карточки сцены 9 — без красных предметов (кроме самой буквы А в задании 4)
-      const s = await bk(); const card = s.info && s.info.s09_card;
-      if (!card || card.i !== i) throw new Error("s09: нет сведений о карточке " + i);
+      const s = await bk(); const card = s.info && s.info.s10_card;
+      if (!card || card.i !== i) throw new Error("s10: нет сведений о карточке " + i);
       const rf = await redFraction(card.rect);
-      console.log(`s09 карточка ${i + 1}: ${card.id}, красных пикселей ${(rf * 100).toFixed(2)} %`);
+      console.log(`s10 карточка ${i + 1}: ${card.id}, красных пикселей ${(rf * 100).toFixed(2)} %`);
       if (card.id === "sound") {
         // 9.1 «произнеси [а]»: только плоский кружок ≈42 % ширины (площадь ≈ 0,42²·π/4 ≈ 14 % карточки), без глянцевого шара
-        if (s.info.s09_card_content !== "sound") throw new Error("s09: карточка 9.1 — не звуковое задание");
-        if (rf < 0.08 || rf > 0.22) throw new Error(`s09: на карточке 9.1 кружок не того размера (${(rf * 100).toFixed(1)} %)`);
-      } else if (card.id !== "letter_big" && rf > 0.005) throw new Error(`s09: красный предмет на карточке ${card.id} (${(rf * 100).toFixed(1)} %)`);
+        if (s.info.s10_card_content !== "sound") throw new Error("s10: карточка 9.1 — не звуковое задание");
+        if (rf < 0.08 || rf > 0.22) throw new Error(`s10: на карточке 9.1 кружок не того размера (${(rf * 100).toFixed(1)} %)`);
+      } else if (card.id !== "letter_big" && rf > 0.005) throw new Error(`s10: красный предмет на карточке ${card.id} (${(rf * 100).toFixed(1)} %)`);
       // непрозрачная кремовая подложка: центр-верх карточки внутри рамки — кремовый
       if (!card.id.startsWith("pic_alya_card")) { const [x, y, w] = card.rect; const cf = await creamAt(x + w / 2, y + 14);
-        if (!cf) throw new Error("s09: нет кремовой подложки у карточки " + card.id); }
+        if (!cf) throw new Error("s10: нет кремовой подложки у карточки " + card.id); }
     }
     if (i === 1 || i === 3) {
       await tap("parent_retry");
-      await waitFor((s) => !s.targets.parent_ok, "s09 hide");
-      if (i === 3) { await waitFor((s) => s.targets.parent_ok, "s09 reshow", 20000); await sleep(1100); await tap("parent_retry"); continue; }
-      await waitFor((s) => s.targets.parent_ok, "s09 reshow", 20000); await sleep(1100);
+      await waitFor((s) => !s.targets.parent_ok, "s10 hide");
+      if (i === 3) { await waitFor((s) => s.targets.parent_ok, "s10 reshow", 20000); await sleep(1100); await tap("parent_retry"); continue; }
+      await waitFor((s) => s.targets.parent_ok, "s10 reshow", 20000); await sleep(1100);
     }
     await tap("parent_ok");
   }
-  await waitFor(state("done"), "s09 done"); await shot("s09-say-done"); await next("s09_say");
-  // s10
-  await waitFor((s) => s.step === "s10_end" && s.state === "done", "s10 done", 40000);
-  await sleep(500); await shot("s10-end"); await checkExit("s10_end");
-  { const s = await bk(); const [ax, ay, aw, ah] = s.info.s10_album; const [ex, ey] = s.targets.exit;
-    if (ex + 36 > ax && ex - 36 < ax + aw && ey + 36 > ay && ey - 36 < ay + ah) throw new Error("s10: крестик перекрывает альбом"); }
-  { const s = await bk(); if (!s.targets.sticker) throw new Error("s10: нет наклейки-аиста (она в утверждённом сценарии)"); }
+  await waitFor(state("done"), "s10 done"); await shot("s10-say-done"); await next("s10_say");
+  // s11
+  await waitFor((s) => s.step === "s11_end" && s.state === "done", "s11 done", 40000);
+  await sleep(500); await shot("s11-end"); await checkExit("s11_end");
+  { const s = await bk(); const [ax, ay, aw, ah] = s.info.s11_album; const [ex, ey] = s.targets.exit;
+    if (ex + 36 > ax && ex - 36 < ax + aw && ey + 36 > ay && ey - 36 < ay + ah) throw new Error("s11: крестик перекрывает альбом"); }
+  { const s = await bk(); if (!s.targets.sticker) throw new Error("s11: нет наклейки-аиста (она в утверждённом сценарии)"); }
   { // обложка альбома — без красного и оранжевого (оттенок 0…35° и 345…360°)
-    const s = await bk(); const r = s.info && s.info.s10_album; if (!r) throw new Error("s10: нет сведений об альбоме");
+    const s = await bk(); const r = s.info && s.info.s11_album; if (!r) throw new Error("s11: нет сведений об альбоме");
     // точки на обложке (корешок и низ обложки, мимо наклейки и прозрачных полей; фон за альбомом — вечерняя стена, она оранжевая)
     const [x, y, w, h] = r; let of = 0;
     for (const [fx, fy] of [[0.12, 0.5], [0.12, 0.8], [0.86, 0.88], [0.86, 0.2]]) of += await redFraction([x + fx * w - 2, y + fy * h - 2, 4, 4], 35, 345);
-    console.log(`s10 альбом: красно-оранжевых точек обложки ${of.toFixed(2)} из 4`);
-    if (of > 0) throw new Error(`s10: красный/оранжевый фон альбома`); }
+    console.log(`s11 альбом: красно-оранжевых точек обложки ${of.toFixed(2)} из 4`);
+    if (of > 0) throw new Error(`s11: красный/оранжевый фон альбома`); }
   // итог для взрослого: короткий тап не открывает, удержание ≈2 с — открывает
   await tap("parent_info"); await sleep(400);
-  if ((await bk()).info.parent_panel) throw new Error("s10: панель взрослого открылась от короткого тапа");
+  if ((await bk()).info.parent_panel) throw new Error("s11: панель взрослого открылась от короткого тапа");
   { const [x, y] = await target("parent_info");
     if (TOUCH) { await page.touchscreen.touchStart(x, y); await sleep(2300); await page.touchscreen.touchEnd(); }
     else { await page.mouse.move(x, y); await page.mouse.down(); await sleep(2300); await page.mouse.up(); } }
-  await waitFor((s) => s.info && s.info.parent_panel, "s10 parent panel", 5000);
-  await sleep(300); await shot("s10-parent-panel");
-  await tap("parent_panel"); await waitFor((s) => !s.info.parent_panel, "s10 parent panel closed", 5000);
+  await waitFor((s) => s.info && s.info.parent_panel, "s11 parent panel", 5000);
+  await sleep(300); await shot("s11-parent-panel");
+  await tap("parent_panel"); await waitFor((s) => !s.info.parent_panel, "s11 parent panel closed", 5000);
   // «домой» → HTML-главная
-  { const [x, y] = await target("home"); await tapNav([x, y], "домой (s10)"); }
-  await homeReady("s10 домой → главная");
+  { const [x, y] = await target("home"); await tapNav([x, y], "домой (s11)"); }
+  await homeReady("s11 домой → главная");
   if (new URL(page.url()).pathname !== "/") throw new Error("«домой» привела не на главную: " + page.url());
-  console.log("s10 «домой» → главная:", page.url().replace(/^http:\/\/[^/]+/, ""));
+  console.log("s11 «домой» → главная:", page.url().replace(/^http:\/\/[^/]+/, ""));
   await sleep(500); await shot("letters-menu");
   { const h = await home(); await tapXY(h.targets.letter_locked); await sleep(600);
     if (new URL(page.url()).pathname !== "/") throw new Error("закрытая буква «Б» открыла урок"); }
   // повторный вход: урок загружается заново → сразу s01
   await homeToLesson();
   console.log("повторный вход в «А»: сразу s01");
-  passed.push("s10_end");
-  // крестик посреди урока: s01 → главная → «А» → s01
-  await checkExit("s01_intro"); await shot("s01-intro-exit");
+  passed.push("s11_end");
+  // крестик посреди урока (аист ещё летит): s01 → главная → «А» → s01
+  await checkExit("s01_stork"); await shot("s01-stork-exit");
   { const [x, y] = await target("exit"); await tapNav([x, y], "крестик s01"); }
   await homeReady("крестик → главная");
   await homeToLesson();
-  { const miss = ["s01_intro","s02_sing","s03_words","s04_hear","s05_letter","s06_write","s07_find","s08_sort","s09_say","s10_end"].filter((n) => !exitSeen.has(n));
+  { const miss = ["s01_stork","s02_intro","s03_sing","s04_words","s05_hear","s06_letter","s07_write","s08_find","s09_sort","s10_say","s11_end"].filter((n) => !exitSeen.has(n));
     if (miss.length) throw new Error("нет крестика на: " + miss.join(", ")); }
-  console.log("крестик: виден на s01–s10 без перекрытий; выход → главная → «А» → s01 — ок");
+  console.log("крестик: виден на s01–s11 без перекрытий; выход → главная → «А» → s01 — ок");
   passed.push("exit→главная→А→s01");
-  // звук на iOS: без жеста на странице s01 ждёт касания (Аля пульсирует, рука сразу над ней); касание → реплика → wait_alya
-  await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&gate=1`, { waitUntil: "load" });
-  { const s = await waitFor((s) => s.step === "s01_intro" && s.state === "wait_unlock", "gate: s01 wait_unlock", 60000);
-    await sleep(2500);
+  // звук на iOS: без жеста на странице s01 ждёт касания (пустое гнездо пульсирует, рука на нём); касание → аист влетает
+  await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&gate=1&hint_sec=1`, { waitUntil: "load" });
+  { const s = await waitFor((s) => s.step === "s01_stork" && s.state === "wait_unlock" && s.targets.nest, "gate: s01 wait_unlock", 60000);
+    if (s.targets.stork || s.targets.next) throw new Error("gate: аист/«Далее» до первого касания");
+    const h = await waitFor((s) => s.targets.hint_hand, "gate s01: рука на гнезде", 6000);
+    if (Math.hypot(h.targets.hint_hand[0] - h.targets.nest[0], h.targets.hint_hand[1] - h.targets.nest[1]) > 160) throw new Error("gate s01: рука не у гнезда");
+    await sleep(2000);
     if ((await bk()).state !== "wait_unlock") throw new Error("gate: s01 пошла без касания");
-    await sleep(400); await tap("alya");
-    await waitFor((s) => s.state === "wait_alya", "gate: касание → s01 wait_alya", 15000);
-    console.log("gate=1: s01 ждёт касания (wait_unlock), после касания — реплика и wait_alya"); }
+    await shot("s01-stork-gate");
+    await tap("nest");
+    await waitFor((s) => s.state === "fly_in", "gate: касание → s01 fly_in", 15000);
+    // дальше по «Далее» — s02 без второго ожидания (касание на странице уже было)
+    await waitFor(state("done"), "gate: s01 done", 30000); await sleep(300); await tap("next");
+    await waitFor((s) => s.step === "s02_intro" && s.state === "wait_alya", "gate: s01 → s02 без второго ожидания", 30000);
+    console.log("gate=1: s01 ждёт касания (wait_unlock, гнездо пульсирует, рука на гнезде), касание → влёт; s02 после s01 — без ожидания"); }
   passed.push("s01-audio-gate");
+  // подсказка s01: без касаний — рука на большой «А» (без голоса), после посадки — на «Далее»
+  await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&hint_sec=1&step=1`, { waitUntil: "load" });
+  { await waitFor((s) => s.step === "s01_stork" && s.info.s01_letters_down, "s01 hint: буквы на земле", 30000);
+    const s = await waitFor((s) => s.targets.hint_hand && s.targets.big, "s01 hint: рука", 6000);
+    if (s.state === "done") throw new Error("s01 hint: рука появилась только после посадки");
+    if (Math.hypot(s.targets.hint_hand[0] - s.targets.big[0], s.targets.hint_hand[1] - s.targets.big[1]) > 200) throw new Error("s01 hint: рука не на «А»");
+    await shot("s01-stork-hint-big");
+    const n = await waitFor((s) => s.state === "done" && s.targets.next && s.targets.hint_hand && Math.hypot(s.targets.hint_hand[0] - s.targets.next[0], s.targets.hint_hand[1] - s.targets.next[1]) < 160, "s01 hint: рука на «Далее»", 12000);
+    if (n.caption) throw new Error("s01 hint: рука с голосом");
+    console.log("s01 подсказка: рука на «А» во время полёта/после падения букв, после посадки — на «Далее»"); }
+  passed.push("s01-hint");
+  // урок открыт сразу со сцены 2 (?step=2): s02 ждёт касания (Аля пульсирует); касание → реплика → wait_alya
+  await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&gate=1&step=2`, { waitUntil: "load" });
+  { const s = await waitFor((s) => s.step === "s02_intro" && s.state === "wait_unlock", "gate: s02 wait_unlock", 60000);
+    await sleep(2500);
+    if ((await bk()).state !== "wait_unlock") throw new Error("gate: s02 пошла без касания");
+    await sleep(400); await tap("alya");
+    await waitFor((s) => s.state === "wait_alya", "gate: касание → s02 wait_alya", 15000);
+    console.log("gate=1: s02 ждёт касания (wait_unlock), после касания — реплика и wait_alya"); }
+  passed.push("s02-audio-gate");
   console.log("без автоподтверждения после неверных попыток:", noConfirmChecked.join(", "));
   if (noConfirmChecked.length < 6) throw new Error("проверены не все игры на «без автоподтверждения»: " + noConfirmChecked.join(","));
   const log = await page.evaluate(() => (window.__bk || {}).log);
@@ -412,22 +501,22 @@ try {
   if (textViolations.size) throw new Error("текст на экране ребёнка:\n" + [...textViolations].join("\n"));
   console.log("субтитры без debug: ни разу не показаны; текст на экране ребёнка — только А/а");
   // с ?debug=1 субтитры появляются
-  await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&debug=1&step=s01_intro`, { waitUntil: "load" });
-  await waitFor((s) => s.step === "s01_intro", "deep link ?step=s01_intro → s01", 60000);
-  console.log("deep link ?step=s01_intro: сразу s01");
+  await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&debug=1&step=s02_intro`, { waitUntil: "load" });
+  await waitFor((s) => s.step === "s02_intro", "deep link ?step=s02_intro → s02", 60000);
+  console.log("deep link ?step=s02_intro: сразу s02");
   await waitFor((s) => s.caption_visible, "debug: субтитр виден", 60000);
-  await shot("debug-subtitles-s01");
+  await shot("debug-subtitles-s02");
   console.log("debug=1: субтитры показаны");
-  // рука-подсказка с укороченным таймером: s03, ждём картинку
-  await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&hint_sec=3&step=s03_words`, { waitUntil: "load" });
-  await waitFor(state("wait_pic_0"), "idle: s03 wait_pic_0", 60000);
+  // рука-подсказка с укороченным таймером: s04, ждём картинку
+  await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&hint_sec=3&step=s04_words`, { waitUntil: "load" });
+  await waitFor(state("wait_pic_0"), "idle: s04 wait_pic_0", 60000);
   { const t0 = Date.now(); await sleep(1500);
     if ((await bk()).targets.hint_hand) throw new Error("idle: рука появилась раньше таймера");
     const s = await waitFor((s) => s.targets.hint_hand, "idle: рука через 3 с", 6000);
     const dt = (Date.now() - t0) / 1000; const [hx, hy] = s.targets.hint_hand, [px, py] = s.targets.pic;
     console.log(`idle: рука появилась через ${dt.toFixed(1)} с (hint_sec=${s.hint_sec}), над картинкой: ${Math.hypot(hx - px, hy - py) < 120}`);
     if (Math.hypot(hx - px, hy - py) > 120) throw new Error("idle: рука не над картинкой");
-    await sleep(300); await shot("s03-hint-hand");
+    await sleep(300); await shot("s04-hint-hand");
     // рука НЕ исчезает по таймеру (раньше пряталась через 2 с): ждём 3+2+3 с — всё ещё на экране
     await sleep(5000);
     if (!(await bk()).targets.hint_hand) throw new Error("idle: рука исчезла по таймеру, а ребёнок ничего не сделал");
@@ -442,22 +531,22 @@ try {
     await waitFor((s) => !s.targets.hint_hand, "idle: касание цели прячет руку", 1500);
     console.log(`idle: касание картинки — рука спрятана через ${Date.now() - t1} мс (hint_hidden ${hid0} → ${((await bk()).info || {}).hint_hidden})`); }
   passed.push("idle-hint-persists");
-  // s08 (перетаскивание): рука держится, касание корзинки (неверное действие) её не прячет, начало перетаскивания плитки — прячет
-  await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&hint_sec=2&step=s08_sort`, { waitUntil: "load" });
-  await waitFor(state("wait_drag"), "idle: s08 wait_drag", 60000);
-  { const s = await waitFor((s) => s.targets.hint_hand && s.targets.tile, "idle: s08 рука", 8000);
+  // s09 (перетаскивание): рука держится, касание корзинки (неверное действие) её не прячет, начало перетаскивания плитки — прячет
+  await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&hint_sec=2&step=s09_sort`, { waitUntil: "load" });
+  await waitFor(state("wait_drag"), "idle: s09 wait_drag", 60000);
+  { const s = await waitFor((s) => s.targets.hint_hand && s.targets.tile, "idle: s09 рука", 8000);
     await sleep(4500);
-    if (!(await bk()).targets.hint_hand) throw new Error("idle s08: рука исчезла по таймеру");
+    if (!(await bk()).targets.hint_hand) throw new Error("idle s09: рука исчезла по таймеру");
     await tapXY(s.targets.basket_small); await sleep(600);
-    if (!(await bk()).targets.hint_hand) throw new Error("idle s08: касание корзинки спрятало руку");
+    if (!(await bk()).targets.hint_hand) throw new Error("idle s09: касание корзинки спрятало руку");
     const [x, y] = s.targets.tile;
     if (TOUCH) { await page.touchscreen.touchStart(x, y); } else { await page.mouse.move(x, y); await page.mouse.down(); }
-    await waitFor((s) => !s.targets.hint_hand, "idle s08: начало перетаскивания прячет руку", 1500);
+    await waitFor((s) => !s.targets.hint_hand, "idle s09: начало перетаскивания прячет руку", 1500);
     if (TOUCH) await page.touchscreen.touchEnd(); else await page.mouse.up();
-    console.log("idle s08: рука держится >6 с, касание корзинки не прячет, взяли плитку — рука спряталась"); }
+    console.log("idle s09: рука держится >6 с, касание корзинки не прячет, взяли плитку — рука спряталась"); }
   passed.push("idle-hint-drag");
   // бездействие с короткой подсказкой (hint_sec=1): рука показывается, но шаг сам не подтверждается
-  for (const [step, st] of [["s02_sing", "wait_hold"], ["s03_words", "wait_pic_0"], ["s04_hear", "wait_answer_0"], ["s05_letter", "wait_letters"], ["s07_find", "wait_balloons"], ["s08_sort", "wait_drag"]]) {
+  for (const [step, st] of [["s03_sing", "wait_hold"], ["s04_words", "wait_pic_0"], ["s05_hear", "wait_answer_0"], ["s06_letter", "wait_letters"], ["s08_find", "wait_balloons"], ["s09_sort", "wait_drag"]]) {
     await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&hint_sec=1&step=${step}`, { waitUntil: "load" });
     await waitFor(state(st), `idle-noauto: ${step} ${st}`, 60000);
     const b0 = sfxSnap(await bk()); let hand = false; const t0 = Date.now();

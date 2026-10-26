@@ -66,7 +66,7 @@ func run() -> void:
 		var vis := _vis_x()
 		train.position.x = (vis.y + 8.0) if _rtl else (vis.x - train.size.x - 8.0)   # целиком за краем экрана
 		_last_x = train.position.x
-		main.set_info("s03_drive_in", _drive_info(train.position.x, _parked_x(tc), vis))
+		main.set_info("s04_drive_in", _drive_info(train.position.x, _parked_x(tc), vis))
 		if not await _drive(train, _parked_x(tc), _drive_sec(tc, "drive_in_sec", 1.8, absf(_parked_x(tc) - train.position.x)), Tween.EASE_OUT): return
 		# 2) картинка слова
 		var pic := add_pic(it.pic, pc, psz)
@@ -75,7 +75,7 @@ func run() -> void:
 		pic.set_meta("word_card", it.word)
 		main.expose("pic", pic)
 		pop_in(pic)
-		main.set_info("s03_cards_visible", _count_cards())   # тест: на сцене ровно одна карточка — текущего слова
+		main.set_info("s04_cards_visible", _count_cards())   # тест: на сцене ровно одна карточка — текущего слова
 		burst(pc, Color("#fffbd0"))
 		main.hint_start(func(): return pic, "h_tap_01")
 		main.set_state("wait_pic_%d" % i)
@@ -96,7 +96,7 @@ func run() -> void:
 		var circ := add_pic(String(Assets.lesson.get("sound_dot", "ui_circle_flat")), dc, dsz, false)   # плоский матовый кружок-звук (78 — под окошко r 44)
 		pop_in(circ)
 		var right: Control = slots[int(it.pos)]
-		main.set_info("s03_right", int(it.pos))   # тест раскладки: какое окошко верное
+		main.set_info("s04_right", int(it.pos))   # тест раскладки: какое окошко верное
 		if i == 0:
 			if not await say(cfg.slot_hint): return
 		else:
@@ -149,7 +149,7 @@ func run() -> void:
 			pt.tween_property(pic, "modulate:a", 0.0, float(tc.get("pic_fade_sec", 0.5)))
 		var vo := _vis_x()
 		var out_x := (vo.x - train.size.x - 8.0) if _rtl else (vo.y + 8.0)                 # целиком за другим краем
-		main.set_info("s03_drive_out", _drive_info(train.position.x, out_x, vo))
+		main.set_info("s04_drive_out", _drive_info(train.position.x, out_x, vo))
 		if not await _drive(train, out_x, _drive_sec(tc, "drive_out_sec", 1.6, absf(out_x - train.position.x)), Tween.EASE_IN): return
 		pic.hide()
 		pic.queue_free()
@@ -158,8 +158,8 @@ func run() -> void:
 			main.expose("slot%d" % k, null)
 		await get_tree().process_frame
 		if dead: return
-		main.set_info("s03_cards_visible", _count_cards())   # тест: 0 — карточка отгаданного слова ушла
-		main.set_info("s03_left", i)
+		main.set_info("s04_cards_visible", _count_cards())   # тест: 0 — карточка отгаданного слова ушла
+		main.set_info("s04_left", i)
 	if not await say(cfg.summary): return
 	finish()
 
@@ -214,7 +214,7 @@ func _add_rails(tc: Dictionary) -> void:
 		field.add_child(r)
 		field.move_child(r, 0)
 		rails = r
-		main.set_info("s03_rails", {"x0": x0, "x1": x0 + r.size.x * k, "kx": k, "ky": k, "tile_w": tw})
+		main.set_info("s04_rails", {"x0": x0, "x1": x0 + r.size.x * k, "kx": k, "ky": k, "tile_w": tw})
 		return
 	var box := Control.new()
 	box.name = "rails"
@@ -237,7 +237,7 @@ func _add_rails(tc: Dictionary) -> void:
 		sl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		box.add_child(sl)
 		x += 64.0
-	main.set_info("s03_rails", {"x0": vis.x, "x1": vis.y, "kx": 1.0, "ky": 1.0, "tile_w": 64.0})
+	main.set_info("s04_rails", {"x0": vis.x, "x1": vis.y, "kx": 1.0, "ky": 1.0, "tile_w": 64.0})
 
 ## Окно поменяло размер (поворот планшета, другое соотношение сторон) — путь снова от края до края.
 func relayout() -> void:

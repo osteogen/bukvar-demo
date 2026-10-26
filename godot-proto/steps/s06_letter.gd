@@ -131,7 +131,7 @@ func _hl_reset() -> void:
 	_hl_tw.clear()
 	for h in hls.values():
 		h.modulate.a = 0.0
-	main.set_info("s05_hl", [])
+	main.set_info("s06_hl", [])
 
 ## Реплика с таймлайном подсветки. Возвращает false, если сцена закрыта или реплику перебили другой.
 func _play_line(line: Dictionary) -> bool:
@@ -159,7 +159,7 @@ func _play_line(line: Dictionary) -> bool:
 var _hl_seen := {}
 func _mark_hl(part: String, on: bool) -> void:
 	_hl_seen[part] = true
-	main.set_info("s05_hl_seen", _hl_seen.keys())
+	main.set_info("s06_hl_seen", _hl_seen.keys())
 
 func _soft_pulse(letter: String) -> void:
 	if _pulse_tw.has(letter) and _pulse_tw[letter].is_valid():
@@ -190,8 +190,8 @@ func _on_letter(letter: String) -> void:
 	main.hint_stop()
 	_stop_pulse()   # «пока одна не нажата» — после первого касания пульс прекращается
 	_seen[letter] = true
-	main.set_info("s05_seen", _seen.duplicate())
-	main.set_info("s05_last", letter)
+	main.set_info("s06_seen", _seen.duplicate())
+	main.set_info("s06_last", letter)
 	var line: Dictionary = cfg.lines.tap_big if letter == "big" else cfg.lines.tap_small
 	if not await _play_line(line): return
 	if _seen.big and _seen.small and not _outro_done:
@@ -200,7 +200,7 @@ func _on_letter(letter: String) -> void:
 		if not await _play_line(cfg.lines.outro):
 			if dead: return
 		_waiting = true
-		main.set_info("s05_outro", true)
+		main.set_info("s06_outro", true)
 		finish()
 
 ## 5 с без касаний (letter.idle_hint.sec; ?hint_sec меньше — берётся он) — рука на ещё не нажатую букву и
@@ -227,7 +227,7 @@ func _process(dt: float) -> void:
 	var tgt: Control = _small_btn if _seen.big else _big_btn
 	main.hint_start(func(): return tgt, "")
 	main.hint_now()
-	main.set_info("s05_idle_hints", int(main.info.get("s05_idle_hints", 0)) + 1)
+	main.set_info("s06_idle_hints", int(main.info.get("s06_idle_hints", 0)) + 1)
 	_play_range(String(ih.get("audio", "a_letter_01")), float(ih.get("from", 0)), float(ih.get("to", 0)))
 
 func _input(ev: InputEvent) -> void:

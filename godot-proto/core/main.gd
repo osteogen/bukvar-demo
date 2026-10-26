@@ -13,7 +13,7 @@ var host: Control
 var overlay: Control
 var next_btn: TextureButton
 var back_btn: TextureButton
-var exit_btn: TextureButton        # крестик справа вверху на s01–s10 → экран букв (menu/letters_menu)
+var exit_btn: TextureButton        # крестик справа вверху на s01–s11 → экран букв (menu/letters_menu)
 var screen := ""                   # имя текущего экрана: шаг из lesson.json или "letters_menu"
 const LETTERS_MENU := "res://menu/letters_menu.tscn"
 const EXIT_SIZE := 72.0            # кнопка 72×72 (≥ 64 px для пальца), как «назад»
@@ -89,13 +89,13 @@ func _ready() -> void:
 	_ios_audio_session()
 	# В вебе главный экран букв — отдельная лёгкая HTML-страница в корне сайта (web-home/), а Godot живёт в lesson-a/:
 	# без параметров урок сразу начинается со сцены 1 (памятки s00 и выбора «младшего режима» больше нет — текст памятки
-	# теперь на главной, кнопка «i»; первый жест для звука на iOS — касание в сцене 1, см. s01_intro.gd).
-	# ?step=... (s01…s10 или номер сцены 1…10) — сразу нужный шаг; ?step=letters_menu — экран букв внутри Godot (для отладки).
+	# теперь на главной, кнопка «i»; первый жест для звука на iOS — касание в сцене 1, см. s01_stork.gd и LessonStep.unlock_gate()).
+	# ?step=... (s01…s11 или номер сцены 1…11) — сразу нужный шаг; ?step=letters_menu — экран букв внутри Godot (для отладки).
 	# Не в вебе (редактор, десктоп) экран букв из Godot остаётся главным.
 	var want := String(Assets.params.get("step", ""))
 	var i := steps.find(want)
 	if i < 0 and want.is_valid_int():
-		# номер сцены (1…10): ищем шаг с префиксом «sNN_», а не индекс в списке (s00 из списка убран)
+		# номер сцены (1…11): ищем шаг с префиксом «sNN_», а не индекс в списке (s00 из списка убран)
 		var pre := "s%02d_" % int(want)
 		for k in steps.size():
 			if String(steps[k]).begins_with(pre):
@@ -287,11 +287,11 @@ func goto(i: int) -> void:
 	screen = String(steps[index])
 	_enter("res://steps/%s.tscn" % screen)
 	back_btn.visible = index > 0
-	exit_btn.visible = true                  # s01–s10: везде в уроке — выход на главный экран букв
+	exit_btn.visible = true                  # s01–s11: везде в уроке — выход на главный экран букв
 	expose("exit", exit_btn if exit_btn.visible else null)
 	current.call_deferred("run")
 
-## Экран всех букв (пока активна только «А»). Сюда ведут крестик и «домой» в s10.
+## Экран всех букв (пока активна только «А»). Сюда ведут крестик и «домой» в s11.
 func show_letters() -> void:
 	_leave_current()
 	screen = "letters_menu"
@@ -312,7 +312,7 @@ func exit_to_letters() -> void:
 	go_home()
 
 ## Домой, к экрану букв. В вебе — на HTML-главную (../), с теми же параметрами адреса, кроме step;
-## не в вебе — экран букв внутри Godot. Сюда ведут крестик и «домой» в s10.
+## не в вебе — экран букв внутри Godot. Сюда ведут крестик и «домой» в s11.
 func go_home() -> void:
 	if OS.has_feature("web") and String(Assets.params.get("step", "")) != "letters_menu":
 		if home_requested:
@@ -375,7 +375,7 @@ func show_next(on: bool) -> void:
 ## • voice — реплика на каждом voice_every_shows-м показе подряд. Автопомощи НЕТ: засчитывает только ребёнок.
 ## Цель руки — Callable шага (target), для перетаскивания ещё drag_to.
 
-## Кадры руки: sprite (новая рука иллюстратора), если файл есть; иначе frames. Тот же набор берёт демо-рука s06.
+## Кадры руки: sprite (новая рука иллюстратора), если файл есть; иначе frames. Тот же набор берёт демо-рука s07.
 func hint_frames() -> Array:
 	var sp := String(hint_cfg.get("sprite", ""))
 	var t: Texture2D = Assets.tex(sp, false) if sp != "" else null
@@ -527,7 +527,7 @@ func _event_pos(event: InputEvent) -> Vector2:
 
 # ---------- iOS: звук ----------
 ## Godot сам возобновляет AudioContext по первому касанию/клику (слушает touchend/mousedown/keydown в самом движке).
-## Урок — отдельная страница (lesson-a/), касание на главной до неё не «доезжает»: первый жест — в сцене 1 (s01_intro.gd,
+## Урок — отдельная страница (lesson-a/), касание на главной до неё не «доезжает»: первый жест — в сцене 1 (s02_intro.gd,
 ## intro.unlock_tap): пока его не было, Аля ждёт касания и ничего не говорит.
 ## Дополнительно: на iOS 17+ просим Safari играть звук даже при беззвучном режиме.
 func _ios_audio_session() -> void:
@@ -603,7 +603,7 @@ func _exit_overlaps() -> Array:
 ## Для теста (правило раскладки): пересечения кнопок интерфейса — «назад», «Далее», крестик (их места в полях, даже
 ## если кнопка сейчас скрыта) — с видимыми предметами шага: картинками, буквами, кнопками, персонажами.
 ## Фон (meta "bg"), слои во весь экран (≥ сцены) и узлы с meta "no_overlap_check" не считаются; учитываются
-## обрезки clip_contents; шаг может добавить свои области через content_rects() (напр. буква-дорожка в s06).
+## обрезки clip_contents; шаг может добавить свои области через content_rects() (напр. буква-дорожка в s07).
 func ui_overlaps() -> Array:
 	var out: Array = []
 	if current == null or screen == "letters_menu" or exit_btn == null:

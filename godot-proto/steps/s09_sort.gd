@@ -143,7 +143,7 @@ func _add_basket(d: Dictionary) -> TextureButton:
 		b.add_child(l)
 	if d.has("label"):   # тест: табличка (координаты сцены)
 		var lr := _rect(d.get("label"), fr)
-		main.set_info("s08_label_" + ("big" if String(d.states[0]).contains("big") else "small"), [lr.position.x, lr.position.y, lr.end.x, lr.end.y])
+		main.set_info("s09_label_" + ("big" if String(d.states[0]).contains("big") else "small"), [lr.position.x, lr.position.y, lr.end.x, lr.end.y])
 	return b
 
 func _set_state(b: TextureButton, n: int) -> void:
@@ -154,7 +154,7 @@ func _set_state(b: TextureButton, n: int) -> void:
 	var tx := Assets.tex(String(st[n]))
 	if tx:
 		b.texture_normal = tx
-	main.set_info("s08_state_" + ("big" if b == basket_big else "small"), n)
+	main.set_info("s09_state_" + ("big" if b == basket_big else "small"), n)
 
 ## Зона сброса (в координатах сцены): v3 — sort.layout.*.drop, иначе — корзинка + 20.
 func _drop_rect(b: Control) -> Rect2:
@@ -368,7 +368,7 @@ func _enable_done_taps() -> void:
 	for b in [basket_big, basket_small]:
 		b.mouse_filter = Control.MOUSE_FILTER_STOP
 		b.pressed.connect(_on_basket_done_tap.bind(b))
-	main.set_info("s08_done_taps", 0)
+	main.set_info("s09_done_taps", 0)
 
 func _on_basket_done_tap(b: TextureButton) -> void:
 	if dead or not finished:
@@ -379,8 +379,8 @@ func _on_basket_done_tap(b: TextureButton) -> void:
 	if Voice._stream(id) == null:
 		id = String(dt.get("fallback", ""))
 	_taps += 1
-	main.set_info("s08_done_taps", _taps)
-	main.set_info("s08_done_audio", id if id != "" and Voice._stream(id) != null else "")
+	main.set_info("s09_done_taps", _taps)
+	main.set_info("s09_done_audio", id if id != "" and Voice._stream(id) != null else "")
 	if id == "" or Voice._stream(id) == null:
 		return   # записи ещё нет — молча, только подскок
 	Voice.stop_voice()
@@ -400,5 +400,5 @@ func _bounce(b: Control, px: float, sec: float) -> void:
 	var y0: float = b.get_meta("bounce_y")
 	var tw := b.create_tween()
 	tw.tween_property(b, "position:y", y0 - px, sec * 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.tween_callback(func(): main.set_info("s08_bounce_peak", {"n": _taps, "px": y0 - b.position.y}))
+	tw.tween_callback(func(): main.set_info("s09_bounce_peak", {"n": _taps, "px": y0 - b.position.y}))
 	tw.tween_property(b, "position:y", y0, sec * 0.6).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)

@@ -38,7 +38,7 @@ func run() -> void:
 		var sound_task := String(task.card) == "sound"
 		main.expose("card", card)
 		var cr := card.get_global_rect()
-		main.set_info("s09_card", {"i": i, "id": String(task.card), "rect": [cr.position.x, cr.position.y, cr.size.x, cr.size.y]})
+		main.set_info("s10_card", {"i": i, "id": String(task.card), "rect": [cr.position.x, cr.position.y, cr.size.x, cr.size.y]})
 		pop_in(card)
 		if sound_task:
 			# задание «произнеси [а]»: Аля держит рот «а» (mouth_2), дуги пульсируют, пока звучит образец
@@ -171,7 +171,7 @@ func _make_card(task: Dictionary) -> Control:
 		p.size = CARD_S
 	else:
 		add_card_frame(card, 0.06, CARD_BACKING)
-	main.set_info("s09_card_content", id)
+	main.set_info("s10_card_content", id)
 	return card
 
 func _tex_rect(id: String, sz: Vector2) -> TextureRect:
@@ -214,4 +214,4 @@ func _waves_pulse(card: Control, on: bool) -> void:
 func _light_arcs(arcs: Array, n: int) -> void:
 	for k in arcs.size():
 		(arcs[k] as CanvasItem).visible = k < n
-	main.set_info("s09_arcs_lit", n)
+	main.set_info("s10_arcs_lit", n)

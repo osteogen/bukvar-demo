@@ -40,7 +40,7 @@ func run() -> void:
 		var errors := 0
 		main.hint_start(func(): return _alt(yes, no), it.voice)
 		main.expose("pic", pic)
-		main.set_info("s04_card", _rect_info(pic))   # тест: текущая карточка по центру
+		main.set_info("s05_card", _rect_info(pic))   # тест: текущая карточка по центру
 		main.set_state("wait_answer_%d" % i)
 		while true:
 			var v = await picked
@@ -96,7 +96,7 @@ func run() -> void:
 	if _last_row_tw and _last_row_tw.is_valid() and _last_row_tw.is_running():
 		await _last_row_tw.finished   # в быстром режиме wait() короче анимации — ждём, пока последняя карточка встанет в ряд
 	if dead: return
-	main.set_info("s04_row", row_cards.map(func(c): return _rect_info(c)))
+	main.set_info("s05_row", row_cards.map(func(c): return _rect_info(c)))
 	if not await say(cfg.done): return
 	finish()
 
@@ -116,8 +116,8 @@ func _on_card(pic: TextureButton) -> void:
 		picked.emit("pic")
 		return
 	word_taps += 1
-	main.set_info("s04_word_taps", word_taps)
-	main.set_info("s04_word_last", String(pic.get_meta("word_audio")))
+	main.set_info("s05_word_taps", word_taps)
+	main.set_info("s05_word_last", String(pic.get_meta("word_audio")))
 	var tw := pic.create_tween()
 	tw.tween_property(pic, "scale", Vector2(ROW_SCALE, ROW_SCALE) * 1.15, 0.12)
 	tw.tween_property(pic, "scale", Vector2(ROW_SCALE, ROW_SCALE), 0.18)

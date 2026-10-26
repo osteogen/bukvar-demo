@@ -194,3 +194,22 @@ def hear_btn(name, fill, cross=False):
 
 hear_btn("ui_hear_yes", (217, 58, 43, 255))
 hear_btn("ui_hear_no", (176, 172, 165, 255), cross=True)
+
+# ---------- аист (раунд 13, 26.10.2026): финал художника с новым клювом поверх старых эскизов ----------
+# В эскизах v1/v2 клюв старый (#E07A4E). Провизорные копии берём из финала ../art/lesson_a/pic_aist.png и
+# ../art/common/reward/reward_sticker_aist.png (вписываем в тот же холст 623×720, по центру), чтобы старого клюва нигде не было.
+FIN = os.path.join(ROOT, "..", "art")
+for src, dst in [("lesson_a/pic_aist.png", "lesson_a/pic_aist.png"),
+                 ("common/reward/reward_sticker_aist.png", "common/reward/reward_sticker_aist.png")]:
+    p = os.path.join(FIN, src)
+    if not os.path.exists(p):
+        print("нет финала", src); continue
+    im = Image.open(p).convert("RGBA")
+    W, H = 623, 720
+    k = min(W / im.width, H / im.height)
+    im = im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
+    c = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    c.alpha_composite(im, ((W - im.width) // 2, (H - im.height) // 2))
+    o = os.path.join(ROOT, "art_provisional", dst)
+    c.save(o, optimize=True)
+    print("финал", src, "→ art_provisional/" + dst, c.size)

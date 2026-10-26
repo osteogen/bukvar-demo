@@ -6,7 +6,7 @@
 // не налезают друг на друга, на буквы и на «i»; значки загрузились; кнопки только «нажимаются» + «тук»; закрытая буква качается, «тук» (не чаще 1/200 мс) и никуда не ведёт; руки-подсказки на главной НЕТ;
 // все 33 буквы открыты по умолчанию; шестерёнка (голый значок, зеркально «i» справа, на том же уровне) → настройки «Открывать буквы по последовательности изучения» (localStorage);
 // кнопка «i» (левый нижний угол, не на кубиках/кнопках) → страница сведений (общая для всех уроков, текст web-home/info.html) → тёмно-серый крестик → буквы;
-// тап «А» → мгновенный отклик → lesson-a/ с параметрами → сразу s01 (экрана s00 нет); крестик и «?step=» → обратно на главную.
+// тап «А» → мгновенный отклик → lesson-a/ с параметрами → сразу s01 «Аист приносит буквы» (экрана s00 нет); крестик и «?step=» → обратно на главную.
 // Запуск: PORT=<свободный> node tests/home.mjs [папка-сайта, по умолчанию ../site]
 import { createRequire } from "module"; import { spawn } from "child_process"; import path from "path"; import fs from "fs"; import { fileURLToPath } from "url";
 const require = createRequire(import.meta.url);
@@ -27,7 +27,7 @@ async function until(get, fn, desc, timeout = 30000) {
   throw new Error("timeout: " + desc + " | last=" + JSON.stringify(await get()).slice(0, 400));
 }
 // Заставка загрузки Godot (#status) ещё гаснет поверх холста первые ≈0,5 с — касание по ней в игру не доходит.
-// Короткие сцены (s05 в fast-режиме) успевают дойти до wait_* раньше, поэтому перед касанием ждём, пока она исчезнет.
+// Короткие сцены (s06 в fast-режиме) успевают дойти до wait_* раньше, поэтому перед касанием ждём, пока она исчезнет.
 const statusGone = () => page.waitForFunction(() => { const e = document.getElementById("status"); if (!e) return true; const cs = getComputedStyle(e); return cs.visibility === "hidden" || cs.display === "none" || +cs.opacity === 0; }, { timeout: 10000 }).catch(() => {});
 const tapAt = async ([x, y]) => { await statusGone(); await page.touchscreen.tap(x, y); };
 const tapNav = async (xy, what = "") => { const from = page.url(); try { await Promise.all([page.waitForNavigation({ waitUntil: "load", timeout: 10000 }), tapAt(xy)]); } catch (e) { throw new Error(`нет перехода после тапа ${what} (${from} → ${page.url()}): ${e.message}`); } };
@@ -322,7 +322,7 @@ try {
     console.log(`настройка «по последовательности»: вкл → открыта только «А» (первая в STUDY_ORDER; прогресс пока не сохраняется), 32 буквы бледные и «тук», сохраняется в localStorage; выкл → все 33 открыты`); }
   await view(1024, 768);
   passed.push("home: шестерёнка → настройки → порядок букв");
-  // 5) тап «А» → отклик → lesson-a/ (параметры переданы) → сразу s01 (экрана для взрослого s00 нет)
+  // 5) тап «А» → отклик → lesson-a/ (параметры переданы) → сразу s02 (экрана для взрослого s00 нет)
   await page.goto(`${BASE}/?test=1&fast=1&junior=1&debug=1&hint_sec=30&foo=bar`, { waitUntil: "load" });
   await until(home, (s) => s.state === "wait_letter", "home ready (А)");
   await sleep(1000);
@@ -341,7 +341,7 @@ try {
     ok(u.pathname === "/lesson-a/", "не lesson-a/: " + u.pathname);
     for (const k of ["test", "fast", "junior", "debug", "hint_sec"]) ok(u.searchParams.has(k), "не передан параметр " + k);
     ok(!u.searchParams.has("foo"), "лишний параметр foo ушёл в урок"); }
-  { const t0 = Date.now(); await until(bk, (s) => s.step === "s01_intro", "lesson → s01", 120000);
+  { const t0 = Date.now(); await until(bk, (s) => s.step === "s01_stork", "lesson → s01", 120000);
     console.log(`lesson-a/: Godot загрузился и сразу открыл s01 за ${((Date.now() - t0) / 1000).toFixed(1)} с (локально)`);
     const s = await bk(); ok(s.hint_sec === 30, "hint_sec не дошёл до урока: " + s.hint_sec);
     ok(!(s.targets || {}).start && !(s.targets || {}).junior, "в уроке остались «Начнём!» / младший режим"); }
@@ -355,12 +355,12 @@ try {
   await until(home, (s) => s.state === "wait_letter", "home after exit");
   passed.push("крестик → главная");
   // 7) прямая ссылка ?step= работает и крестик с неё ведёт домой без step
-  await page.goto(`${BASE}/lesson-a/?test=1&fast=1&step=s05_letter`, { waitUntil: "load" });
-  await until(bk, (s) => s.step === "s05_letter", "deep link s05", 120000);
-  { const s = await until(bk, (s) => s.targets && s.targets.exit && /^wait/.test(s.state), "крестик на s05"); await tapNav(s.targets.exit, "крестик " + s.step); }
+  await page.goto(`${BASE}/lesson-a/?test=1&fast=1&step=s06_letter`, { waitUntil: "load" });
+  await until(bk, (s) => s.step === "s06_letter", "deep link s06", 120000);
+  { const s = await until(bk, (s) => s.targets && s.targets.exit && /^wait/.test(s.state), "крестик на s06"); await tapNav(s.targets.exit, "крестик " + s.step); }
   { const u = new URL(page.url()); ok(u.pathname === "/" && !u.searchParams.has("step"), "из deep link не на главную: " + page.url()); }
   await until(home, (s) => s.state === "wait_letter", "home after deep link exit");
-  console.log("?step=s05_letter → s05; крестик → /?" + new URL(page.url()).searchParams);
+  console.log("?step=s06_letter → s06; крестик → /?" + new URL(page.url()).searchParams);
   passed.push("?step= → крестик → главная");
   // 8) «назад» в браузере после ухода в урок — главная снова живая (bfcache)
   { const s = await home(); await tapNav(s.targets.letter_a, "«А»"); }

@@ -2,6 +2,7 @@
 ## Имя → путь:
 ##   pic_*            → res://art/lesson_<буква>/pic_*.png        (кадры: pic_<id>_f1/_f2)
 ##   s<N>_*           → res://art/lesson_<буква>/s<N>_*.png       (картинки одной сцены: s8_basket_big_A_0 …)
+##   stork_*          → res://art/lesson_<буква>/stork_*.png      (аист сцены 1: stork_fly_*, stork_nest_*)
 ##   bg_*             → res://art/common/bg/bg_*.png
 ##   ui_*             → res://art/common/ui/ui_*.png
 ##   reward_*         → res://art/common/reward/reward_*.png
@@ -91,8 +92,8 @@ const ART_TIERS := ["res://art/", "res://art_provisional/", "res://art_placehold
 func art_rel(name: String) -> String:
 	if name.contains("/"):
 		return "characters/" + name + ".png"
-	if name.begins_with("pic_") or (name.length() > 2 and name[0] == "s" and name[1].is_valid_int()):
-		# pic_* и картинки отдельных сцен урока s<N>_* (напр. s8_basket_big_A_0) — в папке урока
+	if name.begins_with("pic_") or name.begins_with("stork_") or (name.length() > 2 and name[0] == "s" and name[1].is_valid_int()):
+		# pic_*, кадры аиста stork_* (сцена 1) и картинки отдельных сцен урока s<N>_* (напр. s8_basket_big_A_0) — в папке урока
 		return "lesson_%s/%s.png" % [letter_id, name]
 	if name.begins_with("bg_"):
 		return "common/bg/" + name + ".png"

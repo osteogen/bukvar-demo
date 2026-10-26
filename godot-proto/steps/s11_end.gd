@@ -30,7 +30,7 @@ func run() -> void:
 	await tw.finished
 	if dead: return
 	var ar := album.get_global_rect()
-	main.set_info("s10_album", [ar.position.x, ar.position.y, ar.size.x, ar.size.y])
+	main.set_info("s11_album", [ar.position.x, ar.position.y, ar.size.x, ar.size.y])
 	pulse(album, 2)
 	sticker.pressed.connect(func(): Voice.say(cfg.lines[1]))
 	if not await say(cfg.lines[2]): return

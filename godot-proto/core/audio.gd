@@ -72,7 +72,7 @@ func stop_voice() -> void:
 	_token += 1
 	voice.stop()
 
-var sfx_counts := {}   # для теста: сколько раз звучал каждый эффект (успех — sfx_ok/sfx_cheer; s07 — sfx_pop)
+var sfx_counts := {}   # для теста: сколько раз звучал каждый эффект (успех — sfx_ok/sfx_cheer; s08 — sfx_pop)
 
 func sfx(id: String) -> void:
 	sfx_counts[id] = int(sfx_counts.get(id, 0)) + 1
@@ -90,7 +90,9 @@ func sfx(id: String) -> void:
 func loop_start(id: String) -> void:
 	var s := _stream(id)
 	if s and not loop_player.playing:
-		if s is AudioStreamOggVorbis:
+		if s is AudioStreamOggVorbis and not s.loop:
+			# копия: тот же файл может звучать и как обычная реплика (a_find_03 — запасная петля сцены 3), её не зацикливаем
+			s = s.duplicate()
 			s.loop = true
 		loop_player.stream = s
 		loop_player.play()
