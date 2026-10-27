@@ -1,5 +1,5 @@
 // Тест раскладки (DESIGN_RULES.md, §2): на всех экранах кнопки «назад», «Далее», крестик целиком на экране и
-// не перекрывают карточки, картинки, буквы и другие интерактивные предметы — на каждом шаге s01…s11.
+// не перекрывают карточки, картинки, буквы и другие интерактивные предметы — на каждом шаге s01…s10.
 // Плюс: s04 «Слышу звук?» — каждая карточка по центру, ряды отвеченных карточек вверху, касание карточки в ряду
 // говорит слово и ничего не подтверждает; s08 «Шарики» — летящие шарики (позиции в разные моменты) и итоговые А/а
 // не заходят под кнопки; s05 «Паровозик» — рельсы от края до края экрана, поезд въезжает и уезжает из-за краёв,
@@ -16,7 +16,7 @@ const srv = spawn("node", [path.join(ROOT, "tests/serve.mjs"), SITE, String(PORT
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // телефон портрет/альбом, 4:3, 16:9, 16:10, iPhone 390×844 (там «назад» перекрывал карточку «мак»), планшет-портрет
 const VPS = (process.env.VPS || "1024x768,1366x768,1280x800,844x390,390x844,360x640,768x1024").split(",");
-const STEPS = ["s01_stork", "s02_intro", "s03_sing", "s04_hear", "s05_words", "s06_letter", "s07_write", "s08_find", "s09_sort", "s10_say", "s11_end"];
+const STEPS = ["s01_stork", "s02_intro", "s03_sing", "s04_hear", "s05_words", "s06_letter", "s07_write", "s08_find", "s09_sort", "s10_end"];
 const errors = [], notes = []; let page;
 const bk = () => page.evaluate(() => window.__bk || {}).catch(() => ({}));
 async function waitFor(fn, desc, timeout = 40000) {
@@ -139,7 +139,7 @@ try {
         await sampleOverlaps(`${vp} s08 итог А/а + шарики`, 8, 500);
         await page.screenshot({ path: path.join(SHOTS, `${vp}-s08-letters.png`) });
         notes.push(`${vp} s08: шарики и А/а без перекрытий`); }
-      notes.push(`${vp}: шаги s01–s11 без перекрытий, кнопки на экране`);
+      notes.push(`${vp}: шаги s01–s10 без перекрытий, кнопки на экране`);
     } catch (e) { errors.push(String(e.message || e)); try { await page.screenshot({ path: path.join(SHOTS, `FAIL-${vp}.png`) }); } catch {} }
   }
   await browser.close();

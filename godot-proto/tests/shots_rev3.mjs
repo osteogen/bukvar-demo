@@ -1,3 +1,4 @@
+// (27.10 rev4: финал переименован s11_end → s10_end; имена снимков rev3 оставлены как были)
 // Снимки s11 после правки rev3 (27.10: наклейка шага 1 в (608;318)): шаг 1, середина перелёта, альбом; 1024×768 и 844×390 → OUT (по умолчанию /workspace/publish/update-lesson-a-rev3-shots).
 import { createRequire } from "module"; import { spawn } from "child_process"; import path from "path"; import fs from "fs"; import { fileURLToPath } from "url";
 const require = createRequire(import.meta.url);
@@ -10,10 +11,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const VPS = [[1024, 768], [844, 390]];
 // [имя, шаг, действия]
 const PLAN = [
-  ["s11-end-step1-sticker", "s11_end", [["state", "wait_sticker"], ["wait", 600]]],
-  ["s11-end-album-opening", "s11_end", [["state", "wait_sticker"], ["wait", 1500], ["tap", "sticker"], ["wait", 250]]],
-  ["s11-end-flight-mid", "s11_end", [["state", "wait_sticker"], ["wait", 1500], ["tap", "sticker"], ["wait", 830]]],
-  ["s11-end-album", "s11_end", [["state", "wait_sticker"], ["wait", 1500], ["tap", "sticker"], ["state", "done"], ["wait", 800]]],
+  ["s11-end-step1-sticker", "s10_end", [["state", "wait_sticker"], ["wait", 600]]],
+  ["s11-end-album-opening", "s10_end", [["state", "wait_sticker"], ["wait", 1500], ["tap", "sticker"], ["wait", 250]]],
+  ["s11-end-flight-mid", "s10_end", [["state", "wait_sticker"], ["wait", 1500], ["tap", "sticker"], ["wait", 830]]],
+  ["s11-end-album", "s10_end", [["state", "wait_sticker"], ["wait", 1500], ["tap", "sticker"], ["state", "done"], ["wait", 800]]],
 ];
 let browser; const errs = [];
 try {

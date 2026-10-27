@@ -13,7 +13,7 @@ var host: Control
 var overlay: Control
 var next_btn: TextureButton
 var back_btn: TextureButton
-var exit_btn: TextureButton        # крестик справа вверху на s01–s11 → экран букв (menu/letters_menu)
+var exit_btn: TextureButton        # крестик справа вверху на s01–s10 → экран букв (menu/letters_menu)
 var screen := ""                   # имя текущего экрана: шаг из lesson.json или "letters_menu"
 const LETTERS_MENU := "res://menu/letters_menu.tscn"
 const EXIT_SIZE := 72.0            # кнопка 72×72 (≥ 64 px для пальца), как «назад»
@@ -103,9 +103,11 @@ func _ready() -> void:
 	# В вебе главный экран букв — отдельная лёгкая HTML-страница в корне сайта (web-home/), а Godot живёт в lesson-a/:
 	# без параметров урок сразу начинается со сцены 1 (памятки s00 и выбора «младшего режима» больше нет — текст памятки
 	# теперь на главной, кнопка «i»; первый жест для звука на iOS — касание в сцене 1, см. s01_stork.gd и LessonStep.unlock_gate()).
-	# ?step=... (s01…s11 или номер сцены 1…11) — сразу нужный шаг; ?step=letters_menu — экран букв внутри Godot (для отладки).
+	# ?step=... (s01…s10 или номер сцены 1…10; старое s11_end → s10_end) — сразу нужный шаг; ?step=letters_menu — экран букв внутри Godot (для отладки).
 	# Не в вебе (редактор, десктоп) экран букв из Godot остаётся главным.
 	var want := String(Assets.params.get("step", ""))
+	if want == "s11_end" or want == "11":
+		want = "s10_end"         # старые ссылки: финал был s11_end до удаления «Скажи сам» (27.10.2026)
 	var i := steps.find(want)
 	if i < 0 and want.is_valid_int():
 		# номер сцены (1…11): ищем шаг с префиксом «sNN_», а не индекс в списке (s00 из списка убран)
@@ -311,7 +313,7 @@ func goto(i: int) -> void:
 	screen = String(steps[index])
 	_enter("res://steps/%s.tscn" % screen)
 	back_btn.visible = index > 0
-	exit_btn.visible = true                  # s01–s11: везде в уроке — выход на главный экран букв
+	exit_btn.visible = true                  # s01–s10: везде в уроке — выход на главный экран букв
 	exit_btn.disabled = false
 	exiting = false
 	expose("exit", exit_btn if exit_btn.visible else null)
@@ -331,7 +333,7 @@ func restart() -> void:
 	completed.clear()
 	goto(0)
 
-## Экран всех букв (пока активна только «А»). Сюда ведут крестик и «домой» в s11.
+## Экран всех букв (пока активна только «А»). Сюда ведут крестик и «домой» в s10.
 func show_letters() -> void:
 	_leave_current()
 	screen = "letters_menu"
@@ -373,7 +375,7 @@ const BYE_LINE := "c_bye_01"
 const BYE_MAX_SEC := 2.5
 
 ## Домой, к экрану букв. В вебе — на HTML-главную (../), с теми же параметрами адреса, кроме step;
-## не в вебе — экран букв внутри Godot. Сюда ведут крестик и «домой» в s11.
+## не в вебе — экран букв внутри Godot. Сюда ведут крестик и «домой» в s10.
 func go_home() -> void:
 	if OS.has_feature("web") and String(Assets.params.get("step", "")) != "letters_menu":
 		if home_requested:

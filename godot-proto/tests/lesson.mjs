@@ -1,10 +1,10 @@
-// Сквозной тест урока «А» в headless Chrome: проходит все шаги s01…s11 КАСАНИЯМИ (touch-события, как на планшете),
+// Сквозной тест урока «А» в headless Chrome: проходит все шаги s01…s10 КАСАНИЯМИ (touch-события, как на планшете),
 // делает ошибки там, где это нужно для проверки реакций, снимает скриншоты.
 // Сайт как в CI: корень — HTML-главная (web-home/), урок — lesson-a/ (сборка: bash tests/assemble_site.sh).
-// Вход: главная → «А» → lesson-a/ → сразу s01 «Аист приносит буквы» (экрана для взрослого s00 больше нет) → s01…s11.
+// Вход: главная → «А» → lesson-a/ → сразу s01 «Аист приносит буквы» (экрана для взрослого s00 больше нет) → s01…s10 (с 27.10 без «Скажи сам»: s09 → s10_end).
 // Звук на iOS: в вебе без жеста на странице s01 ждёт касания (пустое гнездо пульсирует, wait_unlock); s02 — так же, если урок
 // открыт сразу с неё (?step=2); в тесте выключено, ?gate=1 — включить.
-// Плюс: крестик выхода на s01–s11 (виден, ни с чем не пересекается) → «Пока! Увидимся!» → главная → «А» → s01; «Ещё раз» в s10 → s01;
+// Плюс: крестик выхода на s01–s10 (виден, ни с чем не пересекается) → «Пока! Увидимся!» → главная → «А» → s01; «Ещё раз» в s10 → s01;
 // рука-подсказка после бездействия (?hint_sec=3 — укороченный таймер; по умолчанию 20 с из data/common/hint.json): держится до нужного действия,
 // касание цели / начало перетаскивания прячет её, касание мимо — нет. На главной руки нет (tests/home.mjs).
 // Запуск: PORT=<свободный> node tests/lesson.mjs     (TOUCH=0 — мышью; URLQ="audio=stream" — доп. параметры; SITE=папка сайта)
@@ -437,78 +437,49 @@ try {
       await sleep(400); }
     passed.push("s09-done-basket-aaa"); }
   await next("s09_sort");
-  // s10: кнопка взрослого (задание 2 — «ещё раз», затем «✓»; задание 4 — два раза «ещё раз» → серебряная звезда)
-  for (let i = 0; i < 4; i++) {
-    if (i === 0) { // пока звучит задание 9.1, дуги загораются по очереди
-      const lit = new Set(); const t0 = Date.now();
-      while (Date.now() - t0 < 30000) { const s = await bk(); if (s.info && s.info.s10_arcs_lit !== undefined) lit.add(s.info.s10_arcs_lit); if (s.state === "wait_parent_0") break; await sleep(40); }
-      console.log("s10 9.1: замечено дуг горящими:", [...lit].sort().join(","));
-      if (![1, 2, 3].some((n) => lit.has(n))) throw new Error("s10: дуги на карточке 9.1 не загорались");
-    }
-    await waitFor(state("wait_parent_" + i), "s10 parent " + i);
-    await sleep(1100);   // кнопка игнорирует нажатия чаще 1 раза в секунду
-    if (i === 0) { await checkExit("s10 (кнопка взрослого)"); await shot("s10-say-parent-button"); }
-    { // карточки сцены 9 — без красных предметов (кроме самой буквы А в задании 4)
-      const s = await bk(); const card = s.info && s.info.s10_card;
-      if (!card || card.i !== i) throw new Error("s10: нет сведений о карточке " + i);
-      const rf = await redFraction(card.rect);
-      console.log(`s10 карточка ${i + 1}: ${card.id}, красных пикселей ${(rf * 100).toFixed(2)} %`);
-      if (card.id === "sound") {
-        // 9.1 «произнеси [а]»: только плоский кружок ≈42 % ширины (площадь ≈ 0,42²·π/4 ≈ 14 % карточки), без глянцевого шара
-        if (s.info.s10_card_content !== "sound") throw new Error("s10: карточка 9.1 — не звуковое задание");
-        if (rf < 0.08 || rf > 0.22) throw new Error(`s10: на карточке 9.1 кружок не того размера (${(rf * 100).toFixed(1)} %)`);
-      } else if (card.id !== "letter_big" && rf > 0.005) throw new Error(`s10: красный предмет на карточке ${card.id} (${(rf * 100).toFixed(1)} %)`);
-      // непрозрачная кремовая подложка: центр-верх карточки внутри рамки — кремовый
-      if (!card.id.startsWith("pic_alya_card")) { const [x, y, w] = card.rect; const cf = await creamAt(x + w / 2, y + 14);
-        if (!cf) throw new Error("s10: нет кремовой подложки у карточки " + card.id); }
-    }
-    if (i === 1 || i === 3) {
-      await tap("parent_retry");
-      await waitFor((s) => !s.targets.parent_ok, "s10 hide");
-      if (i === 3) { await waitFor((s) => s.targets.parent_ok, "s10 reshow", 20000); await sleep(1100); await tap("parent_retry"); continue; }
-      await waitFor((s) => s.targets.parent_ok, "s10 reshow", 20000); await sleep(1100);
-    }
-    { const c0 = ((await bk()).sfx_counts || {}).sfx_click || 0; await tap("parent_ok"); await sleep(150);
-      const c1 = ((await bk()).sfx_counts || {}).sfx_click || 0; if (!(c1 > c0)) throw new Error("s10: нет щелчка на кнопке взрослого ✓"); }
-  }
-  await waitFor(state("done"), "s10 done"); await shot("s10-say-done"); await next("s10_say");
-  // s11 финал: Аля слева, справа от центра — большая наклейка «А а»; касание → альбом, наклейка уменьшается в ячейку;
+  // «Скажи сам» (s10_say) убрана 27.10.2026: после s09 «Кактусы» сразу финал s10_end; s10_say нигде не появляется
+  { const t0 = Date.now(); let s;
+    while (Date.now() - t0 < 40000) { s = await bk(); if (s.step === "s10_say") throw new Error("s09 → s10_say: сцена «Скажи сам» не убрана");
+      if (s.step === "s10_end") break; await sleep(40); }
+    if (!s || s.step !== "s10_end") throw new Error("s09 → не финал: " + (s && s.step));
+    console.log("s09 → «Далее» → сразу s10_end (финал), без «Скажи сам»"); passed.push("s09→s10_end"); }
+  // s10 финал: Аля слева, справа от центра — большая наклейка «А а»; касание → альбом, наклейка уменьшается в ячейку;
   // без кнопок взрослого и полки; «Ещё раз» (круглая) → урок сначала
-  await waitFor((s) => s.step === "s11_end" && s.state === "wait_sticker" && s.targets.sticker, "s11 наклейка", 40000);
-  await sleep(500); await shot("s11-end"); await checkExit("s11_end");
+  await waitFor((s) => s.step === "s10_end" && s.state === "wait_sticker" && s.targets.sticker, "s10 наклейка", 40000);
+  await sleep(500); await shot("s10-end"); await checkExit("s10_end");
   { const s = await bk(); const t = s.targets;
-    for (const k of ["parent_ok", "parent_retry", "parent_info", "home", "next", "again", "shelf"]) if (t[k]) throw new Error("s11: лишняя кнопка " + k);
-    if (!(t.sticker[0] > 512)) throw new Error("s11: наклейка не правее центра: " + t.sticker);
+    for (const k of ["parent_ok", "parent_retry", "parent_info", "home", "next", "again", "shelf"]) if (t[k]) throw new Error("s10: лишняя кнопка " + k);
+    if (!(t.sticker[0] > 512)) throw new Error("s10: наклейка не правее центра: " + t.sticker);
     { const sc = t.sticker.length > 2 ? [t.sticker[0] + t.sticker[2] / 2, t.sticker[1] + t.sticker[3] / 2] : t.sticker;
-      console.log("s11 шаг 1: наклейка " + JSON.stringify(t.sticker) + ", «Ещё раз» " + JSON.stringify(t.again || null));
-      if (t.again) throw new Error("s11: «Ещё раз» видна на шаге 1 (появляется только после укладки наклейки)");
-      if (Math.abs(sc[0] - 608) > 1.5 || Math.abs(sc[1] - 318) > 1.5) throw new Error("s11: наклейка шага 1 не в (608;318): " + JSON.stringify(t.sticker));
+      console.log("s10 шаг 1: наклейка " + JSON.stringify(t.sticker) + ", «Ещё раз» " + JSON.stringify(t.again || null));
+      if (t.again) throw new Error("s10: «Ещё раз» видна на шаге 1 (появляется только после укладки наклейки)");
+      if (Math.abs(sc[0] - 608) > 1.5 || Math.abs(sc[1] - 318) > 1.5) throw new Error("s10: наклейка шага 1 не в (608;318): " + JSON.stringify(t.sticker));
       // рамка 320 (448,158)-(768,478) не задевает «назад» (зона 0…112) и крестик (круг ≈96 вокруг targets.exit)
       const fr = [sc[0] - 160, sc[1] - 160, sc[0] + 160, sc[1] + 160];
-      if (fr[0] < 112 && fr[1] < 112) throw new Error("s11: наклейка заходит в зону «назад»");
+      if (fr[0] < 112 && fr[1] < 112) throw new Error("s10: наклейка заходит в зону «назад»");
       if (t.exit) { const dx = Math.max(fr[0] - t.exit[0], 0, t.exit[0] - fr[2]), dy = Math.max(fr[1] - t.exit[1], 0, t.exit[1] - fr[3]);
-        const dist = Math.hypot(dx, dy); console.log("s11 шаг 1: от рамки наклейки до центра крестика " + dist.toFixed(1));
-        if (dist < 60) throw new Error("s11: наклейка у крестика: " + dist); } }
-    if (t.alya && !(t.alya[0] < 512)) throw new Error("s11: Аля не слева");
-    globalThis.__s11_alya = JSON.stringify(t.alya); }
+        const dist = Math.hypot(dx, dy); console.log("s10 шаг 1: от рамки наклейки до центра крестика " + dist.toFixed(1));
+        if (dist < 60) throw new Error("s10: наклейка у крестика: " + dist); } }
+    if (t.alya && !(t.alya[0] < 512)) throw new Error("s10: Аля не слева");
+    globalThis.__s10_alya = JSON.stringify(t.alya); }
   await tap("sticker");
-  { const s = await waitFor((s) => s.info.s11_placed && s.state === "done" && s.targets.again, "s11: наклейка в альбоме, «Ещё раз»", 20000);
-    const [px, py, pw, ph] = s.info.s11_placed, [cx, cy, cw, ch] = s.info.s11_cell;
-    if (Math.abs(px + pw / 2 - (cx + cw / 2)) > 4 || Math.abs(py + ph / 2 - (cy + ch / 2)) > 4 || pw > cw + 2) throw new Error("s11: наклейка не в ячейке: " + JSON.stringify([s.info.s11_placed, s.info.s11_cell]));
+  { const s = await waitFor((s) => s.info.s10_placed && s.state === "done" && s.targets.again, "s10: наклейка в альбоме, «Ещё раз»", 20000);
+    const [px, py, pw, ph] = s.info.s10_placed, [cx, cy, cw, ch] = s.info.s10_cell;
+    if (Math.abs(px + pw / 2 - (cx + cw / 2)) > 4 || Math.abs(py + ph / 2 - (cy + ch / 2)) > 4 || pw > cw + 2) throw new Error("s10: наклейка не в ячейке: " + JSON.stringify([s.info.s10_placed, s.info.s10_cell]));
     // rev2 (финал Иллюстратора 08:37): альбом 519×368 от (337,239), клетка «А а» центр (387.6;278.3) 71.7×49.1; Аля не сдвинулась, обрез по y 648
-    const [ax, ay, aw, ah] = s.info.s11_album;
-    if (Math.abs(ax - 337) > 1 || Math.abs(ay - 239) > 1 || Math.abs(aw - 519) > 1 || Math.abs(ah - 368) > 1) throw new Error("s11: альбом не там: " + JSON.stringify(s.info.s11_album));
-    if (Math.abs(cx + cw / 2 - 387.6) > 1 || Math.abs(cy + ch / 2 - 278.3) > 1 || Math.abs(cw - 71.7) > 1 || Math.abs(ch - 49.1) > 1) throw new Error("s11: клетка «А а» не там: " + JSON.stringify(s.info.s11_cell));
-    if (s.info.s11_alya_clip !== 648) throw new Error("s11: нет обреза Али по y 648");
-    if (JSON.stringify(s.targets.alya) !== globalThis.__s11_alya) throw new Error("s11: Аля сдвинулась: " + globalThis.__s11_alya + " → " + JSON.stringify(s.targets.alya));
-    await sleep(400); await shot("s11-end-album");
-    const n0 = s.info.s11_taps || 0; await tap("sticker"); await sleep(400);
-    const s2 = await bk(); if ((s2.info.s11_taps || 0) !== n0 + 1 || !["a_aaa", "a_find_03"].includes(s2.info.s11_tap_audio)) throw new Error("s11: касание наклейки в альбоме без звука: " + JSON.stringify([s2.info.s11_taps, s2.info.s11_tap_audio]));
-    console.log(`s11: наклейка в ячейке ${JSON.stringify(s.info.s11_cell.map(Math.round))}; касание после — ${s2.info.s11_tap_audio}`); }
+    const [ax, ay, aw, ah] = s.info.s10_album;
+    if (Math.abs(ax - 337) > 1 || Math.abs(ay - 239) > 1 || Math.abs(aw - 519) > 1 || Math.abs(ah - 368) > 1) throw new Error("s10: альбом не там: " + JSON.stringify(s.info.s10_album));
+    if (Math.abs(cx + cw / 2 - 387.6) > 1 || Math.abs(cy + ch / 2 - 278.3) > 1 || Math.abs(cw - 71.7) > 1 || Math.abs(ch - 49.1) > 1) throw new Error("s10: клетка «А а» не там: " + JSON.stringify(s.info.s10_cell));
+    if (s.info.s10_alya_clip !== 648) throw new Error("s10: нет обреза Али по y 648");
+    if (JSON.stringify(s.targets.alya) !== globalThis.__s10_alya) throw new Error("s10: Аля сдвинулась: " + globalThis.__s10_alya + " → " + JSON.stringify(s.targets.alya));
+    await sleep(400); await shot("s10-end-album");
+    const n0 = s.info.s10_taps || 0; await tap("sticker"); await sleep(400);
+    const s2 = await bk(); if ((s2.info.s10_taps || 0) !== n0 + 1 || !["a_aaa", "a_find_03"].includes(s2.info.s10_tap_audio)) throw new Error("s10: касание наклейки в альбоме без звука: " + JSON.stringify([s2.info.s10_taps, s2.info.s10_tap_audio]));
+    console.log(`s10: наклейка в ячейке ${JSON.stringify(s.info.s10_cell.map(Math.round))}; касание после — ${s2.info.s10_tap_audio}`); }
   await tap("again");
-  await waitFor((s) => s.step === "s01_stork", "s11 «Ещё раз» → s01", 30000);
-  console.log("s11: «Ещё раз» → урок сначала (s01)");
-  passed.push("s11_end");
+  await waitFor((s) => s.step === "s01_stork", "s10 «Ещё раз» → s01", 30000);
+  console.log("s10: «Ещё раз» → урок сначала (s01)");
+  passed.push("s10_end");
   // крестик: «Пока! Увидимся!» → главная
   await sleep(600);
   { const [x, y] = await target("exit"); let bye = false;
@@ -530,9 +501,9 @@ try {
   { const [x, y] = await target("exit"); await tapNav([x, y], "крестик s01"); }
   await homeReady("крестик → главная");
   await homeToLesson();
-  { const miss = ["s01_stork","s02_intro","s03_sing","s04_hear","s05_words","s06_letter","s07_write","s08_find","s09_sort","s10_say","s11_end"].filter((n) => !exitSeen.has(n));
+  { const miss = ["s01_stork","s02_intro","s03_sing","s04_hear","s05_words","s06_letter","s07_write","s08_find","s09_sort","s10_end"].filter((n) => !exitSeen.has(n));
     if (miss.length) throw new Error("нет крестика на: " + miss.join(", ")); }
-  console.log("крестик: виден на s01–s11 без перекрытий; выход → главная → «А» → s01 — ок");
+  console.log("крестик: виден на s01–s10 без перекрытий; выход → главная → «А» → s01 — ок");
   passed.push("exit→главная→А→s01");
   // звук на iOS: без жеста на странице s01 ждёт касания (пустое гнездо пульсирует, рука на нём); касание → аист влетает
   await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&gate=1&hint_sec=1`, { waitUntil: "load" });
@@ -583,6 +554,11 @@ try {
   await waitFor((s) => s.caption_visible, "debug: субтитр виден", 60000);
   await shot("debug-subtitles-s02");
   console.log("debug=1: субтитры показаны");
+  // старые ссылки на финал (до 27.10: s11_end / ?step=11) ведут в s10_end; ?step=10 — тоже финал
+  for (const q of ["s11_end", "11", "10", "s10_end"]) {
+    await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&step=${q}`, { waitUntil: "load" });
+    await waitFor((s) => s.step === "s10_end", `deep link ?step=${q} → s10_end`, 60000); }
+  console.log("deep link ?step=s11_end / 11 / 10 / s10_end → s10_end");
   // рука-подсказка с укороченным таймером: s04, ждём картинку
   await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&hint_sec=3&step=s05_words`, { waitUntil: "load" });
   await waitFor(state("wait_pic_0"), "idle: s04 wait_pic_0", 60000);

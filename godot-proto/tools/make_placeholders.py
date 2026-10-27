@@ -153,8 +153,6 @@ U = "art_placeholder/common/ui/"
 roundbtn(U+"ui_btn_start.png", "▶", MUSTARD, 384)   # кнопки — только значки, без слов
 roundbtn(U+"ui_btn_next.png", "➜", MUSTARD, 200)
 roundbtn(U+"ui_btn_back.png", "⬅", (240, 140, 40), 160)
-roundbtn(U+"ui_parent_ok.png", "✓", MUSTARD, 128)
-roundbtn(U+"ui_parent_retry.png", "↺", (240, 140, 40), 128)
 for n, dy in [(1, 0), (2, 14)]:
     p = out(f"{U}ui_hand_f{n}.png")
     if p:
@@ -242,8 +240,6 @@ if p:
 # ---------- награды: res://art/common/reward/ ----------
 R = "art_placeholder/common/reward/"
 card(R+"reward_sticker_aist.png", "наклейка\nаист", 520, 520, (255, 255, 255), circle=True)
-glyph(R+"reward_star.png", "★", 220, 220, (240, 190, 30), outline=False, size=230)   # одна звезда за любую попытку
-card(R+"reward_shelf.png", "", 840, 180, (190, 140, 90))
 roundbtn(R+"reward_album.png", "★", (120, 90, 200), 200, "альбом")
 
 # ---------- персонажи: res://art/characters/<имя>/ — слои во весь кадр (одинаковый размер холста) ----------

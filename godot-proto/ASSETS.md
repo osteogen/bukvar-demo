@@ -1,8 +1,13 @@
 # Ассеты прототипа: соглашение с художником (урок «А»)
 
+> **27.10.2026 (rev4):** сцена «Скажи сам» (`s10_say`) убрана, финал `s11_end` → `s10_end` (имена файлов альбома `*_2x3_s11`
+> не менялись). Удалены как больше нигде не используемые: `ui_parent_ok`, `ui_parent_retry`, `reward_star`, `reward_shelf`
+> (`art/` и `art_placeholder/`), звук `a_say_01…06` (`audio/`, `audio_placeholder/`) и `h_parent_01`. `ui_sound_waves`,
+> `pic_alya_card`, `r_try_05` остаются (первые два — в s03/s05; `r_try_05` — общий файл, в уроке «А» больше не звучит).
+> Ниже упоминания сцены 9/10 «Скажи сам», звёзд на полке и кнопок взрослого — история.
 > **27.10.2026 (правки rev2):** подключён раунд 14 художника (`art/`): позы `alya_pose_arm_left_up/arm_right_up/point_red/point_grey`
 > (_base + _mouth_0..2, 720×960; s04 и s06 — вместо поворота руки-заглушки), Аля по пояс `characters/alya/half/alya_half_*`
-> (840×840; в s04/s06 не используется; в s11 — 693×693, левый верх (−140;205), обрез снизу по y 648, по макету; рот, моргание `_eyes_closed`), `alya_face_eyes_closed`, `reward_sticker_a`,
+> (840×840; в s04/s06 не используется; в финале (s10_end, до rev4 — s11) — 693×693, левый верх (−140;205), обрез снизу по y 648, по макету; рот, моргание `_eyes_closed`), `alya_face_eyes_closed`, `reward_sticker_a`,
 > альбом по макету пользователя (`art/sketches/v3/_refs/ref_s11_user_layout_2026-10-27.png`) — `reward_album_page_2x3_s11` +
 > `reward_album_alphabet_2x3_s11` (1038×736 @2x → 519×368, левый верх (337;239), центр контура (596,5;423),
 > клетка 71,7×49,1, «А а» центр (387,6;278,3); две страницы 3×6 и 3×5; наклейка шага 1 — 320 в (608;318), рамка (448;158)-(768;478)), `pic_sun`, `pic_sun_rays`, `pic_cloud_1/2`, вагоны `ui_train_engine_right/
@@ -37,7 +42,7 @@
   - `ui_circle_flat` (392×392) — **единый кружок гласного звука во всех сценах (2, 3, 4, 5, 9)**: плоский матовый `#D93A2B`, без блика, объёма, тени и тёмного контура, тонкая белая обводка (id задаёт `sound_dot` в `lesson.json`). Глянцевый `ui_circle_red` в уроке не используется; `ui_circle_waves` — запасной (см. ниже).
   - `ui_sound_waves` + `ui_sound_waves_1` / `_2` / `_3` (160×280, общий холст, центр дуг у левого края, `#3C3228`). В сцене 9 (карточка 9.1) волны размером 0,6×1,05 диаметра кружка, справа от него; пока звучит образец, дуги `_1 → _2 → _3` загораются по очереди. В сцене 2 — `ui_circle_flat` + `ui_sound_waves`.
   - `ui_parent_info` (128×128 = 64 логич.) — значок «для взрослого» в сцене 10 (долгое нажатие ≈2 с открывает итог урока).
-  - `ui_exit` (128×128 = 64 логич., **финальный файл иллюстратора, 24.10.2026**) — крестик выхода: тёмный `#3C3228` крестик на кремовом `#F7F0DE` круге (не красный — красный только у гласных). На всех экранах урока s01–s11 справа вверху (кнопка 72×72 логич., отступ 14 от угла видимой области), ведёт на главный экран букв (в вебе — HTML-главная в корне сайта, вне веба — `menu/letters_menu`). В проекте — только `art/common/ui/ui_exit.png`; `ui_exit@1x.png` и `ui_exit.svg` лежат в исходниках иллюстратора (`../art/common/ui/`).
+  - `ui_exit` (128×128 = 64 логич., **финальный файл иллюстратора, 24.10.2026**) — крестик выхода: тёмный `#3C3228` крестик на кремовом `#F7F0DE` круге (не красный — красный только у гласных). На всех экранах урока s01–s10 справа вверху (кнопка 72×72 логич., отступ 14 от угла видимой области), ведёт на главный экран букв (в вебе — HTML-главная в корне сайта, вне веба — `menu/letters_menu`). В проекте — только `art/common/ui/ui_exit.png`; `ui_exit@1x.png` и `ui_exit.svg` лежат в исходниках иллюстратора (`../art/common/ui/`).
   - `reward_album` (380×400) — кремовая обложка; временная перекраска (`tools/recolor_album.py`) удалена.
 - `ui_circle_waves` — плоский вариант сдан 21.10.2026 (прежний — в Drive `_archive_v3`), лежит в `art/` как **запасной**, в уроке не используется. Сцена 2 остаётся на паре `ui_circle_flat` + `ui_sound_waves`: так кружок крупнее (решение 21.10.2026).
 - Карточки сцены 9 — непрозрачная кремовая подложка `#F7F0DE` внутри `ui_card_frame` (как у `pic_alya_card`).
@@ -68,7 +73,7 @@
 | …кадры лопания | `pic_balloon_pop_1..3` (число кадров — `find.pop_frames`) |
 | Буквы и фигуры | `art/letters/letter_a_upper.png`, `letter_a_lower.png`, `letter_a_trace.png`, `tile_a_upper.png`, `tile_a_lower.png`, `balloon_letter_a_upper.png`, `balloon_letter_a_lower.png`. Фигуры-помехи для шариков (сцена 7): `balloon_shape_triangle.png`, `balloon_shape_circle.png`, `balloon_shape_square.png`, `balloon_shape_star.png` |
 | Фоны | `art/common/bg/bg_room_day.png`, `bg_room_evening.png`, `bg_meadow.png`, `bg_sky.png`, `bg_desk.png` |
-| Интерфейс | `art/common/ui/ui_card_frame.png`, `ui_btn_start.png`, `ui_btn_next.png`, `ui_btn_back.png`, `ui_parent_ok.png`, `ui_parent_retry.png`, `ui_hand_f1.png`, `ui_hand_f2.png`, `ui_exit.png` |
+| Интерфейс | `art/common/ui/ui_card_frame.png`, `ui_btn_start.png`, `ui_btn_next.png`, `ui_btn_back.png`, `ui_hand_f1.png`, `ui_hand_f2.png`, `ui_exit.png` |
 | Награды | `art/common/reward/` |
 | Аля (слои) | `art/characters/alya/head.png`, `body.png`, `arm_l.png`, `arm_r.png`, `mouth_0.png`, `mouth_1.png`, `mouth_2.png`, `eyes_open.png`, `eyes_closed.png`. Цельная картинка: `alya_ref.png`. Позы: `poses/alya_pose_sing_crib.png` (+ `_base`, `_mouth_0..2`), `alya_pose_shh.png`, `alya_pose_wave.png`, `alya_pose_point.png`, `alya_pose_joy.png` |
 | Зайка | `art/characters/bunny/`: `body.png`, `eyes_open.png`, `eyes_closed.png`, `bunny_ref.png`, `poses/bunny_sleep.png`; кроватка `bunny_crib_back.png`, `bunny_crib_front.png`. Имена слоёв зайки предложены нами — согласовать |
@@ -85,8 +90,7 @@
   - `ui_btn_again`, `ui_btn_home`;
 - в `art/common/reward/`:
   - `reward_sticker_aist`;
-  - `reward_star` (одна звезда за любую попытку);
-  - `reward_shelf`, `reward_album`.
+  - `reward_album` (`reward_star`, `reward_shelf` удалены в rev4 вместе со сценой «Скажи сам»).
 
 На шариках сцены 7 — только А/а и фигуры-помехи (`balloon_shape_*`). Других букв на уроке «А» нет: ребёнок их ещё не знает. Если `balloon_letter_*` нет, буква рисуется шрифтом.
 

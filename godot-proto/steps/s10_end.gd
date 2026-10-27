@@ -1,4 +1,4 @@
-## Сцена 11 (последняя). Правки урока А 27.10.2026 (rev2 — по ответу Романа: «Аля слева, альбом справа»):
+## Сцена 10 (последняя; до 27.10 15:19 — s11_end, сцена «Скажи сам» s10_say убрана). Правки урока А 27.10.2026 (rev2 — по ответу Романа: «Аля слева, альбом справа»):
 ##  • слева — Аля по пояс крупно (alya_half художника: улыбается, моргает, говорит с губами; end.host_at, обрез снизу
 ##    clip_bottom — по макету пользователя); стоит всё время, НЕ уходит;
 ##  • на шаге 1 — ОДНА большая наклейка «А а» (reward_sticker_a, end.sticker_at); никаких полок, зайки, значков
@@ -38,7 +38,7 @@ func run() -> void:
 		move_child(clip, alya.get_index())
 		alya.reparent(clip, false)
 		alya.position += Vector2(1000, 1000)
-		main.set_info("s11_alya_clip", float(hc.clip_bottom))
+		main.set_info("s10_alya_clip", float(hc.clip_bottom))
 	main.expose("alya", alya)
 	pop_in(alya)
 	for p in [Vector2(300, 200), Vector2(700, 180), Vector2(560, 300)]:
@@ -51,7 +51,7 @@ func run() -> void:
 	main.expose("sticker", sticker)
 	pop_in(sticker)
 	sticker.pressed.connect(_on_sticker)
-	main.set_info("s11_sticker", _r(sticker.get_global_rect()))
+	main.set_info("s10_sticker", _r(sticker.get_global_rect()))
 	main.set_state("wait_sticker")
 	main.hint_start(func(): return sticker if not placed else null, "")
 	if cfg.lines.size() > 1:
@@ -65,8 +65,8 @@ func _tap_sound() -> void:
 	var id := String(tp.get("audio", "a_aaa"))
 	if Voice._stream(id) == null and String(tp.get("fallback", "")) != "":
 		id = String(tp.get("fallback"))
-	main.set_info("s11_tap_audio", id)
-	main.set_info("s11_taps", int(main.info.get("s11_taps", 0)) + 1)
+	main.set_info("s10_tap_audio", id)
+	main.set_info("s10_taps", int(main.info.get("s10_taps", 0)) + 1)
 	tap_say(id, float(tp.get("max_sec", 1.8)))
 
 func _on_sticker() -> void:
@@ -110,8 +110,8 @@ func _open_album() -> void:
 	var k := sz / src
 	var cr := _cell_src(ac)
 	cell_rect = Rect2(album.position + cr.position * k, cr.size * k)
-	main.set_info("s11_album", _r(Rect2(album.position, sz)))
-	main.set_info("s11_cell", _r(cell_rect))
+	main.set_info("s10_album", _r(Rect2(album.position, sz)))
+	main.set_info("s10_cell", _r(cell_rect))
 	album.scale = Vector2(0.6, 0.6)
 	album.modulate.a = 0.0
 	sticker.move_to_front()
@@ -131,7 +131,7 @@ func _open_album() -> void:
 	if dead: return
 	sticker.pivot_offset = sticker.size / 2
 	placed = true
-	main.set_info("s11_placed", _r(sticker.get_global_rect()))
+	main.set_info("s10_placed", _r(sticker.get_global_rect()))
 	burst(dest.get_center(), Assets.MUSTARD)
 	if bool(ac.get("sparkles", false)):   # золотые искорки вокруг клетки (как на макете)
 		burst(dest.get_center() + Vector2(-30, -24), Color("#FFD23C"))
@@ -170,8 +170,7 @@ func _show_again() -> void:
 		Voice.stop_all()
 		if main.has_method("restart"): main.restart()
 		else: main.goto(0))
-	var stars: Array = main.get_meta("stars", [])
 	var mins := int((Time.get_ticks_msec() - main.started_ms) / 60000.0 + 0.5)
-	main.log_event("lesson_end", {"stars": stars, "minutes": mins})   # итог — только в журнал (без экранов для взрослых)
+	main.log_event("lesson_end", {"minutes": mins})   # итог — только в журнал (без экранов для взрослых)
 	main.mark_done()
 	main.set_state("done")

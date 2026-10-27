@@ -136,7 +136,7 @@ func dot_letter(n: Control) -> Label:
 	return l
 
 ## DESIGN_RULES.md §3: красная буква / красный кружок на насыщенном тёплом фоне (bg_room_evening и др. из
-## lesson.cream_underlay_bgs) — только на кремовой подложке #F7F0DE (как карточки s10). Подложка — ребёнок узла,
+## lesson.cream_underlay_bgs) — только на кремовой подложке #F7F0DE (как карточки бывшей сцены «Скажи сам»). Подложка — ребёнок узла,
 ## рисуется за ним и двигается вместе с ним. На остальных фонах ничего не делаем.
 func cream_underlay(n: Control, pad := 0.22) -> void:
 	var bgs: Array = Assets.lesson.get("cream_underlay_bgs", ["bg_room_evening"])

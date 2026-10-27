@@ -37,7 +37,7 @@ func setup(character: String, frame_size: Vector2) -> Cutout:
 	if who.ends_with("_closeup"):
 		return _setup_closeup(frame_size)
 	if who.ends_with("_half"):
-		# Аля по пояс (s11): characters/alya/half/alya_half_base + _mouth_0..2 + _eyes_closed; пока художник не нарисовал — крупный план
+		# Аля по пояс (s10_end): characters/alya/half/alya_half_base + _mouth_0..2 + _eyes_closed; пока художник не нарисовал — крупный план
 		var hb := who.trim_suffix("_half")
 		if Assets.tex("%s/half/%s_half_base" % [hb, hb], false) != null:
 			return _setup_closeup(frame_size, "half", "half_")
