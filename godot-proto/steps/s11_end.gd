@@ -1,9 +1,11 @@
-## Сцена 11 (последняя). Правки урока А 27.10.2026:
-##  • слева от центра — Аля по пояс (крупный план alya_closeup: улыбается, моргает, говорит с губами);
-##  • справа от центра — ОДНА большая карточка-наклейка «А а» (end.sticker); никаких полок с тарелками,
-##    зайки, значков и кнопок для взрослого;
-##  • касание наклейки — звук [а] и открывается большой альбом с бледным алфавитом (end.album: разворот +
-##    накладка с алфавитом); наклейка плавно уменьшается и ложится в клетку «А а» (end.album.grid, клетка 0);
+## Сцена 11 (последняя). Правки урока А 27.10.2026 (rev2 — по ответу Романа: «Аля слева, альбом справа»):
+##  • слева — Аля по пояс крупно (alya_half художника: улыбается, моргает, говорит с губами; end.host_at, обрез снизу
+##    clip_bottom — по макету пользователя); стоит всё время, НЕ уходит;
+##  • на шаге 1 — ОДНА большая наклейка «А а» (reward_sticker_a, end.sticker_at); никаких полок, зайки, значков
+##    и кнопок для взрослого;
+##  • касание наклейки — звук [а] и СПРАВА от Али открывается альбом с бледным алфавитом (end.album: страница +
+##    накладка; место и размер — только в lesson.json); наклейка плавно уменьшается и ложится в клетку «А а»
+##    (end.album.sticker_cell по сетке end.album.grid или явные end.album.cells);
 ##  • касание наклейки и после этого — звук [а] (очередь голоса, без наложения);
 ##  • потом круглая кнопка «Ещё раз» (ui_btn_again, круговая стрелка) — урок с начала (main.restart()).
 ## Наклейка попадает в альбом ТОЛЬКО по касанию ребёнка; через 20 с бездействия рука показывает на наклейку.
@@ -24,6 +26,19 @@ func run() -> void:
 	var alya := add_character(String(cfg.get("host", "alya_closeup")), _v(hc.get("center"), Vector2(210, 440)), _v(hc.get("size"), Vector2(420, 420)))
 	alya.name = "end_alya"
 	alya.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if hc.has("clip_bottom"):
+		# обрез снизу по y сцены (макет пользователя): Аля — в рамке с обрезкой, видимая часть выше clip_bottom
+		var clip := Control.new()
+		clip.name = "end_alya_clip"
+		clip.clip_contents = true
+		clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		clip.position = Vector2(-1000, -1000)
+		clip.size = Vector2(3024, 1000 + float(hc.clip_bottom))
+		add_child(clip)
+		move_child(clip, alya.get_index())
+		alya.reparent(clip, false)
+		alya.position += Vector2(1000, 1000)
+		main.set_info("s11_alya_clip", float(hc.clip_bottom))
 	main.expose("alya", alya)
 	pop_in(alya)
 	for p in [Vector2(300, 200), Vector2(700, 180), Vector2(560, 300)]:
@@ -91,14 +106,10 @@ func _open_album() -> void:
 		r.size = sz
 		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		album.add_child(r)
-	# клетка «А а» (клетка 0 сетки в px картинки) → координаты сцены
-	var g: Dictionary = ac.get("grid", {})
-	var pg: Array = g.get("pages", [[24, 24, 408, 576]])[0]
-	var cw := (float(pg[2]) - float(pg[0])) / float(g.get("cols", 3))
-	var ch := (float(pg[3]) - float(pg[1])) / float(g.get("rows", 6))
+	# клетка «А а» (px картинки src_size) → координаты сцены
 	var k := sz / src
-	var pad := float(g.get("pad", 7))
-	cell_rect = Rect2(album.position + Vector2(float(pg[0]) + pad, float(pg[1]) + pad) * k, Vector2(cw - 2 * pad, ch - 2 * pad) * k)
+	var cr := _cell_src(ac)
+	cell_rect = Rect2(album.position + cr.position * k, cr.size * k)
 	main.set_info("s11_album", _r(Rect2(album.position, sz)))
 	main.set_info("s11_cell", _r(cell_rect))
 	album.scale = Vector2(0.6, 0.6)
@@ -106,7 +117,7 @@ func _open_album() -> void:
 	sticker.move_to_front()
 	Voice.sfx("sfx_ok")
 	var tw := album.create_tween().set_parallel()
-	tw.tween_property(album, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(album, "scale", Vector2.ONE, float(ac.get("open_sec", 0.45))).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_property(album, "modulate:a", 1.0, 0.3)
 	await tw.finished
 	if dead: return
@@ -122,9 +133,32 @@ func _open_album() -> void:
 	placed = true
 	main.set_info("s11_placed", _r(sticker.get_global_rect()))
 	burst(dest.get_center(), Assets.MUSTARD)
+	if bool(ac.get("sparkles", false)):   # золотые искорки вокруг клетки (как на макете)
+		burst(dest.get_center() + Vector2(-30, -24), Color("#FFD23C"))
+		burst(dest.get_center() + Vector2(34, 20), Color("#F6ECD6"))
 	Voice.sfx("sfx_cheer")
 	if not await praise(): return
 	_show_again()
+
+## Клетка наклейки в px картинки альбома: album.cells[[x,y,w,h]…][sticker_cell] — если художник дал список клеток,
+## иначе по сетке album.grid {pages [[x0,y0,x1,y1]…], cols, rows, pad}: номер идёт по страницам, строкам, столбцам.
+func _cell_src(ac: Dictionary) -> Rect2:
+	var idx := int(ac.get("sticker_cell", 0))
+	var cells: Array = ac.get("cells", [])
+	if idx < cells.size():
+		var q: Array = cells[idx]
+		return Rect2(float(q[0]), float(q[1]), float(q[2]), float(q[3]))
+	var g: Dictionary = ac.get("grid", {})
+	var pages: Array = g.get("pages", [[24, 24, 408, 576]])
+	var cols := int(g.get("cols", 3))
+	var rows := int(g.get("rows", 6))
+	var per := cols * rows
+	var pg: Array = pages[clampi(idx / per, 0, pages.size() - 1)]
+	var j := idx % per
+	var cw := (float(pg[2]) - float(pg[0])) / float(cols)
+	var ch := (float(pg[3]) - float(pg[1])) / float(rows)
+	var pad := float(g.get("pad", 7))
+	return Rect2(float(pg[0]) + (j % cols) * cw + pad, float(pg[1]) + (j / cols) * ch + pad, cw - 2 * pad, ch - 2 * pad)
 
 func _show_again() -> void:
 	var ag: Dictionary = cfg.get("again", {})

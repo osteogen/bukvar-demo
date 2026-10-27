@@ -2,6 +2,8 @@
 ## услышишь — на серый». «Да» — красный круг (#D93A2B) с чёрной «А» (общее правило: на каждом красном кружке — буква
 ## урока чёрным, LessonStep.dot_letter), «нет» — серый круг с тёмно-серым крестиком (не красным).
 ## Правки урока А (27.10.2026):
+##  • rev2: кружки сначала стоят посередине экрана по высоте (слева красный, справа серый), Аля между ними показывает
+##    позами художника point_red / point_grey, потом кружки плавно опускаются на место (hear.buttons, ease-out);
 ##  • во время задания Аля стоит в центре и показывает руками: на «красный кружок» — рукой к красному (слева),
 ##    на «серый» — к серому (справа); потом уходит, и в центр выходит первая карточка (hear.alya);
 ##  • отвеченные карточки уезжают наверх: слева — слова СО звуком [а], справа — БЕЗ звука; касание карточки — слово;
@@ -12,8 +14,13 @@ extends LessonStep
 func run() -> void:
 	section("hear")
 	add_bg(cfg.bg)
-	var yes := add_pic(String(cfg.get("yes_pic", "ui_hear_yes")), Vector2(330, 620), Vector2(170, 170))
-	var no := add_pic(String(cfg.get("no_pic", "ui_hear_no")), Vector2(694, 620), Vector2(170, 170))
+	var bc: Dictionary = cfg.get("buttons", {})
+	var bsz := _v2(bc.get("size"), Vector2(170, 170))
+	var yes_end := _v2(bc.get("yes"), Vector2(330, 620))
+	var no_end := _v2(bc.get("no"), Vector2(694, 620))
+	var yes := add_pic(String(cfg.get("yes_pic", "ui_hear_yes")), _v2(bc.get("yes_start"), yes_end), bsz)
+	var no := add_pic(String(cfg.get("no_pic", "ui_hear_no")), _v2(bc.get("no_start"), no_end), bsz)
+	main.set_info("s04_buttons_start", [_rect_info(yes), _rect_info(no)])
 	bind_pick(yes, true)
 	bind_pick(no, false)
 	main.expose("yes", yes)
@@ -40,12 +47,20 @@ func run() -> void:
 	if gest.is_running():
 		await gest.finished
 	if dead: return
-	# Аля уходит со сцены — центр свободен для карточек
+	# Аля уходит со сцены — центр свободен для карточек; кружки одновременно плавно опускаются на свои места
 	var ta := alya.create_tween().set_parallel()
 	ta.tween_property(alya, "modulate:a", 0.0, 0.35)
 	ta.tween_property(alya, "position:y", alya.position.y + 40.0, 0.35)
+	var slide := float(bc.get("slide_sec", 0.6))
+	var tb := create_tween().set_parallel()
+	tb.tween_property(yes, "position", yes_end - yes.size / 2, slide).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tb.tween_property(no, "position", no_end - no.size / 2, slide).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	main.set_state("buttons_slide")
 	await ta.finished
+	if tb.is_running():
+		await tb.finished
 	if dead: return
+	main.set_info("s04_buttons_end", [_rect_info(yes), _rect_info(no)])
 	alya.queue_free()
 	main.expose("alya", null)
 	yes.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -215,6 +230,11 @@ func _rect_info(c: Control) -> Array:
 	var c0 := xf * (c.size / 2)
 	var sz := c.size * xf.get_scale()
 	return [c0.x - sz.x / 2, c0.y - sz.y / 2, sz.x, sz.y]
+
+func _v2(v, d: Vector2) -> Vector2:
+	if v is Array and v.size() >= 2:
+		return Vector2(float(v[0]), float(v[1]))
+	return d
 
 var _flip := false
 func _alt(a: Control, b: Control) -> Control:

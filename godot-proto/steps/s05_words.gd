@@ -10,7 +10,8 @@
 ##  • подсказки (рука, искры у верного окошка) — только после 20 с бездействия (без мерцания/руки сразу после ошибок);
 ##  • после последнего слова поезд уезжает, и одновременно по рельсам въезжают буквы А и а и встают по центру
 ##    над рельсами; нажатие на букву — «А-а-а!» (a_aaa);
-##  • медленные облака, трава у рельсов колышется на ветру и сильнее — когда мимо едет поезд.
+##  • медленные облака (трава убрана — правка Романа 27.10, rev2);
+##  • вагоны — готовые файлы носом влево ui_train_*_right (words.train.pre_mirrored), код их не отражает.
 ## Рельсы — на всю ширину экрана (любое соотношение сторон, плитка ui_train_rails без растяжения).
 ## Раскладка и графика — из данных (words.train в lesson.json). Правило «без автоподтверждения» — DESIGN_RULES.md, §1.
 extends LessonStep
@@ -61,7 +62,6 @@ func run() -> void:
 	field.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(field)
 	_add_rails(tc)
-	_add_grass()
 	var items: Array = _ordered_items()
 	main.set_info("s05_order", items.map(func(x): return x.word))
 	_add_cells(items.size())
@@ -319,9 +319,8 @@ func _sparks(target: Control) -> void:
 	burst(get_global_transform().affine_inverse() * target.get_global_rect().get_center())
 	main.set_info("s05_sparks", int(main.info.get("s05_sparks", 0)) + 1)
 
-# ---------- облака и трава ----------
+# ---------- облака ----------
 var _clouds: Array = []
-var _grass: Array = []
 var _wind_t := 0.0
 
 func _add_clouds() -> void:
@@ -344,40 +343,7 @@ func _add_clouds() -> void:
 		_clouds.append(r)
 	main.set_info("s05_clouds", _clouds.size())
 
-func _add_grass() -> void:
-	var g: Dictionary = cfg.get("grass", {})
-	if g.is_empty():
-		return
-	var t := Assets.tex(String(g.get("id", "pic_grass_tuft")), false)
-	if t == null:
-		return
-	var vis := _vis_x()
-	var step := float(g.get("step", 70))
-	var sz := Vector2(g.size[0], g.size[1])
-	var x := floorf(vis.x / step) * step
-	var i := 0
-	while x < vis.y:
-		for row in g.get("rows", [[0.0, 1.0]]):
-			var r := TextureRect.new()
-			r.texture = t
-			r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			var k := float(row[1]) * (0.8 + 0.4 * fposmod(sin(i * 12.9898) * 43758.5453, 1.0))
-			r.size = sz * k
-			r.pivot_offset = Vector2(r.size.x / 2, r.size.y)
-			r.position = Vector2(x + fposmod(i * 37.0, step * 0.6), float(_tc.rails_y) + float(row[0])) - Vector2(r.size.x / 2, r.size.y)
-			r.flip_h = i % 2 == 1
-			r.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			r.set_meta("no_overlap_check", true)
-			r.set_meta("ph", i * 0.7)
-			r.name = "grass_%d" % i
-			field.add_child(r)
-			_grass.append(r)
-			i += 1
-		x += step
-	main.set_info("s05_grass", _grass.size())
-
-## Ветер: облака плывут медленно (с переходом через край), трава качается; рядом с едущим поездом — сильнее.
+## Ветер: облака плывут медленно (с переходом через край).
 func _wind(dt: float) -> void:
 	_wind_t += dt
 	var vis := _vis_x()
@@ -387,32 +353,6 @@ func _wind(dt: float) -> void:
 		c.position.x -= float(c.get_meta("speed")) * dt
 		if c.position.x + c.size.x < vis.x - 10.0:
 			c.position.x = vis.y + 10.0
-	var g: Dictionary = cfg.get("grass", {})
-	var amp := float(g.get("sway", 0.06))
-	var gust := float(g.get("gust", 0.35))
-	var near_px := float(g.get("near_px", 160))
-	var tl := -1e9
-	var tr := -1e9
-	if train and is_instance_valid(train) and _driving:
-		tl = train.position.x
-		tr = train.position.x + train.size.x
-	var maxa := 0.0
-	for r in _grass:
-		if not is_instance_valid(r):
-			continue
-		var cx: float = r.position.x + r.size.x / 2
-		var a := amp * sin(_wind_t * 1.7 + float(r.get_meta("ph")))
-		var d := 0.0
-		if tl > -1e8:
-			d = maxf(0.0, maxf(tl - cx, cx - tr))
-		if tl > -1e8 and d < near_px:
-			var k := 1.0 - d / near_px
-			var dirs := -1.0 if _rtl else 1.0
-			a += dirs * gust * k * (0.7 + 0.3 * sin(_wind_t * 13.0 + float(r.get_meta("ph"))))
-		r.rotation = lerpf(r.rotation, a, minf(1.0, dt * 8.0))
-		maxa = maxf(maxa, absf(r.rotation))
-	if Engine.get_process_frames() % 15 == 0:
-		main.set_info("s05_grass_sway", maxa)
 
 ## Для теста: сколько карточек слов сейчас видно (после отъезда поезда — 0: карточка прошлого слова не остаётся).
 func _count_cards() -> int:
@@ -521,12 +461,7 @@ func _make_train(tc: Dictionary) -> Array:
 		var id := String(pd.id)
 		var win: Array = pd.window.duplicate()
 		var b := TextureButton.new()
-		var t := Assets.tex(id, false)
-		if t == null and bool(tc.get("mirror_fallback", true)) and id.ends_with("_right"):
-			# художник ещё не сдал вариант носом вправо — отражаем старую картинку (и окошко)
-			t = Assets.tex(id.trim_suffix("_right"))
-			b.flip_h = true
-			win[0] = 1.0 - float(win[0])
+		var t := Assets.tex(id)   # *_right — готовые файлы художника носом влево (раунд 14), без отражения
 		b.texture_normal = t
 		b.ignore_texture_size = true
 		b.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
@@ -561,7 +496,7 @@ func _make_train(tc: Dictionary) -> Array:
 				wheels.append(w)
 	_last_x = train.position.x
 	var out: Array = []
-	if _rtl:
+	if _rtl and not bool(tc.get("pre_mirrored", false)):
 		_mirror_train()
 		# зеркало: часть j теперь стоит на месте n−1−j; «начало» слова — по-прежнему левое окошко
 		var n: int = parts.size()
@@ -611,9 +546,10 @@ func _steam(dt: float) -> void:
 		return
 	var sx := float(sc.src[0])
 	var dirx := 1.0
-	if _rtl:   # зеркальный паровоз: труба отражена, клубы уходят назад — вправо
-		sx = eng.size.x - sx
+	if _rtl:   # паровоз носом влево: клубы уходят назад — вправо
 		dirx = -1.0
+		if not bool(_tc.get("pre_mirrored", false)):   # старые файлы отражены кодом — труба тоже
+			sx = eng.size.x - sx
 	var src: Vector2 = train.position + eng.position + Vector2(sx, sc.src[1])
 	var ids: Array = sc.ids
 	var puff := TextureRect.new()

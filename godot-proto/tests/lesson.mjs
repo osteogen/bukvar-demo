@@ -238,7 +238,13 @@ try {
   // отвеченные — в ряды вверху (слева со звуком, справа без); в конце — «аплодисменты» (первая «а» красная)
   await waitFor(state("wait_answer_0"), "s04 answer 0", 40000);
   { const i = (await bk()).info;
-    if (!i.s04_alya_point || !i.s04_alya_point_no) throw new Error("s04: Аля не показала на кнопки: " + JSON.stringify([i.s04_alya_point, i.s04_alya_point_no])); }
+    if (!i.s04_alya_point || !i.s04_alya_point_no) throw new Error("s04: Аля не показала на кнопки: " + JSON.stringify([i.s04_alya_point, i.s04_alya_point_no]));
+    // rev2: кружки сначала посередине по высоте (слева красный, справа серый), потом опустились на место
+    const c = (r) => [r[0] + r[2] / 2, r[1] + r[3] / 2];
+    const [ys, ns] = i.s04_buttons_start.map(c), [ye, ne] = i.s04_buttons_end.map(c);
+    if (!(ys[0] < ns[0]) || Math.abs(ys[1] - ns[1]) > 2 || Math.abs(ye[1] - ne[1]) > 2 || !(ye[1] > ys[1] + 100))
+      throw new Error("s04: кружки не опустились из середины: " + JSON.stringify([i.s04_buttons_start, i.s04_buttons_end]));
+    console.log(`s04: кружки ${JSON.stringify([ys, ns].map((p) => p.map(Math.round)))} → ${JSON.stringify([ye, ne].map((p) => p.map(Math.round)))}`); }
   const ans = ["yes", "no", "yes", "no", "yes"];
   for (let i = 0; i < 5; i++) {
     await waitFor(state("wait_answer_" + i), "s04 answer " + i);
@@ -305,7 +311,8 @@ try {
     const [[bx, by], [sx, sy]] = s.info.s05_letters_in;
     if (!(bx < sx) || Math.abs((bx + sx) / 2 - 512) > 60) throw new Error("s05: буквы встали не по центру: " + JSON.stringify(s.info.s05_letters_in));
     if (!((s.sfx_counts || {}).sfx_train_clack >= 10)) throw new Error("s05: нет перестука колёс: " + (s.sfx_counts || {}).sfx_train_clack);
-    if (!s.info.s05_clouds || !s.info.s05_grass) throw new Error("s05: нет облаков/травы");
+    if (!s.info.s05_clouds) throw new Error("s05: нет облаков");
+    if (s.info.s05_grass !== undefined) throw new Error("s05: трава должна быть убрана (rev2)");
     await sleep(300); await shot("s05-words-letters");
     await tap("ride_tap_big"); await sleep(400);
     if ((await bk()).info.s05_letter_tap !== "А") throw new Error("s05: касание буквы на рельсах не сработало");
@@ -472,11 +479,21 @@ try {
   { const s = await bk(); const t = s.targets;
     for (const k of ["parent_ok", "parent_retry", "parent_info", "home", "next", "again", "shelf"]) if (t[k]) throw new Error("s11: лишняя кнопка " + k);
     if (!(t.sticker[0] > 512)) throw new Error("s11: наклейка не правее центра: " + t.sticker);
-    if (t.alya && !(t.alya[0] < 512)) throw new Error("s11: Аля не слева"); }
+    { const sc = [t.sticker[0] + t.sticker[2] / 2, t.sticker[1] + t.sticker[3] / 2];
+      console.log("s11 шаг 1: наклейка " + JSON.stringify(t.sticker) + ", «Ещё раз» " + JSON.stringify(t.again || null));
+      if (t.again) throw new Error("s11: «Ещё раз» видна на шаге 1 (наклейка внизу 608;584 только без неё)"); }
+    if (t.alya && !(t.alya[0] < 512)) throw new Error("s11: Аля не слева");
+    globalThis.__s11_alya = JSON.stringify(t.alya); }
   await tap("sticker");
   { const s = await waitFor((s) => s.info.s11_placed && s.state === "done" && s.targets.again, "s11: наклейка в альбоме, «Ещё раз»", 20000);
     const [px, py, pw, ph] = s.info.s11_placed, [cx, cy, cw, ch] = s.info.s11_cell;
     if (Math.abs(px + pw / 2 - (cx + cw / 2)) > 4 || Math.abs(py + ph / 2 - (cy + ch / 2)) > 4 || pw > cw + 2) throw new Error("s11: наклейка не в ячейке: " + JSON.stringify([s.info.s11_placed, s.info.s11_cell]));
+    // rev2 (финал Иллюстратора 08:37): альбом 519×368 от (337,239), клетка «А а» центр (387.6;278.3) 71.7×49.1; Аля не сдвинулась, обрез по y 648
+    const [ax, ay, aw, ah] = s.info.s11_album;
+    if (Math.abs(ax - 337) > 1 || Math.abs(ay - 239) > 1 || Math.abs(aw - 519) > 1 || Math.abs(ah - 368) > 1) throw new Error("s11: альбом не там: " + JSON.stringify(s.info.s11_album));
+    if (Math.abs(cx + cw / 2 - 387.6) > 1 || Math.abs(cy + ch / 2 - 278.3) > 1 || Math.abs(cw - 71.7) > 1 || Math.abs(ch - 49.1) > 1) throw new Error("s11: клетка «А а» не там: " + JSON.stringify(s.info.s11_cell));
+    if (s.info.s11_alya_clip !== 648) throw new Error("s11: нет обреза Али по y 648");
+    if (JSON.stringify(s.targets.alya) !== globalThis.__s11_alya) throw new Error("s11: Аля сдвинулась: " + globalThis.__s11_alya + " → " + JSON.stringify(s.targets.alya));
     await sleep(400); await shot("s11-end-album");
     const n0 = s.info.s11_taps || 0; await tap("sticker"); await sleep(400);
     const s2 = await bk(); if ((s2.info.s11_taps || 0) !== n0 + 1 || !["a_aaa", "a_find_03"].includes(s2.info.s11_tap_audio)) throw new Error("s11: касание наклейки в альбоме без звука: " + JSON.stringify([s2.info.s11_taps, s2.info.s11_tap_audio]));
