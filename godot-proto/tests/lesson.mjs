@@ -479,9 +479,16 @@ try {
   { const s = await bk(); const t = s.targets;
     for (const k of ["parent_ok", "parent_retry", "parent_info", "home", "next", "again", "shelf"]) if (t[k]) throw new Error("s11: лишняя кнопка " + k);
     if (!(t.sticker[0] > 512)) throw new Error("s11: наклейка не правее центра: " + t.sticker);
-    { const sc = [t.sticker[0] + t.sticker[2] / 2, t.sticker[1] + t.sticker[3] / 2];
+    { const sc = t.sticker.length > 2 ? [t.sticker[0] + t.sticker[2] / 2, t.sticker[1] + t.sticker[3] / 2] : t.sticker;
       console.log("s11 шаг 1: наклейка " + JSON.stringify(t.sticker) + ", «Ещё раз» " + JSON.stringify(t.again || null));
-      if (t.again) throw new Error("s11: «Ещё раз» видна на шаге 1 (наклейка внизу 608;584 только без неё)"); }
+      if (t.again) throw new Error("s11: «Ещё раз» видна на шаге 1 (появляется только после укладки наклейки)");
+      if (Math.abs(sc[0] - 608) > 1.5 || Math.abs(sc[1] - 318) > 1.5) throw new Error("s11: наклейка шага 1 не в (608;318): " + JSON.stringify(t.sticker));
+      // рамка 320 (448,158)-(768,478) не задевает «назад» (зона 0…112) и крестик (круг ≈96 вокруг targets.exit)
+      const fr = [sc[0] - 160, sc[1] - 160, sc[0] + 160, sc[1] + 160];
+      if (fr[0] < 112 && fr[1] < 112) throw new Error("s11: наклейка заходит в зону «назад»");
+      if (t.exit) { const dx = Math.max(fr[0] - t.exit[0], 0, t.exit[0] - fr[2]), dy = Math.max(fr[1] - t.exit[1], 0, t.exit[1] - fr[3]);
+        const dist = Math.hypot(dx, dy); console.log("s11 шаг 1: от рамки наклейки до центра крестика " + dist.toFixed(1));
+        if (dist < 60) throw new Error("s11: наклейка у крестика: " + dist); } }
     if (t.alya && !(t.alya[0] < 512)) throw new Error("s11: Аля не слева");
     globalThis.__s11_alya = JSON.stringify(t.alya); }
   await tap("sticker");

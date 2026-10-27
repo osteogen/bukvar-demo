@@ -5,7 +5,7 @@
 > (840×840; в s04/s06 не используется; в s11 — 693×693, левый верх (−140;205), обрез снизу по y 648, по макету; рот, моргание `_eyes_closed`), `alya_face_eyes_closed`, `reward_sticker_a`,
 > альбом по макету пользователя (`art/sketches/v3/_refs/ref_s11_user_layout_2026-10-27.png`) — `reward_album_page_2x3_s11` +
 > `reward_album_alphabet_2x3_s11` (1038×736 @2x → 519×368, левый верх (337;239), центр контура (596,5;423),
-> клетка 71,7×49,1, «А а» центр (387,6;278,3); две страницы 3×6 и 3×5; наклейка шага 1 — 320 в (608;584)), `pic_sun`, `pic_sun_rays`, `pic_cloud_1/2`, вагоны `ui_train_engine_right/
+> клетка 71,7×49,1, «А а» центр (387,6;278,3); две страницы 3×6 и 3×5; наклейка шага 1 — 320 в (608;318), рамка (448;158)-(768;478)), `pic_sun`, `pic_sun_rays`, `pic_cloud_1/2`, вагоны `ui_train_engine_right/
 > mid_right/end_right` (носом влево, `words.train.pre_mirrored` — код не отражает), `bg_room_evening` без полки.
 > Заглушки этих файлов из `art_placeholder/` удалены. `pic_grass_tuft` не используется — трава в s05 убрана.
 > **27.10.2026 (правки rev1):** новые заглушки — `alya_face_eyes_closed`, `reward_sticker_a`, `reward_album_alphabet`,
