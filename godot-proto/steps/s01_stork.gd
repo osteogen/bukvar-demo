@@ -1,7 +1,8 @@
 ## Сцена 1. Аист приносит буквы (решение заказчика 26.10.2026; сценарий — ../lesson-a-demo-script.md, §2, сцена 1).
-## Луг (bg_meadow), слева вверху дерево с гнездом; Али нет. Аист влетает справа с «А» и «а» в клюве (sfx_whoosh,
-## на появлении — a_word_02 «А-а-а́ист»), роняет буквы — они падают и встают в центре (белая обводка, без подложки),
-## делает 1,5 круга в верхней части экрана и садится в гнездо — и остаётся там. «Далее» — после посадки, автоперехода нет.
+## Луг (bg_meadow), слева дерево с гнездом (v2: full-canvas слои mound_shadow/tree/nest/nest_front/front_ground);
+## Али нет. Аист влетает справа с «А» и «а» в клюве (sfx_whoosh, на появлении — a_word_02 «А-а-а́ист»),
+## роняет буквы — они падают и встают в центре (белая обводка, без подложки), затем по одной дуге Безье
+## садится в гнездо (без кружения) — и остаётся там. «Далее» — после посадки, автоперехода нет.
 ## Касания: буква → подскок + a_aaa (нет записи — a_find_03); аист в гнезде → a_word_02 и взмах крыльями (пока реплика
 ## звучит, повторное касание её не перезапускает; на «Далее» не влияет). В полёте аист касаний не принимает.
 ## Подсказка: 20 с без касаний → рука на большой «А» (без голоса); когда есть «Далее» — на «Далее».
@@ -11,9 +12,12 @@
 ## (LessonStep.unlock_gate, stork.unlock_tap).
 extends LessonStep
 
+var mound_shadow: TextureRect
 var tree_pic: TextureRect
+var nest_back: TextureRect
 var nest_sit: TextureRect
 var nest_front: TextureRect
+var front_ground: TextureRect
 var bird: TextureRect                 # летящий аист (кадр 280×242, масштаб fly.scale)
 var hang := {}                        # "big"/"small" -> TextureRect буквы (пока висит — ребёнок bird)
 var ground := {}                      # "big"/"small" -> Rect2 буквы на земле (вся картинка, с обводкой)
@@ -65,18 +69,33 @@ func run() -> void:
 	nest = cfg.nest
 	lt = cfg.letters
 	add_bg(cfg.bg)
+	# Z: bg → mound_shadow → tree → nest(back) → stork sit → nest_front → front_ground → letters/fly
+	var ms: Dictionary = cfg.get("mound_shadow", {})
+	if not ms.is_empty():
+		mound_shadow = _tex_rect(String(ms.id), _v(ms.pos), _v(ms.size), "pic_mound_shadow")
+		add_child(mound_shadow)
 	tree_pic = _tex_rect(String(cfg.tree.id), _v(cfg.tree.pos), _v(cfg.tree.size), "pic_nest_tree")
 	add_child(tree_pic)
+	var nb: Dictionary = cfg.get("nest_back", {})
+	if not nb.is_empty():
+		nest_back = _tex_rect(String(nb.id), _v(nb.pos), _v(nb.size), "pic_nest_back")
+		add_child(nest_back)
 	var no := _v(nest.origin)
 	var ns := _v(nest.size)
 	nest_sit = _tex_rect(String(nest.sit), no, ns, "stork_nest")
 	nest_sit.pivot_offset = _v(nest.pivot)
 	nest_sit.visible = false
 	add_child(nest_sit)
-	nest_front = _tex_rect(String(nest.front), no, ns, "pic_nest")
-	nest_front.pivot_offset = Vector2(110, 180)       # центр чаши (x 360, y ≈ 204 на сцене) — для пульсации до первого касания
+	var fp := _v(nest.get("front_pos", nest.origin))
+	var fs := _v(nest.get("front_size", nest.size))
+	nest_front = _tex_rect(String(nest.front), fp, fs, "pic_nest")
+	nest_front.pivot_offset = _v(nest.get("front_pivot", [fp.x + fs.x * 0.5, fp.y + fs.y * 0.5]))
 	add_child(nest_front)
 	main.expose("nest", nest_front)
+	var fg: Dictionary = cfg.get("front_ground", {})
+	if not fg.is_empty():
+		front_ground = _tex_rect(String(fg.id), _v(fg.pos), _v(fg.size), "pic_front_ground")
+		add_child(front_ground)
 	# буквы на земле: рамки глифов из txt (по альфе спрайта) → прямоугольник всей картинки
 	for k in ["big", "small"]:
 		var g: Rect2 = _r(lt[k])
@@ -89,7 +108,6 @@ func run() -> void:
 	main.hint_start(func(): return letter_btn.get(String(cfg.get("hint_target", "big"))) if _letters_down else null, "")
 	await _fly_in()
 	if dead: return
-	if not await _rise_and_circle(): return
 	if not await _approach_and_land(): return
 	main.set_info("s01_phase", "landed")
 	finish()
@@ -233,7 +251,8 @@ func _drop() -> void:
 		r.get_parent().remove_child(r)
 		r.show_behind_parent = false
 		add_child(r)
-		move_child(r, nest_front.get_index() + 1)     # над гнездом, под летящим аистом
+		var above: Node = front_ground if front_ground else nest_front
+		move_child(r, above.get_index() + 1)     # над front_ground/гнездом, под летящим аистом
 		# в координатах шага (шаг может быть сдвинут/уменьшен — берём локальные)
 		var p0: Vector2 = inv * g.position
 		var p1: Vector2 = inv * g.end
@@ -277,47 +296,39 @@ func _letters_landed() -> void:
 	move_child(bird, -1)
 	main.set_info("s01_letters_down", true)
 
-func _rise_and_circle() -> bool:
-	main.set_state("rise")
-	main.set_info("s01_phase", "rise")
-	var a := _piv
-	var b: Vector2 = _v(fly.rise_to)
-	if not await _anim(float(fly.rise_sec), func(u): _place(a.lerp(b, u))): return false
-	main.set_state("circle")
-	main.set_info("s01_phase", "circle")
-	var c: Dictionary = fly.circle
-	var ctr: Vector2 = _v(c.center)
-	var rx := float(c.rx)
-	var ry := float(c.ry)
-	var t0 := deg_to_rad(float(c.t0_deg))
-	var t1 := deg_to_rad(float(c.t1_deg))
-	var ms0 := Time.get_ticks_msec()
-	var ok := await _anim(float(c.sec), func(u):
-		var t: float = lerpf(t0, t1, u)
-		# x = cx + rx·cos t: dx/dt = −rx·sin t > 0 (вправо) при sin t < 0
-		var right := sin(t) < -0.0001
-		if absf(sin(t)) > 0.0001 and right != (_flip_to if _flip_t >= 0.0 else _mirror):
-			_flip(right)
-		_place(ctr + Vector2(rx * cos(t), ry * sin(t))))
-	main.set_info("s01_circle_sec", (Time.get_ticks_msec() - ms0) / 1000.0)
-	return ok
+func _cubic(p0: Vector2, p1: Vector2, p2: Vector2, p3: Vector2, u: float) -> Vector2:
+	var t := clampf(u, 0.0, 1.0)
+	var o := 1.0 - t
+	return o * o * o * p0 + 3.0 * o * o * t * p1 + 3.0 * o * t * t * p2 + t * t * t * p3
 
+## После сброса букв — одна дуга Безье DROP→LAND (без кружения / разворота).
 func _approach_and_land() -> bool:
-	# в верхней точке аист летит вправо (зеркало); подлёт — влево: разворот на месте
 	main.set_state("approach")
-	main.set_info("s01_phase", "flip")
-	await _wait_flip()
-	if dead: return false
-	_flip(false)
-	await _wait_flip()
-	if dead: return false
 	main.set_info("s01_phase", "approach")
+	var bz: Array = fly.get("approach_bezier", [])
 	var a := _piv
 	var b: Vector2 = _v(nest.land)
-	var arc := float(fly.approach_arc)
+	var p0: Vector2
+	var p1: Vector2
+	var p2: Vector2
+	var p3: Vector2
+	if bz.size() >= 4:
+		p0 = _v(bz[0]); p1 = _v(bz[1]); p2 = _v(bz[2]); p3 = _v(bz[3])
+		# если сброс не ровно в p0 — стартуем с текущей точки, контрольные оставляем
+		if a.distance_to(p0) > 8.0:
+			p0 = a
+	else:
+		p0 = a
+		p3 = b
+		p1 = p0.lerp(p3, 0.33) + Vector2(0, -80)
+		p2 = _v(fly.get("c2", [(p0.x + p3.x) * 0.5, minf(p0.y, p3.y) - 40]))
+	var sc0 := float(fly.get("scale", 0.8))
+	var sc1 := float(fly.get("scale_land", sc0))
 	if not await _anim(float(fly.approach_sec), func(u):
-		_place(a.lerp(b, u) - Vector2(0, arc * sin(PI * u)))): return false
-	# посадка: летящий кадр → stork_nest_sit, масштаб 0,61 → 1,0 вокруг опоры (= LAND)
+		fly["scale"] = lerpf(sc0, sc1, u)
+		_place(_cubic(p0, p1, p2, p3, u))): return false
+	fly["scale"] = sc1
+	# посадка: летящий кадр → stork_nest_sit, масштаб land_scale вокруг опоры (= LAND)
 	main.set_state("land")
 	main.set_info("s01_phase", "land")
 	_flying = false

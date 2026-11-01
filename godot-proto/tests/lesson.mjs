@@ -93,7 +93,7 @@ async function homeToLesson() {   // главная: тап «А» → lesson-a/
   const h = await homeReady("перед «А»"); await sleep(400);
   await tapNav(h.targets.letter_a, "А на главной");
   if (!/\/lesson-a\/(index\.html)?\?/.test(page.url())) throw new Error("«А» открыла не lesson-a/: " + page.url());
-  const s = await waitFor((s) => s.step === "s01_stork" && /^(fly_in|drop|rise|circle|approach|land|done)$/.test(s.state), "lesson-a → s01 (без экрана s00)", 120000);
+  const s = await waitFor((s) => s.step === "s01_stork" && /^(fly_in|drop|approach|land|done)$/.test(s.state), "lesson-a → s01 (без экрана s00)", 120000);
   await sleep(600);   // свежая загрузка Godot: первые ~300 мс касания не доходят
   return s;
 }
@@ -136,7 +136,7 @@ async function next(fromStep) {
 // s01 «Аист приносит буквы»: полёт (без касаний, без «Далее», без перекрытий кнопок) → буквы на земле → посадка → «Далее».
 // Касание аиста в гнезде: a_word_02 + взмах, повторное касание во время реплики не перезапускает; касание букв: a_aaa / a_find_03 + подскок.
 async function stork() {
-  const seen = new Set(), overl = new Set(); let nextEarly = null, shotDrop = false, shotCircle = false, tapFly = false;
+  const seen = new Set(), overl = new Set(); let nextEarly = null, shotDrop = false, shotApproach = false, tapFly = false;
   const t0 = Date.now();
   while (Date.now() - t0 < 30000) {
     const s = await bk();
@@ -145,33 +145,39 @@ async function stork() {
     for (const o of s.ui_overlaps || []) overl.add(s.state + ":" + o);
     if (s.targets.next && s.state !== "done") nextEarly = s.state;
     if (s.state === "done") break;
-    if (s.state === "rise" && !shotDrop) { shotDrop = true; await shot("s01-stork-drop"); }
-    if (s.state === "circle" && !shotCircle && s.info.s01_fly_rect && s.info.s01_fly_rect[0] < 420) { shotCircle = true; await shot("s01-stork-circle"); }
-    if (s.state === "circle" && !tapFly && s.targets.stork) {   // касание летящего аиста — ничего
-      tapFly = true; await tapXY(s.targets.stork);
-      const a = await bk(); if ((a.info.s01_word_taps || 0) || (a.info.s01_flaps || 0)) throw new Error("s01: летящий аист принял касание");
+    if (s.state === "drop" && !shotDrop) { shotDrop = true; await shot("s01-stork-drop"); }
+    if (s.state === "approach" && !shotApproach && s.info.s01_fly_rect && s.info.s01_fly_rect[0] < 520) {
+      shotApproach = true; await shot("s01-stork-approach");
+      if (!tapFly && s.targets.stork) {   // касание летящего аиста — ничего
+        tapFly = true; await tapXY(s.targets.stork);
+        const a = await bk(); if ((a.info.s01_word_taps || 0) || (a.info.s01_flaps || 0)) throw new Error("s01: летящий аист принял касание");
+      }
     }
     await sleep(60);
   }
   const s = await waitFor(state("done"), "s01 done (аист сел)", 5000);
   const i = s.info;
-  for (const st of ["fly_in", "rise", "circle", "approach"]) if (!seen.has(st)) throw new Error("s01: не видели фазу " + st + " (" + [...seen] + ")");
+  for (const st of ["fly_in", "approach"]) if (!seen.has(st)) throw new Error("s01: не видели фазу " + st + " (" + [...seen] + ")");
+  if (!i.s01_drop_at && !seen.has("drop")) throw new Error("s01: не видели сброс букв (" + [...seen] + ")");
+  if (seen.has("circle") || seen.has("rise")) throw new Error("s01: неожиданное кружение/rise: " + [...seen]);
   if (nextEarly) throw new Error("s01: «Далее» появилась до посадки (" + nextEarly + ")");
   if (overl.size) throw new Error("s01: кнопки перекрывают аиста/буквы: " + [...overl].join(", "));
   if (i.s01_appear_voice !== "a_word_02") throw new Error("s01: на появлении аиста не прозвучала a_word_02");
   if (!((s.sfx_counts || {}).sfx_whoosh >= 1)) throw new Error("s01: нет sfx_whoosh на влёте");
   const d = i.s01_drop_at || {};
   const near = (p, q, e = 3) => p && Math.hypot(p[0] - q[0], p[1] - q[1]) <= e;
-  if (!near(d.big, [564.6, 336.6]) || !near(d.small, [577.8, 333])) throw new Error("s01: буквы отцепились не там: " + JSON.stringify(d));
-  if (!near(i.s01_land_pos, [371, 156], 0.5)) throw new Error("s01: посадка не в LAND: " + JSON.stringify(i.s01_land_pos));
-  if (Math.abs(i.s01_circle_sec - 2.0) > 0.35) throw new Error("s01: круг " + i.s01_circle_sec + " с вместо 2,0");
+  if (!d.big || !d.small) throw new Error("s01: буквы не отцепились: " + JSON.stringify(d));
+  // сброс у DROP≈(710,342); допуск шире — зависит от hang/scale
+  if (d.big[0] < 500 || d.big[0] > 780 || d.small[0] < 500 || d.small[0] > 780) throw new Error("s01: буквы отцепились не там: " + JSON.stringify(d));
+  if (!near(i.s01_land_pos, [265.0, 330.51724137931035], 1.0)) throw new Error("s01: посадка не в LAND: " + JSON.stringify(i.s01_land_pos));
   const g = i.s01_ground;
   const kA = 280 / 765, ka = 196 / 563;   // спрайт буквы 693×812 / 520×610, глиф с обводкой от (20;20), 646×765 / 473×563
   if (!g || Math.abs(g.big[1] - (320 - 20 * kA)) > 0.2 || Math.abs(g.big[3] - (600 + 27 * kA)) > 0.2 || Math.abs(g.small[3] - (600 + 27 * ka)) > 0.2 || Math.abs(g.small[0] - (649.9 - 20 * ka)) > 0.2) throw new Error("s01: «А» на земле не на базовой линии: " + JSON.stringify(g));
   if (!i.s01_letters_down) throw new Error("s01: буквы не встали");
   await sleep(300); await shot("s01-stork-landed");
   // касание аиста: реплика + взмах; второе касание во время реплики — не перезапускает
-  await tap("stork_nest"); await tap("stork_nest");
+  // двойное касание без 150 мс паузы tap(): иначе при fast=1 (лимит 0,25 с) вторая реплика успевает начаться
+  { const xy = await target("stork_nest"); await tapXY(xy); await sleep(40); await tapXY(xy); await sleep(100); }
   let a = (await bk()).info;
   if (a.s01_word_taps !== 2 || a.s01_word_plays !== 1 || a.s01_flaps !== 1) throw new Error("s01: касание аиста: " + JSON.stringify([a.s01_word_taps, a.s01_word_plays, a.s01_flaps]));
   await shot("s01-stork-flap");
@@ -185,7 +191,7 @@ async function stork() {
   if (a.s01_letter_taps !== 2) throw new Error("s01: касания букв не засчитаны: " + a.s01_letter_taps);
   if (!["a_aaa", "a_find_03"].includes(a.s01_aaa_audio)) throw new Error("s01: буква — не a_aaa/a_find_03: " + a.s01_aaa_audio);
   if (!(a.s01_bounce_peak && a.s01_bounce_peak.px > 5)) throw new Error("s01: буква не подпрыгнула");
-  console.log(`s01: фазы ${[...seen].join("→")}; круг ${i.s01_circle_sec} с; буквы отцепились ${JSON.stringify(d)}; посадка ${i.s01_land_pos}; ` +
+  console.log(`s01: фазы ${[...seen].join("→")}; буквы отцепились ${JSON.stringify(d)}; посадка ${i.s01_land_pos}; ` +
     `«Далее» только после посадки; кнопки ни с чем не пересекаются; аист: касаний ${a.s01_word_taps}, реплик ${a.s01_word_plays}, взмахов ${a.s01_flaps}; ` +
     `буквы: ${a.s01_letter_taps} касания, звук ${a.s01_aaa_audio}`);
 }

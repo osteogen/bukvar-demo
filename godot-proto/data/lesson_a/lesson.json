@@ -1,1532 +1,1567 @@
 {
- "id": "a",
- "title": "Звук [а], буква А",
- "big": "А",
- "small": "а",
- "host": "alya",
- "steps": [
-  "s01_stork",
-  "s02_intro",
-  "s03_sing",
-  "s04_hear",
-  "s05_words",
-  "s06_letter",
-  "s07_write",
-  "s08_find",
-  "s09_sort",
-  "s10_end"
- ],
- "stork": {
-  "_about": "Сцена 1 «Аист приносит буквы» (steps/s01_stork.gd). Все числа — art/lesson_a/s01_dlya_koda.txt (раунд 13, §2–§4): координаты — логическая сцена 1024×768, точки пути — положение PIV летящего аиста. Вход справа и падение букв в txt не заданы — значения здесь (enter_speed, drop_sec).",
-  "bg": "bg_meadow",
-  "tree": {
-   "id": "pic_nest_tree",
-   "pos": [
-    180,
-    100
-   ],
-   "size": [
-    380,
-    380
-   ]
-  },
-  "nest": {
-   "sit": "stork_nest_sit",
-   "flap": [
-    "stork_nest_flap_1",
-    "stork_nest_flap_2"
-   ],
-   "front": "pic_nest",
-   "origin": [
-    250,
-    24
-   ],
-   "size": [
-    272,
-    248
-   ],
-   "pivot": [
-    121,
-    132
-   ],
-   "land": [
-    371,
-    156
-   ],
-   "touch": [
-    298,
-    52,
-    458,
-    214
-   ],
-   "land_scale": [
-    0.61,
-    1.0
-   ],
-   "land_sec": 0.2
-  },
-  "fly": {
-   "_frames": "кадры 280×242 лог., смотрят ВЛЕВО; при движении вправо — зеркало x' = 280 − x (PIV тоже)",
-   "carry": [
-    "stork_fly_carry_up",
-    "stork_fly_carry_down"
-   ],
-   "open": [
-    "stork_fly_open_up",
-    "stork_fly_open_down"
-   ],
-   "size": [
-    280,
-    242
-   ],
-   "pivot": [
-    145.75,
-    127.5
-   ],
-   "scale": 0.8,
-   "wing_sec": 0.15,
-   "flip_sec": 0.15,
-   "_hang": "крепление букв (верхняя середина буквы) в кадре, лог. px при масштабе 1; высоты при масштабе 1 (×0,8 в полёте). Буквы — под аистом.",
-   "hang_carry": {
-    "big": [
-     1.5,
-     129.5
-    ],
-    "small": [
-     18.0,
-     124.7
-    ]
-   },
-   "hang_open": {
-    "big": [
-     5.4,
-     136.3
-    ],
-    "small": [
-     20.5,
-     128.1
-    ]
-   },
-   "hang_height": {
-    "big": 60,
-    "small": 42
-   },
-   "enter": [
-    [
-     1380,
-     375
-    ],
-    [
-     1200,
-     375
-    ],
-    [
-     1040,
-     375
-    ],
-    [
-     900,
-     375
-    ],
-    [
-     770,
-     355
-    ],
-    [
-     680,
-     335
-    ]
-   ],
-   "enter_speed": 370,
-   "whoosh": "sfx_whoosh",
-   "rise_to": [
-    500,
-    178
-   ],
-   "rise_sec": 0.6,
-   "circle": {
-    "center": [
-     500,
-     150
-    ],
-    "rx": 110,
-    "ry": 28,
-    "t0_deg": 90,
-    "t1_deg": 630,
-    "sec": 2.0
-   },
-   "approach_sec": 0.4,
-   "approach_arc": 10
-  },
-  "letters": {
-   "_rects": "рамки глифов на земле [x0,y0,x1,y1] (по непрозрачным пикселям спрайта, с белой обводкой); подложки нет",
-   "big": [
-    389.4,
-    320,
-    625.9,
-    600
-   ],
-   "small": [
-    649.9,
-    404,
-    814.6,
-    600
-   ],
-   "drop_sec": 0.7,
-   "land_squash": 0.08,
-   "tap_pad": [
-    12,
-    12,
-    20,
-    20
-   ],
-   "_tap_pad": "поля зоны касания буквы: слева, сверху, справа, снизу (справа/снизу ≤ 20 px)",
-   "bounce_px": 14,
-   "bounce_sec": 0.32
-  },
-  "voice_appear": "a_word_02",
-  "voice_at_x": 1150,
-  "_voice_at_x": "a_word_02 звучит, когда PIV аиста проходит x ≤ voice_at_x (аист показался на 4:3)",
-  "stork_tap": {
-   "audio": "a_word_02",
-   "flap_frame_sec": 0.14,
-   "flap_cycles": 3
-  },
-  "letter_tap": {
-   "audio": "a_aaa",
-   "fallback": "a_find_03",
-   "max_sec": 1.8
-  },
-  "hint_target": "big",
-  "_unlock_tap": "Первый жест на странице урока (иначе iOS не даст звука): если на lesson-a/ ещё не было касания, на экране луг, дерево и пустое гнездо; гнездо мягко пульсирует, через hint_sec — рука на гнезде; любое касание запускает влёт аиста. В тесте — только с ?gate=1.",
-  "unlock_tap": {
-   "enabled": true,
-   "pulse_scale": 1.05,
-   "pulse_sec": 0.8
-  }
- },
- "intro": {
-  "host": "alya",
-  "bunny": "bunny",
-  "bg": "bg_room_day",
-  "lines": [
-   "a_start_01",
-   "a_intro_01",
-   "a_intro_02",
-   "a_intro_03"
-  ],
-  "song": "a_intro_02",
-  "after_tap": "a_intro_04",
-  "_unlock_tap": "Сцена 2 (колыбельная). Тот же первый жест, если урок открыт сразу со сцены 2 (?step=2): Аля и зайка на экране, Аля мягко пульсирует, через hint_sec — рука; любое касание запускает сцену. Со сцены 1 касание уже было — сразу дальше. В тесте — только с ?gate=1.",
-  "unlock_tap": {
-   "enabled": true,
-   "pulse_scale": 1.05,
-   "pulse_sec": 0.8
-  },
-  "rock_pose_has_bunny": false,
-  "sing_pose": "sing_crib",
-  "shh_pose": "shh"
- },
- "sing": {
-  "bg": "bg_room_day",
-  "face": "alya_closeup",
-  "lines": [
-   "a_sing_01",
-   "a_sing_02",
-   "a_sing_03"
-  ],
-  "loop": "a_aaa",
-  "hold_goal_sec": 2.0,
-  "after_hold": "a_sing_04",
-  "circle": "ui_circle_flat",
-  "waves": "ui_sound_waves",
-  "loop_fallback": "a_find_03",
-  "_loop": "Решение методиста 26.10.2026: при удержании кружка по кругу звучит a_aaa (заменяет a_sing_loop); пока записи нет — a_find_03. Сразу после a_sing_01 один раз звучит образец sample (та же замена).",
-  "sample": "a_aaa",
-  "sample_fallback": "a_find_03"
- },
- "words": {
-  "bg": "bg_meadow",
-  "intro": "a_word_01",
-  "slot_hint": "a_word_06",
-  "summary": "a_word_08",
-  "items": [
-   {
-    "pic": "pic_aist",
-    "word": "аист",
-    "voice": "a_word_02",
-    "pos": 0,
-    "end_ok": false,
-    "first_ok": true
-   },
-   {
-    "pic": "pic_alya_card",
-    "word": "Аля",
-    "voice": "a_word_03",
-    "pos": 0,
-    "end_ok": true
-   },
-   {
-    "pic": "pic_astra",
-    "word": "астра",
-    "voice": "a_word_04",
-    "pos": [
-     0,
-     2
-    ],
-    "end_ok": false
-   },
-   {
-    "pic": "pic_mak",
-    "word": "мак",
-    "voice": "a_hear_02",
-    "stretch": "a_hear_07",
-    "pos": 1,
-    "end_ok": false
-   },
-   {
-    "pic": "pic_shar",
-    "word": "шар",
-    "voice": "a_hear_04",
-    "stretch": "a_hear_08",
-    "pos": 1,
-    "end_ok": false
-   }
-  ],
-  "train": {
-   "_note": "Паровозик сцены 3 — финальная графика (раунд 9, art/common/ui/ui_train_dlya_koda.txt). parts — слева направо на экране, window — центр окошка в долях части (x/246, y/200); slots — какая часть = [начало, середина, конец]. Тела без колёс; колёса (wheels) — на узле поезда, угол = путь / r. steam — клубы пара от трубы (src в координатах паровоза). stop_x/y — остановка (состав 738 px). pic_leave: fade | ride.",
-   "parts": [
-    {
-     "id": "ui_train_engine_right",
-     "window": [
-      0.736,
-      0.49
-     ]
-    },
-    {
-     "id": "ui_train_mid_right",
-     "window": [
-      0.5,
-      0.49
-     ]
-    },
-    {
-     "id": "ui_train_end_right",
-     "window": [
-      0.431,
-      0.49
-     ]
-    }
-   ],
-   "slots": [
-    0,
-    1,
-    2
-   ],
-   "size": [
-    246,
-    200
-   ],
-   "gap": 0,
-   "stop_x": 143,
-   "y": 300,
-   "rails": "ui_train_rails",
-   "rails_y": 486,
-   "rails_h": 36,
-   "wheels": {
-    "id": "ui_train_wheel",
-    "size": [
-     52,
-     52
-    ],
-    "r": 24,
-    "y": 166,
-    "x": [
-     [
-      50,
-      124,
-      196
-     ],
-     [
-      60,
-      186
-     ],
-     [
-      60,
-      184
-     ]
-    ]
-   },
-   "steam": {
-    "ids": [
-     "ui_train_steam_s",
-     "ui_train_steam_m",
-     "ui_train_steam_l"
-    ],
-    "sizes": [
-     [
-      36,
-      28
-     ],
-     [
-      56,
-      42
-     ],
-     [
-      80,
-      60
-     ]
-    ],
-    "offsets": [
-     [
-      0,
-      -12
-     ],
-     [
-      -14,
-      -42
-     ],
-     [
-      -34,
-      -84
-     ]
-    ],
-    "src": [
-     56,
-     20
-    ],
-    "part": 0,
-    "every_drive": 0.45,
-    "every_idle": 1.6,
-    "step_sec": 0.45
-   },
-   "drive_in_sec": 1.8,
-   "drive_out_sec": 1.6,
-   "bob_px": 3,
-   "pic_center": [
-    512,
-    165
-   ],
-   "pic_size": [
-    230,
-    230
-   ],
-   "pic_leave": "fade",
-   "pic_fade_sec": 0.5,
-   "dot_center": [
-    720,
-    165
-   ],
-   "dot_size": [
-    78,
-    78
-   ],
-   "direction": "rtl",
-   "clack_sfx": "sfx_train_clack",
-   "_note_rev2": "rev2: parts — слева направо на экране [engine_right, mid_right, end_right] (иллюстратор, раунд 14, r14_part2_koordinaty.txt); pre_mirrored=true — код НЕ отражает состав; окошки/колёса/пар — в координатах этих файлов (246×200 лог.).",
-   "pre_mirrored": true
-  },
-  "end_ok_line": "a_words_end_ok",
-  "second_line": "a_word_10",
-  "_rev1": "Правки 27.10.2026: поезд сразу и справа налево; слова перемешаны (первое — first_ok); мак и шар — звук в середине; астра — pos [0,2] (второй кружок в конце); ячейки cells внизу; буквы end_letters въезжают по рельсам; облака clouds. rev2 (27.10): трава убрана совсем; вагоны — готовые файлы носом влево (*_right), без отражения в коде.",
-  "cells": {
-   "y": 650,
-   "size": 112,
-   "step": 132,
-   "color": "#F7F0DE",
-   "alpha": 0.55,
-   "border": "#B9A27A"
-  },
-  "end_letters": {
-   "big_h": 200,
-   "small_h": 140,
-   "big_x": 430,
-   "small_x": 600,
-   "sink": 6,
-   "ride_sec": 2.0,
-   "tap_line": "a_aaa",
-   "tap_max_sec": 2.0
-  },
-  "clouds": [
-   {
-    "id": "pic_cloud_1",
-    "x": 150,
-    "y": 40,
-    "size": [
-     190,
-     95
-    ],
-    "speed": 5
-   },
-   {
-    "id": "pic_cloud_2",
-    "x": 760,
-    "y": 70,
-    "size": [
-     150,
-     75
-    ],
-    "speed": 3.5
-   },
-   {
-    "id": "pic_cloud_1",
-    "x": -120,
-    "y": 110,
-    "size": [
-     120,
-     60
-    ],
-    "speed": 2.5,
-    "alpha": 0.85
-   }
-  ]
- },
- "hear": {
-  "bg": "bg_meadow",
-  "_buttons": "Аля: «нажми на красный кружок… если не услышишь — на серый». yes_pic — красный круг #D93A2B, чёрная «А» на нём — общее правило dot_letter (lesson.red_circles); no_pic — серый круг с тёмно-серым крестиком.",
-  "yes_pic": "ui_hear_yes",
-  "no_pic": "ui_hear_no",
-  "_word_audio": "items[].word_audio — слово голосом Али при касании карточки в ряду; сейчас это строки a_hear_02…06 («Мак…», «Кот…»…).",
-  "intro": "a_hear_01",
-  "no_line": "a_hear_10",
-  "done": "p_ok_04",
-  "items": [
-   {
-    "pic": "pic_mak",
-    "word_audio": "a_hear_02",
-    "word": "мак",
-    "voice": "a_hear_02",
-    "has": true,
-    "stretch": "a_hear_07"
-   },
-   {
-    "pic": "pic_kot",
-    "word_audio": "a_hear_03",
-    "word": "кот",
-    "voice": "a_hear_03",
-    "has": false
-   },
-   {
-    "pic": "pic_shar",
-    "word_audio": "a_hear_04",
-    "word": "шар",
-    "voice": "a_hear_04",
-    "has": true,
-    "stretch": "a_hear_08"
-   },
-   {
-    "pic": "pic_dom",
-    "word_audio": "a_hear_05",
-    "word": "дом",
-    "voice": "a_hear_05",
-    "has": false
-   },
-   {
-    "pic": "pic_lampa",
-    "word_audio": "a_hear_06",
-    "word": "лампа",
-    "voice": "a_hear_06",
-    "has": true,
-    "stretch": "a_hear_09"
-   }
-  ],
-  "alya": {
-   "who": "alya",
-   "center": [
-    512,
-    372
-   ],
-   "size": [
-    240,
-    320
-   ],
-   "point_yes_at": 2.6,
-   "point_no_at": 5.0,
-   "hold_sec": 1.8,
-   "point_angle": 1.25,
-   "_poses": "позы художника alya_pose_point_red / alya_pose_point_grey (раунд 14; _base + _mouth_0..2, рот по липсинку)"
-  },
-  "rows": {
-   "y": 120,
-   "step": 145,
-   "yes_x0": 200,
-   "no_x0": 680
-  },
-  "applause": {
-   "word": "аплодисменты",
-   "red": [
-    0
-   ],
-   "voice": "a_hear_11",
-   "center": [
-    512,
-    330
-   ],
-   "w": 760,
-   "h": 150,
-   "font_size": 96,
-   "sfx": "sfx_cheer"
-  },
-  "buttons": {
-   "_note": "rev2 (27.10): кружки сначала посередине экрана по высоте — слева красный, справа серый, Аля между ними показывает (point_red, потом point_grey); потом оба плавно опускаются на место (slide_sec, ease-out) и начинается игра.",
-   "yes_start": [
-    300,
-    384
-   ],
-   "no_start": [
-    724,
-    384
-   ],
-   "yes": [
-    330,
-    620
-   ],
-   "no": [
-    694,
-    620
-   ],
-   "size": [
-    170,
-    170
-   ],
-   "slide_sec": 0.6
-  }
- },
- "letter": {
-  "_note": "Сцена 6 (ред. 27.10.2026, правки урока А): большая А и маленькая а по центру парой, Аля ниже. lines.intro_seq — реплики по очереди в начале; tap_big / tap_small — что звучит при касании буквы (массив реплик). Реплика: {audio, arm: l|r (какую руку поднимает Аля: l — к большой А слева, r — к маленькой а справа), arm_hold, highlights[{part, t_start, t_end}]}. part: big | small | big:left | big:right | big:bar | small:round | small:stick. Тайминги подсветки оценены по тексту — подстроить после записи голоса. parts.small — под новую форму «а» (кружок + палочка с хвостиком, tools/make_letters.py).",
-  "bg": "bg_desk",
-  "big": {
-   "center": [
-    396,
-    290
-   ],
-   "h": 300
-  },
-  "small": {
-   "center": [
-    675,
-    345
-   ],
-   "h": 190
-  },
-  "alya": {
-   "who": "alya",
-   "center": [
-    512,
-    592
-   ],
-   "size": [
-    218,
-    290
-   ],
-   "bob_px": 4
-  },
-  "hl": {
-   "color": "#FFD23C",
-   "alpha": 0.55,
-   "fade_sec": 0.15,
-   "glow": 1.5,
-   "front": true
-  },
-  "parts": {
-   "big": {
-    "left": {
-     "line": [
-      [
-       0.49,
-       0.07
-      ],
-      [
-       0.17,
-       0.93
-      ]
-     ],
-     "w": 0.11
-    },
-    "right": {
-     "line": [
-      [
-       0.49,
-       0.07
-      ],
-      [
-       0.81,
-       0.93
-      ]
-     ],
-     "w": 0.11
-    },
-    "bar": {
-     "line": [
-      [
-       0.31,
-       0.7
-      ],
-      [
-       0.69,
-       0.7
-      ]
-     ],
-     "w": 0.08
-    }
-   },
-   "small": {
-    "round": {
-     "ellipse": [
-      0.423,
-      0.481,
-      0.281,
-      0.29
-     ],
-     "w": 0.13
-    },
-    "stick": {
-     "line": [
-      [
-       0.704,
-       0.12
-      ],
-      [
-       0.704,
-       0.55
-      ],
-      [
-       0.704,
-       0.684
-      ],
-      [
-       0.721,
-       0.738
-      ],
-      [
-       0.767,
-       0.777
-      ],
-      [
-       0.831,
-       0.792
-      ],
-      [
-       0.885,
-       0.792
-      ]
-     ],
-     "w": 0.13
-    }
-   }
-  },
-  "lines": {
-   "intro_seq": [
-    {
-     "audio": "a_letter_05",
-     "highlights": [
-      {
-       "part": "big",
-       "t_start": 3.9,
-       "t_end": 5.0,
-       "word": "буквой А"
-      },
-      {
-       "part": "small",
-       "t_start": 3.9,
-       "t_end": 5.0,
-       "word": "буквой А"
-      }
-     ]
-    },
-    {
-     "audio": "w_bolshaya",
-     "arm": "l",
-     "arm_hold": 0.6,
-     "highlights": [
-      {
-       "part": "big",
-       "t_start": 0.0,
-       "t_end": 1.0,
-       "word": "Большая"
-      }
-     ]
-    },
-    {
-     "audio": "w_malenkaya",
-     "arm": "r",
-     "arm_hold": 0.6,
-     "highlights": [
-      {
-       "part": "small",
-       "t_start": 0.0,
-       "t_end": 1.1,
-       "word": "Маленькая"
-      }
-     ]
-    },
-    {
-     "audio": "a_letter_08",
-     "highlights": []
-    }
-   ],
-   "tap_big": [
-    {
-     "audio": "w_bolshaya",
-     "arm": "l",
-     "arm_hold": 0.6,
-     "highlights": [
-      {
-       "part": "big",
-       "t_start": 0.0,
-       "t_end": 1.0,
-       "word": "Большая"
-      }
-     ]
-    },
-    {
-     "audio": "a_letter_06",
-     "highlights": [
-      {
-       "part": "big",
-       "t_start": 0.0,
-       "t_end": 1.3,
-       "word": "Большая А"
-      },
-      {
-       "part": "big:left",
-       "t_start": 2.3,
-       "t_end": 4.4,
-       "word": "две палочки наклонились"
-      },
-      {
-       "part": "big:right",
-       "t_start": 2.6,
-       "t_end": 4.4,
-       "word": "две палочки наклонились"
-      },
-      {
-       "part": "big:bar",
-       "t_start": 4.9,
-       "t_end": 6.6,
-       "word": "перекладинка"
-      }
-     ]
-    }
-   ],
-   "tap_small": [
-    {
-     "audio": "w_malenkaya",
-     "arm": "r",
-     "arm_hold": 0.6,
-     "highlights": [
-      {
-       "part": "small",
-       "t_start": 0.0,
-       "t_end": 1.1,
-       "word": "Маленькая"
-      }
-     ]
-    },
-    {
-     "audio": "a_letter_07",
-     "highlights": [
-      {
-       "part": "small",
-       "t_start": 0.0,
-       "t_end": 1.4,
-       "word": "Маленькая а"
-      },
-      {
-       "part": "small:round",
-       "t_start": 1.7,
-       "t_end": 2.7,
-       "word": "кружок"
-      },
-      {
-       "part": "small:stick",
-       "t_start": 2.7,
-       "t_end": 4.3,
-       "word": "палочка с хвостиком"
-      }
-     ]
-    }
-   ],
-   "outro": {
-    "audio": "a_letter_04",
-    "text": "Большая и маленькая — одна буква Аа. Обе пишут звук А-а-а!",
-    "highlights": [
-     {
-      "part": "big",
-      "t_start": 0.0,
-      "t_end": 1.2,
-      "word": "Большая"
-     },
-     {
-      "part": "small",
-      "t_start": 0.86,
-      "t_end": 2.24,
-      "word": "маленькая"
-     },
-     {
-      "part": "big",
-      "t_start": 4.48,
-      "t_end": 5.0,
-      "word": "А-а-а"
-     },
-     {
-      "part": "small",
-      "t_start": 4.48,
-      "t_end": 5.0,
-      "word": "А-а-а"
-     }
-    ]
-   }
-  },
-  "idle_hint": {
-   "sec": 20,
-   "audio": "a_letter_08",
-   "text": "Нажми на любую букву!"
-  }
- },
- "write": {
-  "bg": "bg_desk",
-  "lines": [
-   "a_write_01",
-   "a_write_02",
-   "a_write_03",
-   "a_write_04"
-  ],
-  "done": "a_write_05",
-  "strokes": [
-   [
-    [
-     512,
-     150
-    ],
-    [
-     372,
-     600
-    ]
-   ],
-   [
-    [
-     512,
-     150
-    ],
-    [
-     652,
-     600
-    ]
-   ],
-   [
-    [
-     407,
-     488
-    ],
-    [
-     617,
-     488
-    ]
-   ]
-  ],
-  "tolerance": 40,
-  "min_progress": 0.8,
-  "tolerance_junior": 60,
-  "lower": {
-   "_note": "Правки 27.10.2026: после большой А — маленькая а. Штрихи — ломаные (кружок от точки против часовой, затем палочка с хвостиком), координаты сцены 1024×768, совпадают с letter_a_lower_trace.png (tools/make_letters.py).",
-   "trace": "letter_a_lower_trace",
-   "lines": [
-    "a_write_06",
-    "a_write_07"
-   ],
-   "done": "a_write_08",
-   "width": 50,
-   "strokes": [
-    [
-     [
-      566.6,
-      264.6
-     ],
-     [
-      546.4,
-      247.4
-     ],
-     [
-      524.2,
-      234.4
-     ],
-     [
-      500.5,
-      225.8
-     ],
-     [
-      475.9,
-      221.9
-     ],
-     [
-      451.2,
-      222.9
-     ],
-     [
-      426.9,
-      228.7
-     ],
-     [
-      403.7,
-      239.1
-     ],
-     [
-      382.3,
-      253.9
-     ],
-     [
-      363.1,
-      272.6
-     ],
-     [
-      346.6,
-      294.8
-     ],
-     [
-      333.4,
-      320.0
-     ],
-     [
-      323.8,
-      347.4
-     ],
-     [
-      317.9,
-      376.2
-     ],
-     [
-      316.0,
-      405.9
-     ],
-     [
-      318.1,
-      435.5
-     ],
-     [
-      324.2,
-      464.3
-     ],
-     [
-      334.1,
-      491.6
-     ],
-     [
-      347.5,
-      516.6
-     ],
-     [
-      364.1,
-      538.6
-     ],
-     [
-      383.5,
-      557.1
-     ],
-     [
-      405.1,
-      571.7
-     ],
-     [
-      428.4,
-      581.8
-     ],
-     [
-      452.7,
-      587.3
-     ],
-     [
-      477.4,
-      588.0
-     ],
-     [
-      501.9,
-      583.8
-     ],
-     [
-      525.5,
-      575.0
-     ],
-     [
-      547.7,
-      561.7
-     ],
-     [
-      567.7,
-      544.2
-     ],
-     [
-      585.1,
-      523.1
-     ],
-     [
-      599.5,
-      498.9
-     ],
-     [
-      610.4,
-      472.3
-     ],
-     [
-      617.6,
-      443.8
-     ],
-     [
-      620.9,
-      414.3
-     ],
-     [
-      620.1,
-      384.6
-     ],
-     [
-      615.4,
-      355.4
-     ],
-     [
-      606.8,
-      327.5
-     ]
-    ],
-    [
-     [
-      621.1,
-      202.9
-     ],
-     [
-      621.1,
-      243.1
-     ],
-     [
-      621.1,
-      283.2
-     ],
-     [
-      621.1,
-      323.4
-     ],
-     [
-      621.1,
-      363.6
-     ],
-     [
-      621.1,
-      403.8
-     ],
-     [
-      621.1,
-      444.0
-     ],
-     [
-      621.1,
-      484.1
-     ],
-     [
-      621.1,
-      524.3
-     ],
-     [
-      622.3,
-      536.8
-     ],
-     [
-      625.9,
-      548.8
-     ],
-     [
-      631.8,
-      559.8
-     ],
-     [
-      639.8,
-      569.5
-     ],
-     [
-      649.5,
-      577.5
-     ],
-     [
-      660.5,
-      583.4
-     ],
-     [
-      672.5,
-      587.0
-     ],
-     [
-      685.0,
-      588.3
-     ],
-     [
-      711.3,
-      588.3
-     ]
-    ]
-   ]
-  }
- },
- "find": {
-  "bg": "bg_sky",
-  "intro": "a_find_01",
-  "hit": "a_find_03",
-  "near_miss_line": "a_find_02",
-  "targets": [
-   "А",
-   "А",
-   "А",
-   "а",
-   "а",
-   "а"
-  ],
-  "rise_sec": 25.0,
-  "balloon_colors": [
-   "beige",
-   "grey",
-   "sand",
-   "cream"
-  ],
-  "pop_frames": 3,
-  "shapes": [
-   "triangle",
-   "circle",
-   "square",
-   "star"
-  ],
-  "near_miss_shape": "triangle",
-  "counter_empty": "ui_counter_star_empty",
-  "counter_full": "ui_counter_star_gold",
-  "letters_end": {
-   "_note": "После последнего шарика: в центре появляются большая А и маленькая а; нажатие — звук. Голос: a_find_03 («А!»).",
-   "big_center": [
-    420,
-    400
-   ],
-   "big_h": 260,
-   "big_voice": "a_find_03",
-   "small_center": [
-    640,
-    440
-   ],
-   "small_h": 180,
-   "small_voice": "a_find_03"
-  },
-  "stars": {
-   "_note": "Правки 27.10: звёздочки по бокам — слева 3 столбиком под большой А, справа 3 под маленькой а; шарики летают между столбиками.",
-   "left_x": 64,
-   "right_x": 960,
-   "letter_y": 236,
-   "letter_h": 70,
-   "star_y": [
-    310,
-    380,
-    450
-   ],
-   "size": 56,
-   "gap": 14
-  },
-  "clouds": [
-   {
-    "_note": "Правки 27.10: ещё одно облако сверху (заглушка pic_cloud_1 до иллюстратора).",
-    "pic": "pic_cloud_1",
-    "center": [
-     540,
-     78
-    ],
-    "size": [
-     220,
-     110
-    ],
-    "drift_px": 36,
-    "drift_sec": 16
-   }
-  ],
-  "spread_y": [
-   0,
-   280,
-   140,
-   420
-  ],
-  "end_pop": {
-   "_note": "Правки 27.10: после последнего нужного шарика остальные лопаются почти одновременно и тихо, потом появляются буквы.",
-   "delay_sec": 0.5,
-   "stagger_sec": 0.06,
-   "volume_db": -12.0,
-   "after_sec": 0.4
-  }
- },
- "sort": {
-  "bg": "bg_meadow",
-  "intro": "a_sort_01",
-  "fill_pic": "pic_grib",
-  "_done_tap": "После конца сцены касание любой корзинки — «А-а-а» голосом Али + подскок; до конца корзинки не реагируют. Нет файла audio (a_aaa «А-а-а» — общая запись сцен 1, 3, 9; заменяет a_sort_aaa; пока не записан) — fallback a_find_03 «А!» (есть); нет и его — только подскок.",
-  "done_tap": {
-   "audio": "a_aaa",
-   "fallback": "a_find_03",
-   "max_sec": 1.8,
-   "bounce_px": 14,
-   "bounce_sec": 0.32
-  },
-  "tiles": [
-   "А",
-   "а",
-   "а",
-   "А",
-   "а",
-   "А"
-  ],
-  "_layout": "Сцена 8 v3 — ФИНАЛ иллюстратора (раунд 11, 26.10.2026; числа — art/lesson_a/s08_dlya_koda.txt). Все прямоугольники — логические 1024×768 [x0,y0,x1,y1]. Корзинка: frame — рамка картинки (PNG 2×: 475×633 / 380×508; одна рамка для состояний 0–4), silhouette — плетёнка без ананасов, content4 — видимое в состоянии 4, drop — зона сброса, label — табличка (big [279,602,381,674] центр (330;638), small [659,630,740,687] центр (700;658,5)). states[n] — корзинка с n ананасами, табличка в ней пустая; letter — буква «А»/«а» отдельным слоем того же холста поверх любого состояния. Во время игры состояние = число положенных плиток (1–3), после последней плитки обе корзинки → 4. Кусты pic_ananas_bush: центры x_list, низ base_y, ширина width. Плитки tile_sort_a_upper/lower одним рядом: центр = (x + tile_offset[0], tile_y) = x 160,5…840,5 шаг 136, y 220, размер 83. Порядок плиток — tiles (shuffle=false). morph: плитка у корзинки превращается в ананас (pic_ananas_morph_f1..f3 по frame_sec, вспышка pic_ananas_flash_2), затем корзинка → следующее состояние. bed — грядка (рисуется кодом).",
-  "layout": {
-   "basket_big": {
-    "states": [
-     "pic_basket_big_0",
-     "pic_basket_big_1",
-     "pic_basket_big_2",
-     "pic_basket_big_3",
-     "pic_basket_big_4"
-    ],
-    "frame": [
-     212,
-     428,
-     449.5,
-     744.5
-    ],
-    "silhouette": [
-     214,
-     540,
-     446,
-     742
-    ],
-    "content4": [
-     214,
-     430,
-     446,
-     742
-    ],
-    "drop": [
-     202,
-     418,
-     458,
-     742
-    ],
-    "letter": "pic_basket_big_letter",
-    "label": [
-     279,
-     602,
-     381,
-     674
-    ]
-   },
-   "basket_small": {
-    "states": [
-     "pic_basket_small_0",
-     "pic_basket_small_1",
-     "pic_basket_small_2",
-     "pic_basket_small_3",
-     "pic_basket_small_4"
-    ],
-    "frame": [
-     605,
-     490,
-     795,
-     744
-    ],
-    "silhouette": [
-     607,
-     580,
-     793,
-     742
-    ],
-    "content4": [
-     607,
-     492,
-     793,
-     742
-    ],
-    "drop": [
-     595,
-     480,
-     805,
-     742
-    ],
-    "letter": "pic_basket_small_letter",
-    "label": [
-     659,
-     630,
-     740,
-     687
-    ]
-   },
-   "bushes": {
-    "pic": "pic_ananas_bush",
-    "x_list": [
-     172,
-     308,
-     444,
-     580,
-     716,
-     852
-    ],
-    "base_y": 346,
-    "width": 170
-   },
-   "tile_pics": {
-    "А": "tile_sort_a_upper",
-    "а": "tile_sort_a_lower"
-   },
-   "tile_size": [
-    83,
-    83
-   ],
-   "tile_y": 220,
-   "tile_offset": [
-    -11.5,
-    -126
-   ],
-   "bed": {
-    "rect": [
-     92,
-     312,
-     932,
-     384
-    ],
-    "front_y": 352,
-    "top": "#B48A5C",
-    "front": "#9A7249",
-    "radius": 18
-   },
-   "morph": {
-    "frames": [
-     "pic_ananas_morph_f1",
-     "pic_ananas_morph_f2",
-     "pic_ananas_morph_f3"
-    ],
-    "flash": "pic_ananas_flash_2",
-    "size": [
-     130,
-     130
-    ],
-    "frame_sec": 0.14,
-    "fly_sec": 0.3
-   }
-  },
-  "shuffle": false,
-  "drop_say": {
-   "_note": "Правки 27.10: верно положенная плитка звучит — [а] голосом Али (очередь, без наложения). Нет файла — fallback; нет и его — тишина.",
-   "audio": "a_aaa",
-   "fallback": "a_find_03",
-   "max_sec": 1.8
-  },
-  "sun": {
-   "_note": "Правки 27.10: статичное солнце по центру сверху над ананасами + длинные полупрозрачные лучи (pic_sun, pic_sun_rays; заглушки до иллюстратора).",
-   "pic": "pic_sun",
-   "rays": "pic_sun_rays",
-   "center": [
-    512,
-    58
-   ],
-   "size": [
-    100,
-    100
-   ],
-   "rays_size": [
-    700,
-    380
-   ],
-   "rays_apex": [
-    0.5,
-    0.053
-   ],
-   "rays_alpha": 1.0
-  }
- },
- "end": {
-  "_note": "rev2 (27.10): по макету пользователя art/sketches/v3/_refs/ref_s11_user_layout_2026-10-27.png и финальным координатам Иллюстратора (08:37); зазоры <150 px здесь приняты пользователем. Аля по пояс (alya_half) крупно слева 693×693, центр (206.5,551.5), обрез снизу по y 648, на всех шагах на месте, не уходит; шаг 1 — наклейка 320 в (608,318), рамка (448,158)-(768,478) (утверждено 27.10 11:28, «вариант помягче»; «Ещё раз» на шаге 1 нет, появляется после посадки наклейки); при раскрытии альбома наклейка поверх него (слои: фон → Аля → альбом → наклейка); касание → справа раскрытый альбом 2 страницы (3×6 А…Р, 3×5 С…Я) 519×368 от (337,239), поверх края волос Али; наклейка летит в клетку «А а» (387.6,278.3) до 49.1 с искорками; внизу по центру «Ещё раз» (638,688); «Далее» нет. Место/размер Али, альбома и наклейки — только здесь.",
-  "bg": "bg_room_evening",
-  "host": "alya_half",
-  "host_at": {
-   "_fit": "иллюстратор: 693×693 (масштаб 0.825 файла 840), левый верх (-140,205), центр (206.5,551.5); clip_bottom — обрез снизу по y сцены (как на макете)",
-   "center": [
-    206.5,
-    551.5
-   ],
-   "size": [
-    693,
-    693
-   ],
-   "clip_bottom": 648
-  },
-  "lines": [
-   "a_end_01",
-   "a_end_04"
-  ],
-  "sticker": "reward_sticker_a",
-  "sticker_at": {
-   "center": [
-    608,
-    318
-   ],
-   "size": [
-    320,
-    320
-   ]
-  },
-  "tap": {
-   "audio": "a_aaa",
-   "fallback": "a_find_03",
-   "max_sec": 1.8
-  },
-  "album": {
-   "_layout": "Финал Иллюстратора 27.10 (08:37): файлы *_2x3_s11 1038×736 @2x → 519×368, левый верх (337,239); центр контура (596.5,423). Клетка 71.7×49.1; клетка «А а» центр (387.6,278.3) — в px файла cells[0] = [29.5,29.5,143.4,98.2]. Альбом поверх Али (край волос), под наклейкой. Положение/размер — только здесь.",
-   "page": "reward_album_page_2x3_s11",
-   "alphabet": "reward_album_alphabet_2x3_s11",
-   "center": [
-    596.5,
-    423
-   ],
-   "size": [
-    519,
-    368
-   ],
-   "src_size": [
-    1038,
-    736
-   ],
-   "cells": [
-    [
-     29.5,
-     29.5,
-     143.4,
-     98.2
-    ]
-   ],
-   "sticker_cell": 0,
-   "fly_sec": 1.0,
-   "open_sec": 0.45,
-   "sparkles": true
-  },
-  "again": {
-   "pic": "ui_btn_again",
-   "center": [
-    638,
-    688
-   ],
-   "size": [
-    120,
-    120
-   ]
-  }
- },
- "card_frame": "ui_card_frame",
- "cream_underlay_bgs": [
-  "bg_room_evening"
- ],
- "_cream_underlay_bgs": "красная буква / кружок на этих фонах — автоматически на кремовой подложке #F7F0DE (DESIGN_RULES.md §3)",
- "sound_dot": "ui_circle_flat",
- "red_circles": [
-  "ui_circle_flat",
-  "ui_hear_yes"
- ],
- "dot_letter": "А",
- "dot_letter_frac": 0.62,
- "dot_letter_color": "#1E1A16"
+	"id": "a",
+	"title": "Звук [а], буква А",
+	"big": "А",
+	"small": "а",
+	"host": "alya",
+	"steps": [
+		"s01_stork",
+		"s02_intro",
+		"s03_sing",
+		"s04_hear",
+		"s05_words",
+		"s06_letter",
+		"s07_write",
+		"s08_find",
+		"s09_sort",
+		"s10_end"
+	],
+	"stork": {
+		"_about": "Сцена 1 «Аист приносит буквы» (steps/s01_stork.gd). Координаты — логическая сцена 1024×768. Дерево/гнездо — art/final/lesson_a/s01 v2 (TREE_SCALE 0.48, NX 265, BASE_Y 549, LAND, BZ). Слои full-canvas @2x в (0,0). Влёт → сброс букв → одна дуга Безье DROP→LAND (без кружения).",
+		"bg": "bg_meadow",
+		"tree": {
+			"id": "pic_nest_tree",
+			"pos": [
+				0,
+				0
+			],
+			"size": [
+				1024,
+				768
+			]
+		},
+		"nest": {
+			"sit": "stork_nest_sit",
+			"flap": [
+				"stork_nest_flap_1",
+				"stork_nest_flap_2"
+			],
+			"front": "pic_nest",
+			"front_pos": [
+				0,
+				0
+			],
+			"front_size": [
+				1024,
+				768
+			],
+			"front_pivot": [
+				268.75,
+				357.75
+			],
+			"origin": [
+				144.0,
+				198.51724137931035
+			],
+			"size": [
+				272,
+				248
+			],
+			"pivot": [
+				121,
+				132
+			],
+			"land": [
+				265.0,
+				330.51724137931035
+			],
+			"touch": [
+				229.96,
+				280.59724137931033,
+				306.76,
+				358.3572413793103
+			],
+			"land_scale": [
+				0.2928,
+				0.48
+			],
+			"land_sec": 0.2
+		},
+		"fly": {
+			"_frames": "кадры 280×242 лог., смотрят ВЛЕВО; при движении вправо — зеркало x' = 280 − x (PIV тоже)",
+			"carry": [
+				"stork_fly_carry_up",
+				"stork_fly_carry_down"
+			],
+			"open": [
+				"stork_fly_open_up",
+				"stork_fly_open_down"
+			],
+			"size": [
+				280,
+				242
+			],
+			"pivot": [
+				145.75,
+				127.5
+			],
+			"scale": 0.8,
+			"wing_sec": 0.15,
+			"flip_sec": 0.15,
+			"_hang": "крепление букв (верхняя середина буквы) в кадре, лог. px при масштабе 1; высоты при масштабе 1 (×0,8 в полёте). Буквы — под аистом.",
+			"hang_carry": {
+				"big": [
+					1.5,
+					129.5
+				],
+				"small": [
+					18.0,
+					124.7
+				]
+			},
+			"hang_open": {
+				"big": [
+					5.4,
+					136.3
+				],
+				"small": [
+					20.5,
+					128.1
+				]
+			},
+			"hang_height": {
+				"big": 60,
+				"small": 42
+			},
+			"enter": [
+				[
+					1380,
+					375
+				],
+				[
+					860,
+					372
+				],
+				[
+					710,
+					342
+				]
+			],
+			"enter_speed": 370,
+			"whoosh": "sfx_whoosh",
+			"approach_sec": 1.2,
+			"approach_bezier": [
+				[
+					710.0,
+					342.0
+				],
+				[
+					625.2380952380952,
+					200.0
+				],
+				[
+					360.0,
+					173.99724137931034
+				],
+				[
+					265.0,
+					330.51724137931035
+				]
+			],
+			"scale_land": 0.384
+		},
+		"letters": {
+			"_rects": "рамки глифов на земле [x0,y0,x1,y1] (по непрозрачным пикселям спрайта, с белой обводкой); подложки нет",
+			"big": [
+				389.4,
+				320,
+				625.9,
+				600
+			],
+			"small": [
+				649.9,
+				404,
+				814.6,
+				600
+			],
+			"drop_sec": 0.7,
+			"land_squash": 0.08,
+			"tap_pad": [
+				12,
+				12,
+				20,
+				20
+			],
+			"_tap_pad": "поля зоны касания буквы: слева, сверху, справа, снизу (справа/снизу ≤ 20 px)",
+			"bounce_px": 14,
+			"bounce_sec": 0.32
+		},
+		"voice_appear": "a_word_02",
+		"voice_at_x": 1150,
+		"_voice_at_x": "a_word_02 звучит, когда PIV аиста проходит x ≤ voice_at_x (аист показался на 4:3)",
+		"stork_tap": {
+			"audio": "a_word_02",
+			"flap_frame_sec": 0.14,
+			"flap_cycles": 3
+		},
+		"letter_tap": {
+			"audio": "a_aaa",
+			"fallback": "a_find_03",
+			"max_sec": 1.8
+		},
+		"hint_target": "big",
+		"_unlock_tap": "Первый жест на странице урока (иначе iOS не даст звука): если на lesson-a/ ещё не было касания, на экране луг, дерево и пустое гнездо; гнездо мягко пульсирует, через hint_sec — рука на гнезде; любое касание запускает влёт аиста. В тесте — только с ?gate=1.",
+		"unlock_tap": {
+			"enabled": true,
+			"pulse_scale": 1.05,
+			"pulse_sec": 0.8
+		},
+		"mound_shadow": {
+			"id": "pic_mound_shadow",
+			"pos": [
+				0,
+				0
+			],
+			"size": [
+				1024,
+				768
+			]
+		},
+		"nest_back": {
+			"id": "pic_nest_back",
+			"pos": [
+				0,
+				0
+			],
+			"size": [
+				1024,
+				768
+			]
+		},
+		"front_ground": {
+			"id": "pic_front_ground",
+			"pos": [
+				0,
+				0
+			],
+			"size": [
+				1024,
+				768
+			]
+		}
+	},
+	"intro": {
+		"host": "alya",
+		"bunny": "bunny",
+		"bg": "bg_room_day",
+		"lines": [
+			"a_start_01",
+			"a_intro_01",
+			"a_intro_02",
+			"a_intro_03"
+		],
+		"song": "a_intro_02",
+		"after_tap": "a_intro_04",
+		"_unlock_tap": "Сцена 2 (колыбельная). Тот же первый жест, если урок открыт сразу со сцены 2 (?step=2): Аля и зайка на экране, Аля мягко пульсирует, через hint_sec — рука; любое касание запускает сцену. Со сцены 1 касание уже было — сразу дальше. В тесте — только с ?gate=1.",
+		"unlock_tap": {
+			"enabled": true,
+			"pulse_scale": 1.05,
+			"pulse_sec": 0.8
+		},
+		"rock_pose_has_bunny": false,
+		"sing_pose": "sing_crib",
+		"shh_pose": "shh"
+	},
+	"sing": {
+		"bg": "bg_room_day",
+		"face": "alya_closeup",
+		"lines": [
+			"a_sing_01",
+			"a_sing_02",
+			"a_sing_03"
+		],
+		"loop": "a_aaa",
+		"hold_goal_sec": 2.0,
+		"after_hold": "a_sing_04",
+		"circle": "ui_circle_flat",
+		"waves": "ui_sound_waves",
+		"loop_fallback": "a_find_03",
+		"_loop": "Решение методиста 26.10.2026: при удержании кружка по кругу звучит a_aaa (заменяет a_sing_loop); пока записи нет — a_find_03. Сразу после a_sing_01 один раз звучит образец sample (та же замена).",
+		"sample": "a_aaa",
+		"sample_fallback": "a_find_03"
+	},
+	"words": {
+		"bg": "bg_meadow",
+		"intro": "a_word_01",
+		"slot_hint": "a_word_06",
+		"summary": "a_word_08",
+		"items": [
+			{
+				"pic": "pic_aist",
+				"word": "аист",
+				"voice": "a_word_02",
+				"pos": 0,
+				"end_ok": false,
+				"first_ok": true
+			},
+			{
+				"pic": "pic_alya_card",
+				"word": "Аля",
+				"voice": "a_word_03",
+				"pos": 0,
+				"end_ok": true
+			},
+			{
+				"pic": "pic_astra",
+				"word": "астра",
+				"voice": "a_word_04",
+				"pos": [
+					0,
+					2
+				],
+				"end_ok": false
+			},
+			{
+				"pic": "pic_mak",
+				"word": "мак",
+				"voice": "a_hear_02",
+				"stretch": "a_hear_07",
+				"pos": 1,
+				"end_ok": false
+			},
+			{
+				"pic": "pic_shar",
+				"word": "шар",
+				"voice": "a_hear_04",
+				"stretch": "a_hear_08",
+				"pos": 1,
+				"end_ok": false
+			}
+		],
+		"train": {
+			"_note": "Паровозик сцены 3 — финальная графика (раунд 9, art/common/ui/ui_train_dlya_koda.txt). parts — слева направо на экране, window — центр окошка в долях части (x/246, y/200); slots — какая часть = [начало, середина, конец]. Тела без колёс; колёса (wheels) — на узле поезда, угол = путь / r. steam — клубы пара от трубы (src в координатах паровоза). stop_x/y — остановка (состав 738 px). pic_leave: fade | ride.",
+			"parts": [
+				{
+					"id": "ui_train_engine_right",
+					"window": [
+						0.736,
+						0.49
+					]
+				},
+				{
+					"id": "ui_train_mid_right",
+					"window": [
+						0.5,
+						0.49
+					]
+				},
+				{
+					"id": "ui_train_end_right",
+					"window": [
+						0.431,
+						0.49
+					]
+				}
+			],
+			"slots": [
+				0,
+				1,
+				2
+			],
+			"size": [
+				246,
+				200
+			],
+			"gap": 0,
+			"stop_x": 143,
+			"y": 300,
+			"rails": "ui_train_rails",
+			"rails_y": 486,
+			"rails_h": 36,
+			"wheels": {
+				"id": "ui_train_wheel",
+				"size": [
+					52,
+					52
+				],
+				"r": 24,
+				"y": 166,
+				"x": [
+					[
+						50,
+						124,
+						196
+					],
+					[
+						60,
+						186
+					],
+					[
+						60,
+						184
+					]
+				]
+			},
+			"steam": {
+				"ids": [
+					"ui_train_steam_s",
+					"ui_train_steam_m",
+					"ui_train_steam_l"
+				],
+				"sizes": [
+					[
+						36,
+						28
+					],
+					[
+						56,
+						42
+					],
+					[
+						80,
+						60
+					]
+				],
+				"offsets": [
+					[
+						0,
+						-12
+					],
+					[
+						-14,
+						-42
+					],
+					[
+						-34,
+						-84
+					]
+				],
+				"src": [
+					56,
+					20
+				],
+				"part": 0,
+				"every_drive": 0.45,
+				"every_idle": 1.6,
+				"step_sec": 0.45
+			},
+			"drive_in_sec": 1.8,
+			"drive_out_sec": 1.6,
+			"bob_px": 3,
+			"pic_center": [
+				512,
+				165
+			],
+			"pic_size": [
+				230,
+				230
+			],
+			"pic_leave": "fade",
+			"pic_fade_sec": 0.5,
+			"dot_center": [
+				720,
+				165
+			],
+			"dot_size": [
+				78,
+				78
+			],
+			"direction": "rtl",
+			"clack_sfx": "sfx_train_clack",
+			"_note_rev2": "rev2: parts — слева направо на экране [engine_right, mid_right, end_right] (иллюстратор, раунд 14, r14_part2_koordinaty.txt); pre_mirrored=true — код НЕ отражает состав; окошки/колёса/пар — в координатах этих файлов (246×200 лог.).",
+			"pre_mirrored": true
+		},
+		"end_ok_line": "a_words_end_ok",
+		"second_line": "a_word_10",
+		"_rev1": "Правки 27.10.2026: поезд сразу и справа налево; слова перемешаны (первое — first_ok); мак и шар — звук в середине; астра — pos [0,2] (второй кружок в конце); ячейки cells внизу; буквы end_letters въезжают по рельсам; облака clouds. rev2 (27.10): трава убрана совсем; вагоны — готовые файлы носом влево (*_right), без отражения в коде.",
+		"cells": {
+			"y": 650,
+			"size": 112,
+			"step": 132,
+			"color": "#F7F0DE",
+			"alpha": 0.55,
+			"border": "#B9A27A"
+		},
+		"end_letters": {
+			"big_h": 200,
+			"small_h": 140,
+			"big_x": 430,
+			"small_x": 600,
+			"sink": 6,
+			"ride_sec": 2.0,
+			"tap_line": "a_aaa",
+			"tap_max_sec": 2.0
+		},
+		"clouds": [
+			{
+				"id": "pic_cloud_1",
+				"x": 150,
+				"y": 40,
+				"size": [
+					190,
+					95
+				],
+				"speed": 5
+			},
+			{
+				"id": "pic_cloud_2",
+				"x": 760,
+				"y": 70,
+				"size": [
+					150,
+					75
+				],
+				"speed": 3.5
+			},
+			{
+				"id": "pic_cloud_1",
+				"x": -120,
+				"y": 110,
+				"size": [
+					120,
+					60
+				],
+				"speed": 2.5,
+				"alpha": 0.85
+			}
+		]
+	},
+	"hear": {
+		"bg": "bg_meadow",
+		"_buttons": "Аля: «нажми на красный кружок… если не услышишь — на серый». yes_pic — красный круг #D93A2B, чёрная «А» на нём — общее правило dot_letter (lesson.red_circles); no_pic — серый круг с тёмно-серым крестиком.",
+		"yes_pic": "ui_hear_yes",
+		"no_pic": "ui_hear_no",
+		"_word_audio": "items[].word_audio — слово голосом Али при касании карточки в ряду; сейчас это строки a_hear_02…06 («Мак…», «Кот…»…).",
+		"intro": "a_hear_01",
+		"no_line": "a_hear_10",
+		"done": "p_ok_04",
+		"items": [
+			{
+				"pic": "pic_mak",
+				"word_audio": "a_hear_02",
+				"word": "мак",
+				"voice": "a_hear_02",
+				"has": true,
+				"stretch": "a_hear_07"
+			},
+			{
+				"pic": "pic_kot",
+				"word_audio": "a_hear_03",
+				"word": "кот",
+				"voice": "a_hear_03",
+				"has": false
+			},
+			{
+				"pic": "pic_shar",
+				"word_audio": "a_hear_04",
+				"word": "шар",
+				"voice": "a_hear_04",
+				"has": true,
+				"stretch": "a_hear_08"
+			},
+			{
+				"pic": "pic_dom",
+				"word_audio": "a_hear_05",
+				"word": "дом",
+				"voice": "a_hear_05",
+				"has": false
+			},
+			{
+				"pic": "pic_lampa",
+				"word_audio": "a_hear_06",
+				"word": "лампа",
+				"voice": "a_hear_06",
+				"has": true,
+				"stretch": "a_hear_09"
+			}
+		],
+		"alya": {
+			"who": "alya",
+			"center": [
+				512,
+				372
+			],
+			"size": [
+				240,
+				320
+			],
+			"point_yes_at": 2.6,
+			"point_no_at": 5.0,
+			"hold_sec": 1.8,
+			"point_angle": 1.25,
+			"_poses": "позы художника alya_pose_point_red / alya_pose_point_grey (раунд 14; _base + _mouth_0..2, рот по липсинку)"
+		},
+		"rows": {
+			"y": 120,
+			"step": 145,
+			"yes_x0": 200,
+			"no_x0": 680
+		},
+		"applause": {
+			"word": "аплодисменты",
+			"red": [
+				0
+			],
+			"voice": "a_hear_11",
+			"center": [
+				512,
+				330
+			],
+			"w": 760,
+			"h": 150,
+			"font_size": 96,
+			"sfx": "sfx_cheer"
+		},
+		"buttons": {
+			"_note": "rev2 (27.10): кружки сначала посередине экрана по высоте — слева красный, справа серый, Аля между ними показывает (point_red, потом point_grey); потом оба плавно опускаются на место (slide_sec, ease-out) и начинается игра.",
+			"yes_start": [
+				300,
+				384
+			],
+			"no_start": [
+				724,
+				384
+			],
+			"yes": [
+				330,
+				620
+			],
+			"no": [
+				694,
+				620
+			],
+			"size": [
+				170,
+				170
+			],
+			"slide_sec": 0.6
+		}
+	},
+	"letter": {
+		"_note": "Сцена 6 (ред. 27.10.2026, правки урока А): большая А и маленькая а по центру парой, Аля ниже. lines.intro_seq — реплики по очереди в начале; tap_big / tap_small — что звучит при касании буквы (массив реплик). Реплика: {audio, arm: l|r (какую руку поднимает Аля: l — к большой А слева, r — к маленькой а справа), arm_hold, highlights[{part, t_start, t_end}]}. part: big | small | big:left | big:right | big:bar | small:round | small:stick. Тайминги подсветки оценены по тексту — подстроить после записи голоса. parts.small — под новую форму «а» (кружок + палочка с хвостиком, tools/make_letters.py).",
+		"bg": "bg_desk",
+		"big": {
+			"center": [
+				396,
+				290
+			],
+			"h": 300
+		},
+		"small": {
+			"center": [
+				675,
+				345
+			],
+			"h": 190
+		},
+		"alya": {
+			"who": "alya",
+			"center": [
+				512,
+				592
+			],
+			"size": [
+				218,
+				290
+			],
+			"bob_px": 4
+		},
+		"hl": {
+			"color": "#FFD23C",
+			"alpha": 0.55,
+			"fade_sec": 0.15,
+			"glow": 1.5,
+			"front": true
+		},
+		"parts": {
+			"big": {
+				"left": {
+					"line": [
+						[
+							0.49,
+							0.07
+						],
+						[
+							0.17,
+							0.93
+						]
+					],
+					"w": 0.11
+				},
+				"right": {
+					"line": [
+						[
+							0.49,
+							0.07
+						],
+						[
+							0.81,
+							0.93
+						]
+					],
+					"w": 0.11
+				},
+				"bar": {
+					"line": [
+						[
+							0.31,
+							0.7
+						],
+						[
+							0.69,
+							0.7
+						]
+					],
+					"w": 0.08
+				}
+			},
+			"small": {
+				"round": {
+					"ellipse": [
+						0.423,
+						0.481,
+						0.281,
+						0.29
+					],
+					"w": 0.13
+				},
+				"stick": {
+					"line": [
+						[
+							0.704,
+							0.12
+						],
+						[
+							0.704,
+							0.55
+						],
+						[
+							0.704,
+							0.684
+						],
+						[
+							0.721,
+							0.738
+						],
+						[
+							0.767,
+							0.777
+						],
+						[
+							0.831,
+							0.792
+						],
+						[
+							0.885,
+							0.792
+						]
+					],
+					"w": 0.13
+				}
+			}
+		},
+		"lines": {
+			"intro_seq": [
+				{
+					"audio": "a_letter_05",
+					"highlights": [
+						{
+							"part": "big",
+							"t_start": 3.9,
+							"t_end": 5.0,
+							"word": "буквой А"
+						},
+						{
+							"part": "small",
+							"t_start": 3.9,
+							"t_end": 5.0,
+							"word": "буквой А"
+						}
+					]
+				},
+				{
+					"audio": "w_bolshaya",
+					"arm": "l",
+					"arm_hold": 0.6,
+					"highlights": [
+						{
+							"part": "big",
+							"t_start": 0.0,
+							"t_end": 1.0,
+							"word": "Большая"
+						}
+					]
+				},
+				{
+					"audio": "w_malenkaya",
+					"arm": "r",
+					"arm_hold": 0.6,
+					"highlights": [
+						{
+							"part": "small",
+							"t_start": 0.0,
+							"t_end": 1.1,
+							"word": "Маленькая"
+						}
+					]
+				},
+				{
+					"audio": "a_letter_08",
+					"highlights": []
+				}
+			],
+			"tap_big": [
+				{
+					"audio": "w_bolshaya",
+					"arm": "l",
+					"arm_hold": 0.6,
+					"highlights": [
+						{
+							"part": "big",
+							"t_start": 0.0,
+							"t_end": 1.0,
+							"word": "Большая"
+						}
+					]
+				},
+				{
+					"audio": "a_letter_06",
+					"highlights": [
+						{
+							"part": "big",
+							"t_start": 0.0,
+							"t_end": 1.3,
+							"word": "Большая А"
+						},
+						{
+							"part": "big:left",
+							"t_start": 2.3,
+							"t_end": 4.4,
+							"word": "две палочки наклонились"
+						},
+						{
+							"part": "big:right",
+							"t_start": 2.6,
+							"t_end": 4.4,
+							"word": "две палочки наклонились"
+						},
+						{
+							"part": "big:bar",
+							"t_start": 4.9,
+							"t_end": 6.6,
+							"word": "перекладинка"
+						}
+					]
+				}
+			],
+			"tap_small": [
+				{
+					"audio": "w_malenkaya",
+					"arm": "r",
+					"arm_hold": 0.6,
+					"highlights": [
+						{
+							"part": "small",
+							"t_start": 0.0,
+							"t_end": 1.1,
+							"word": "Маленькая"
+						}
+					]
+				},
+				{
+					"audio": "a_letter_07",
+					"highlights": [
+						{
+							"part": "small",
+							"t_start": 0.0,
+							"t_end": 1.4,
+							"word": "Маленькая а"
+						},
+						{
+							"part": "small:round",
+							"t_start": 1.7,
+							"t_end": 2.7,
+							"word": "кружок"
+						},
+						{
+							"part": "small:stick",
+							"t_start": 2.7,
+							"t_end": 4.3,
+							"word": "палочка с хвостиком"
+						}
+					]
+				}
+			],
+			"outro": {
+				"audio": "a_letter_04",
+				"text": "Большая и маленькая — одна буква Аа. Обе пишут звук А-а-а!",
+				"highlights": [
+					{
+						"part": "big",
+						"t_start": 0.0,
+						"t_end": 1.2,
+						"word": "Большая"
+					},
+					{
+						"part": "small",
+						"t_start": 0.86,
+						"t_end": 2.24,
+						"word": "маленькая"
+					},
+					{
+						"part": "big",
+						"t_start": 4.48,
+						"t_end": 5.0,
+						"word": "А-а-а"
+					},
+					{
+						"part": "small",
+						"t_start": 4.48,
+						"t_end": 5.0,
+						"word": "А-а-а"
+					}
+				]
+			}
+		},
+		"idle_hint": {
+			"sec": 20,
+			"audio": "a_letter_08",
+			"text": "Нажми на любую букву!"
+		}
+	},
+	"write": {
+		"bg": "bg_desk",
+		"lines": [
+			"a_write_01",
+			"a_write_02",
+			"a_write_03",
+			"a_write_04"
+		],
+		"done": "a_write_05",
+		"strokes": [
+			[
+				[
+					512,
+					150
+				],
+				[
+					372,
+					600
+				]
+			],
+			[
+				[
+					512,
+					150
+				],
+				[
+					652,
+					600
+				]
+			],
+			[
+				[
+					407,
+					488
+				],
+				[
+					617,
+					488
+				]
+			]
+		],
+		"tolerance": 40,
+		"min_progress": 0.8,
+		"tolerance_junior": 60,
+		"lower": {
+			"_note": "Правки 27.10.2026: после большой А — маленькая а. Штрихи — ломаные (кружок от точки против часовой, затем палочка с хвостиком), координаты сцены 1024×768, совпадают с letter_a_lower_trace.png (tools/make_letters.py).",
+			"trace": "letter_a_lower_trace",
+			"lines": [
+				"a_write_06",
+				"a_write_07"
+			],
+			"done": "a_write_08",
+			"width": 50,
+			"strokes": [
+				[
+					[
+						566.6,
+						264.6
+					],
+					[
+						546.4,
+						247.4
+					],
+					[
+						524.2,
+						234.4
+					],
+					[
+						500.5,
+						225.8
+					],
+					[
+						475.9,
+						221.9
+					],
+					[
+						451.2,
+						222.9
+					],
+					[
+						426.9,
+						228.7
+					],
+					[
+						403.7,
+						239.1
+					],
+					[
+						382.3,
+						253.9
+					],
+					[
+						363.1,
+						272.6
+					],
+					[
+						346.6,
+						294.8
+					],
+					[
+						333.4,
+						320.0
+					],
+					[
+						323.8,
+						347.4
+					],
+					[
+						317.9,
+						376.2
+					],
+					[
+						316.0,
+						405.9
+					],
+					[
+						318.1,
+						435.5
+					],
+					[
+						324.2,
+						464.3
+					],
+					[
+						334.1,
+						491.6
+					],
+					[
+						347.5,
+						516.6
+					],
+					[
+						364.1,
+						538.6
+					],
+					[
+						383.5,
+						557.1
+					],
+					[
+						405.1,
+						571.7
+					],
+					[
+						428.4,
+						581.8
+					],
+					[
+						452.7,
+						587.3
+					],
+					[
+						477.4,
+						588.0
+					],
+					[
+						501.9,
+						583.8
+					],
+					[
+						525.5,
+						575.0
+					],
+					[
+						547.7,
+						561.7
+					],
+					[
+						567.7,
+						544.2
+					],
+					[
+						585.1,
+						523.1
+					],
+					[
+						599.5,
+						498.9
+					],
+					[
+						610.4,
+						472.3
+					],
+					[
+						617.6,
+						443.8
+					],
+					[
+						620.9,
+						414.3
+					],
+					[
+						620.1,
+						384.6
+					],
+					[
+						615.4,
+						355.4
+					],
+					[
+						606.8,
+						327.5
+					]
+				],
+				[
+					[
+						621.1,
+						202.9
+					],
+					[
+						621.1,
+						243.1
+					],
+					[
+						621.1,
+						283.2
+					],
+					[
+						621.1,
+						323.4
+					],
+					[
+						621.1,
+						363.6
+					],
+					[
+						621.1,
+						403.8
+					],
+					[
+						621.1,
+						444.0
+					],
+					[
+						621.1,
+						484.1
+					],
+					[
+						621.1,
+						524.3
+					],
+					[
+						622.3,
+						536.8
+					],
+					[
+						625.9,
+						548.8
+					],
+					[
+						631.8,
+						559.8
+					],
+					[
+						639.8,
+						569.5
+					],
+					[
+						649.5,
+						577.5
+					],
+					[
+						660.5,
+						583.4
+					],
+					[
+						672.5,
+						587.0
+					],
+					[
+						685.0,
+						588.3
+					],
+					[
+						711.3,
+						588.3
+					]
+				]
+			]
+		}
+	},
+	"find": {
+		"bg": "bg_sky",
+		"intro": "a_find_01",
+		"hit": "a_find_03",
+		"near_miss_line": "a_find_02",
+		"targets": [
+			"А",
+			"А",
+			"А",
+			"а",
+			"а",
+			"а"
+		],
+		"rise_sec": 25.0,
+		"balloon_colors": [
+			"beige",
+			"grey",
+			"sand",
+			"cream"
+		],
+		"pop_frames": 3,
+		"shapes": [
+			"triangle",
+			"circle",
+			"square",
+			"star"
+		],
+		"near_miss_shape": "triangle",
+		"counter_empty": "ui_counter_star_empty",
+		"counter_full": "ui_counter_star_gold",
+		"letters_end": {
+			"_note": "После последнего шарика: в центре появляются большая А и маленькая а; нажатие — звук. Голос: a_find_03 («А!»).",
+			"big_center": [
+				420,
+				400
+			],
+			"big_h": 260,
+			"big_voice": "a_find_03",
+			"small_center": [
+				640,
+				440
+			],
+			"small_h": 180,
+			"small_voice": "a_find_03"
+		},
+		"stars": {
+			"_note": "Правки 27.10: звёздочки по бокам — слева 3 столбиком под большой А, справа 3 под маленькой а; шарики летают между столбиками.",
+			"left_x": 64,
+			"right_x": 960,
+			"letter_y": 236,
+			"letter_h": 70,
+			"star_y": [
+				310,
+				380,
+				450
+			],
+			"size": 56,
+			"gap": 14
+		},
+		"clouds": [
+			{
+				"_note": "Правки 27.10: ещё одно облако сверху (заглушка pic_cloud_1 до иллюстратора).",
+				"pic": "pic_cloud_1",
+				"center": [
+					540,
+					78
+				],
+				"size": [
+					220,
+					110
+				],
+				"drift_px": 36,
+				"drift_sec": 16
+			}
+		],
+		"spread_y": [
+			0,
+			280,
+			140,
+			420
+		],
+		"end_pop": {
+			"_note": "Правки 27.10: после последнего нужного шарика остальные лопаются почти одновременно и тихо, потом появляются буквы.",
+			"delay_sec": 0.5,
+			"stagger_sec": 0.06,
+			"volume_db": -12.0,
+			"after_sec": 0.4
+		}
+	},
+	"sort": {
+		"bg": "bg_meadow",
+		"intro": "a_sort_01",
+		"fill_pic": "pic_grib",
+		"_done_tap": "После конца сцены касание любой корзинки — «А-а-а» голосом Али + подскок; до конца корзинки не реагируют. Нет файла audio (a_aaa «А-а-а» — общая запись сцен 1, 3, 9; заменяет a_sort_aaa; пока не записан) — fallback a_find_03 «А!» (есть); нет и его — только подскок.",
+		"done_tap": {
+			"audio": "a_aaa",
+			"fallback": "a_find_03",
+			"max_sec": 1.8,
+			"bounce_px": 14,
+			"bounce_sec": 0.32
+		},
+		"tiles": [
+			"А",
+			"а",
+			"а",
+			"А",
+			"а",
+			"А"
+		],
+		"_layout": "Сцена 8 v3 — ФИНАЛ иллюстратора (раунд 11, 26.10.2026; числа — art/lesson_a/s08_dlya_koda.txt). Все прямоугольники — логические 1024×768 [x0,y0,x1,y1]. Корзинка: frame — рамка картинки (PNG 2×: 475×633 / 380×508; одна рамка для состояний 0–4), silhouette — плетёнка без ананасов, content4 — видимое в состоянии 4, drop — зона сброса, label — табличка (big [279,602,381,674] центр (330;638), small [659,630,740,687] центр (700;658,5)). states[n] — корзинка с n ананасами, табличка в ней пустая; letter — буква «А»/«а» отдельным слоем того же холста поверх любого состояния. Во время игры состояние = число положенных плиток (1–3), после последней плитки обе корзинки → 4. Кусты pic_ananas_bush: центры x_list, низ base_y, ширина width. Плитки tile_sort_a_upper/lower одним рядом: центр = (x + tile_offset[0], tile_y) = x 160,5…840,5 шаг 136, y 220, размер 83. Порядок плиток — tiles (shuffle=false). morph: плитка у корзинки превращается в ананас (pic_ananas_morph_f1..f3 по frame_sec, вспышка pic_ananas_flash_2), затем корзинка → следующее состояние. bed — грядка (рисуется кодом).",
+		"layout": {
+			"basket_big": {
+				"states": [
+					"pic_basket_big_0",
+					"pic_basket_big_1",
+					"pic_basket_big_2",
+					"pic_basket_big_3",
+					"pic_basket_big_4"
+				],
+				"frame": [
+					212,
+					428,
+					449.5,
+					744.5
+				],
+				"silhouette": [
+					214,
+					540,
+					446,
+					742
+				],
+				"content4": [
+					214,
+					430,
+					446,
+					742
+				],
+				"drop": [
+					202,
+					418,
+					458,
+					742
+				],
+				"letter": "pic_basket_big_letter",
+				"label": [
+					279,
+					602,
+					381,
+					674
+				]
+			},
+			"basket_small": {
+				"states": [
+					"pic_basket_small_0",
+					"pic_basket_small_1",
+					"pic_basket_small_2",
+					"pic_basket_small_3",
+					"pic_basket_small_4"
+				],
+				"frame": [
+					605,
+					490,
+					795,
+					744
+				],
+				"silhouette": [
+					607,
+					580,
+					793,
+					742
+				],
+				"content4": [
+					607,
+					492,
+					793,
+					742
+				],
+				"drop": [
+					595,
+					480,
+					805,
+					742
+				],
+				"letter": "pic_basket_small_letter",
+				"label": [
+					659,
+					630,
+					740,
+					687
+				]
+			},
+			"bushes": {
+				"pic": "pic_ananas_bush",
+				"x_list": [
+					172,
+					308,
+					444,
+					580,
+					716,
+					852
+				],
+				"base_y": 346,
+				"width": 170
+			},
+			"tile_pics": {
+				"А": "tile_sort_a_upper",
+				"а": "tile_sort_a_lower"
+			},
+			"tile_size": [
+				83,
+				83
+			],
+			"tile_y": 220,
+			"tile_offset": [
+				-11.5,
+				-126
+			],
+			"bed": {
+				"rect": [
+					92,
+					312,
+					932,
+					384
+				],
+				"front_y": 352,
+				"top": "#B48A5C",
+				"front": "#9A7249",
+				"radius": 18
+			},
+			"morph": {
+				"frames": [
+					"pic_ananas_morph_f1",
+					"pic_ananas_morph_f2",
+					"pic_ananas_morph_f3"
+				],
+				"flash": "pic_ananas_flash_2",
+				"size": [
+					130,
+					130
+				],
+				"frame_sec": 0.14,
+				"fly_sec": 0.3
+			}
+		},
+		"shuffle": false,
+		"drop_say": {
+			"_note": "Правки 27.10: верно положенная плитка звучит — [а] голосом Али (очередь, без наложения). Нет файла — fallback; нет и его — тишина.",
+			"audio": "a_aaa",
+			"fallback": "a_find_03",
+			"max_sec": 1.8
+		},
+		"sun": {
+			"_note": "Правки 27.10: статичное солнце по центру сверху над ананасами + длинные полупрозрачные лучи (pic_sun, pic_sun_rays; заглушки до иллюстратора).",
+			"pic": "pic_sun",
+			"rays": "pic_sun_rays",
+			"center": [
+				512,
+				58
+			],
+			"size": [
+				100,
+				100
+			],
+			"rays_size": [
+				700,
+				380
+			],
+			"rays_apex": [
+				0.5,
+				0.053
+			],
+			"rays_alpha": 1.0
+		}
+	},
+	"end": {
+		"_note": "rev2 (27.10): по макету пользователя art/sketches/v3/_refs/ref_s11_user_layout_2026-10-27.png и финальным координатам Иллюстратора (08:37); зазоры <150 px здесь приняты пользователем. Аля по пояс (alya_half) крупно слева 693×693, центр (206.5,551.5), обрез снизу по y 648, на всех шагах на месте, не уходит; шаг 1 — наклейка 320 в (608,318), рамка (448,158)-(768,478) (утверждено 27.10 11:28, «вариант помягче»; «Ещё раз» на шаге 1 нет, появляется после посадки наклейки); при раскрытии альбома наклейка поверх него (слои: фон → Аля → альбом → наклейка); касание → справа раскрытый альбом 2 страницы (3×6 А…Р, 3×5 С…Я) 519×368 от (337,239), поверх края волос Али; наклейка летит в клетку «А а» (387.6,278.3) до 49.1 с искорками; внизу по центру «Ещё раз» (638,688); «Далее» нет. Место/размер Али, альбома и наклейки — только здесь.",
+		"bg": "bg_room_evening",
+		"host": "alya_half",
+		"host_at": {
+			"_fit": "иллюстратор: 693×693 (масштаб 0.825 файла 840), левый верх (-140,205), центр (206.5,551.5); clip_bottom — обрез снизу по y сцены (как на макете)",
+			"center": [
+				206.5,
+				551.5
+			],
+			"size": [
+				693,
+				693
+			],
+			"clip_bottom": 648
+		},
+		"lines": [
+			"a_end_01",
+			"a_end_04"
+		],
+		"sticker": "reward_sticker_a",
+		"sticker_at": {
+			"center": [
+				608,
+				318
+			],
+			"size": [
+				320,
+				320
+			]
+		},
+		"tap": {
+			"audio": "a_aaa",
+			"fallback": "a_find_03",
+			"max_sec": 1.8
+		},
+		"album": {
+			"_layout": "Финал Иллюстратора 27.10 (08:37): файлы *_2x3_s11 1038×736 @2x → 519×368, левый верх (337,239); центр контура (596.5,423). Клетка 71.7×49.1; клетка «А а» центр (387.6,278.3) — в px файла cells[0] = [29.5,29.5,143.4,98.2]. Альбом поверх Али (край волос), под наклейкой. Положение/размер — только здесь.",
+			"page": "reward_album_page_2x3_s11",
+			"alphabet": "reward_album_alphabet_2x3_s11",
+			"center": [
+				596.5,
+				423
+			],
+			"size": [
+				519,
+				368
+			],
+			"src_size": [
+				1038,
+				736
+			],
+			"cells": [
+				[
+					29.5,
+					29.5,
+					143.4,
+					98.2
+				]
+			],
+			"sticker_cell": 0,
+			"fly_sec": 1.0,
+			"open_sec": 0.45,
+			"sparkles": true
+		},
+		"again": {
+			"pic": "ui_btn_again",
+			"center": [
+				638,
+				688
+			],
+			"size": [
+				120,
+				120
+			]
+		}
+	},
+	"card_frame": "ui_card_frame",
+	"cream_underlay_bgs": [
+		"bg_room_evening"
+	],
+	"_cream_underlay_bgs": "красная буква / кружок на этих фонах — автоматически на кремовой подложке #F7F0DE (DESIGN_RULES.md §3)",
+	"sound_dot": "ui_circle_flat",
+	"red_circles": [
+		"ui_circle_flat",
+		"ui_hear_yes"
+	],
+	"dot_letter": "А",
+	"dot_letter_frac": 0.62,
+	"dot_letter_color": "#1E1A16"
 }
