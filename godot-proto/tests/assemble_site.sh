@@ -9,7 +9,9 @@ test -s build/index.html && test -s build/index.wasm && test -s build/index.pck
 rm -rf "$SITE" && mkdir -p "$SITE/lesson-a" "$SITE/lesson-u"
 (cd ../web-home && tar --exclude=./tools -cf - .) | tar -C "$SITE" -xf -
 cp -R build/. "$SITE/lesson-a/"
-# Урок «У» — тот же web-export; буква выбирается ?letter=u / ?lesson=u
+# Урок «У» — тот же web-export; буква выбирается по пути /lesson-u/ или ?letter=u.
+# Заставка и заголовок в экспорте — от «А», их подменяет stamp_lesson_u.sh.
 cp -R build/. "$SITE/lesson-u/"
+bash ../web-home/tools/stamp_lesson_u.sh "$SITE/lesson-u"
 touch "$SITE/.nojekyll"
 echo "site: $(cd "$SITE" && pwd)"; (cd "$SITE" && find . -type f | sort)

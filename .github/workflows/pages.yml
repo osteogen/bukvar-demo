@@ -80,6 +80,14 @@ jobs:
           # один веб-экспорт на оба урока: буква — из пути страницы (/lesson-u/) или из ?letter=
           cp -R godot-proto/build/. site/lesson-a/
           cp -R godot-proto/build/. site/lesson-u/
+          # заставка загрузки и <title>: в экспорте кубик «А» и «Урок А — демо»
+          bash web-home/tools/stamp_lesson_u.sh site/lesson-u
+          grep -q '<title>Урок У — демо</title>' site/lesson-u/index.html
+          grep -q '<title>Урок А — демо</title>' site/lesson-a/index.html
+          if cmp -s site/lesson-a/index.apple-touch-icon.png site/lesson-u/index.apple-touch-icon.png; then
+            echo "lesson-u splash must differ from lesson-a"
+            exit 1
+          fi
           touch site/.nojekyll
           test -s site/index.html
           test -s site/lesson-a/index.html
