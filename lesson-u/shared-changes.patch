@@ -1,0 +1,82 @@
+--- a/godot-proto/core/assets.gd
++++ b/godot-proto/core/assets.gd
+@@ -45,7 +45,10 @@ func _ready() -> void:
+ 	_read_params()
+ 	_load_settings()
+-	letter_id = String(params.get("letter", "a")).validate_filename()
++	# ?lesson=u — алиас для ?letter=u (урок «У» и далее)
++	if not params.has("letter") and params.has("lesson"):
++		params["letter"] = params["lesson"]
++	letter_id = String(params.get("letter", "a")).validate_filename()
+ 	lesson = _load_json("res://data/lesson_%s/lesson.json" % letter_id)
+ 	lines = _load_json("res://data/common/lines.json")
+ 	lines.merge(_load_json("res://data/lesson_%s/lines.json" % letter_id), true)
+
+--- a/godot-proto/core/assets.gd
++++ b/godot-proto/core/assets.gd
+@@ -92,6 +92,9 @@ func art_rel(name: String) -> String:
+ 	if name.contains("/"):
+ 		return "characters/" + name + ".png"
+-	if name.begins_with("pic_") or name.begins_with("stork_") or (name.length() > 2 and name[0] == "s" and name[1].is_valid_int()):
++	# anim_* — клипы урока (утка с табличкой и т.п.)
++	if name.begins_with("pic_") or name.begins_with("stork_") or name.begins_with("anim_") \
++			or (name.length() > 2 and name[0] == "s" and name[1].is_valid_int()):
+ 		return "lesson_%s/%s.png" % [letter_id, name]
+
+--- a/godot-proto/menu/letters_menu.gd
++++ b/godot-proto/menu/letters_menu.gd
+@@ -8,7 +8,8 @@ extends LessonStep
+ const ALPHABET := "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
+-const ACTIVE := "А"
++# Разработка «У»: открыть А и У. После выкладки — брать из прогресса / STUDY_ORDER.
++const ACTIVE := "АУ"
+ const CUBE_COLORS := [
+
+@@ -108,12 +109,22 @@ func _cube(ch: String, pos: Vector2, color: Color) -> Control:
+ 	if locked:
+ 		btn.pressed.connect(func(): shake(btn, pos, false); Voice.sfx("sfx_try"))
+ 		if ch == "Б":
+ 			main.expose("letter_locked", btn)
+ 	else:
+-		btn.pressed.connect(_start_lesson)
++		btn.pressed.connect(_start_lesson.bind(ch))
+ 	return btn
+
+-func _start_lesson() -> void:
++func _start_lesson(ch: String = "А") -> void:
+ 	main.hint_stop()
+-	main.log_event("letter", {"ch": ACTIVE})
++	main.log_event("letter", {"ch": ch})
+ 	Voice.sfx("sfx_start")
+-	main.start_lesson()
++	# Переключить букву урока и перечитать lesson.json (нужен небольшой хук в Assets/Main).
++	# ВАРИАНТ A (минимальный до хука): У открывает тот же билд с ?letter=u через JS на вебе;
++	# на десктопе — Assets.letter_id = TRANSLIT[ch] + перезагрузка lesson + main.goto(0).
++	# Полный хук — отдельный PR: Assets.reload_letter(id) + Main.start_lesson().
++	if ch == "У":
++		Assets.letter_id = "u"
++		Assets.lesson = Assets._load_json("res://data/lesson_u/lesson.json")
++		Assets.lines = Assets._load_json("res://data/common/lines.json")
++		Assets.lines.merge(Assets._load_json("res://data/lesson_u/lines.json"), true)
++		# steps list lives on Main — Main must rebuild steps from Assets.lesson.steps
++	main.start_lesson()
+
+--- a/web-home/index.html
++++ b/web-home/index.html
+@@ -126,7 +126,8 @@
+   var ALPHABET = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ";
+-  var LESSONS = { "А": "lesson-a/" };
++  // После отдельного web-export урока «У» в lesson-u/:
++  var LESSONS = { "А": "lesson-a/", "У": "lesson-u/" };
+
+--- a/godot-proto/tests/lesson.mjs
++++ b/godot-proto/tests/lesson.mjs
+@@
++// TODO(lesson-u): LETTER=u node tests/lesson.mjs — отдельный сценарий касаний для
++// s01_duck / s03u_words / s05u_letter_word / s07u_memory / s08u_read (не править
++// текущий suite «А» в том же PR, что audio-worker «А»).
+
+# Примечание по применению
+# Этот патч НЕ применён (collision avoidance с concurrent worker «А»).
+# ?letter=u уже работает без патча. ?lesson=u нужен алиас выше.
+# Меню/web-home — только когда будет package lesson-u/ и можно трогать shared.

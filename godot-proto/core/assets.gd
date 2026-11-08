@@ -3,6 +3,7 @@
 ##   pic_*            → res://art/lesson_<буква>/pic_*.png        (кадры: pic_<id>_f1/_f2)
 ##   s<N>_*           → res://art/lesson_<буква>/s<N>_*.png       (картинки одной сцены: s8_basket_big_A_0 …)
 ##   stork_*          → res://art/lesson_<буква>/stork_*.png      (аист сцены 1: stork_fly_*, stork_nest_*)
+##   duck_*, alya_pose_*, alya_mouth_* → res://art/lesson_<буква>/…  (сцена 1 «У»: утка + позы/рот Али)
 ##   bg_*             → res://art/common/bg/bg_*.png
 ##   ui_*             → res://art/common/ui/ui_*.png
 ##   reward_*         → res://art/common/reward/reward_*.png
@@ -45,6 +46,8 @@ const TRANSLIT := {"а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": 
 func _ready() -> void:
 	_read_params()
 	_load_settings()
+	if not params.has("letter") and params.has("lesson"):
+		params["letter"] = params["lesson"]
 	letter_id = String(params.get("letter", "a")).validate_filename()
 	lesson = _load_json("res://data/lesson_%s/lesson.json" % letter_id)
 	lines = _load_json("res://data/common/lines.json")
@@ -92,8 +95,8 @@ const ART_TIERS := ["res://art/", "res://art_provisional/", "res://art_placehold
 func art_rel(name: String) -> String:
 	if name.contains("/"):
 		return "characters/" + name + ".png"
-	if name.begins_with("pic_") or name.begins_with("stork_") or (name.length() > 2 and name[0] == "s" and name[1].is_valid_int()):
-		# pic_*, кадры аиста stork_* (сцена 1) и картинки отдельных сцен урока s<N>_* (напр. s8_basket_big_A_0) — в папке урока
+	if name.begins_with("pic_") or name.begins_with("stork_") or name.begins_with("duck_") or name.begins_with("alya_pose_") or name.begins_with("alya_mouth_") or name.begins_with("anim_") or (name.length() > 2 and name[0] == "s" and name[1].is_valid_int()):
+		# pic_*; stork_*/duck_*/alya_pose_*/alya_mouth_* (сцена 1 «У»); anim_*; s<N>_* — в папке урока
 		return "lesson_%s/%s.png" % [letter_id, name]
 	if name.begins_with("bg_"):
 		return "common/bg/" + name + ".png"
@@ -146,3 +149,10 @@ func line_text(id: String) -> String:
 
 func line_dur(id: String) -> float:
 	return float(lines.get(id, {}).get("dur", 1.0))
+
+## Переключить букву урока (меню / тесты). Перечитывает lesson.json + lines.
+func reload_letter(id: String) -> void:
+	letter_id = String(id).validate_filename()
+	lesson = _load_json("res://data/lesson_%s/lesson.json" % letter_id)
+	lines = _load_json("res://data/common/lines.json")
+	lines.merge(_load_json("res://data/lesson_%s/lines.json" % letter_id), true)

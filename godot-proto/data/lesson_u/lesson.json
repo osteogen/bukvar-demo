@@ -1,0 +1,588 @@
+{
+  "id": "u",
+  "title": "Звук [у], буква У",
+  "big": "У",
+  "small": "у",
+  "host": "alya",
+  "steps": [
+    "s01_duck",
+    "s03_sing",
+    "s03u_words",
+    "s06_letter",
+    "s05u_letter_word",
+    "s07_write",
+    "s07u_memory",
+    "s08u_read",
+    "s10_end"
+  ],
+  "sound_dot": "ui_circle_flat",
+  "red_circles": [
+    "ui_circle_flat"
+  ],
+  "dot_letter": "У",
+  "dot_letter_frac": 0.62,
+  "dot_letter_color": "#1E1A16",
+  "card_frame": "ui_card_frame",
+  "cream_underlay_bgs": [
+    "bg_meadow",
+    "bg_room_day",
+    "bg_room_evening",
+    "bg_desk",
+    "bg_yard"
+  ],
+  "duck": {
+    "_note": "Сцена 1 чистовик v6j: alya_pose_sign — кадр 2048×1536, в сцену вырез Али (region_2x), пальцы поверх таблички. SIGN_HOLD [315.5,579.5,553.5,738.5] hold_scale 0.9597; ALYA_BB [274,244,599,768]; рот place_2x (311,443); SIGN_FULL без изменений [262,169,734,599]. Кроссфейд 0.15 только по альфе. geom: art/lesson_u/s01_geom.json",
+    "bg": "bg_yard",
+    "intro": "u_intro_01",
+    "sound": "u_sound",
+    "quack": "sfx_quack",
+    "pull_cue_sec": 2.496,
+    "pull_sec": 0.45,
+    "enlarge_sec": 0.7,
+    "nav_pad": 150,
+    "crossfade_sec": 0.15,
+    "walk_sec": 3.0,
+    "walk_speed": 50,
+    "near": [
+      715,
+      478
+    ],
+    "stop": [
+      790,
+      465
+    ],
+    "far": [
+      865,
+      452
+    ],
+    "alya_idle": "alya_pose_idle",
+    "alya_sign": "alya_pose_sign",
+    "alya_idle_place": [
+      155.5,
+      221.5
+    ],
+    "alya_idle_size": [
+      546.5,
+      546.5
+    ],
+    "alya_bb": [
+      274,
+      244,
+      599,
+      768
+    ],
+    "alya_sign_region_2x": [
+      548,
+      487,
+      650,
+      1049
+    ],
+    "alya_sign_place": [
+      274.0,
+      243.5
+    ],
+    "alya_sign_size": [
+      325.0,
+      524.5
+    ],
+    "mouth_place_2x": [
+      311,
+      443
+    ],
+    "hold_scale": 0.9597,
+    "mouth_0": "alya_mouth_0",
+    "mouth_1": "alya_mouth_1",
+    "mouth_2": "alya_mouth_2",
+    "mouth_u": "alya_mouth_u",
+    "sign_hold": "ui_sign_u_hold",
+    "sign_full": "ui_sign_u_full",
+    "sign_hold_bb": [
+      315.5,
+      579.5,
+      553.5,
+      738.5
+    ],
+    "sign_full_bb": [
+      262,
+      169,
+      734,
+      599
+    ],
+    "vowel_windows": [
+      [
+        0.36,
+        1.82
+      ],
+      [
+        2.4,
+        3.14
+      ]
+    ],
+    "duck_pivots": {
+      "walk_a": [
+        83.75,
+        174.0
+      ],
+      "walk_b": [
+        84.25,
+        174.0
+      ],
+      "walk_c": [
+        88.0,
+        167.0
+      ],
+      "stand": [
+        82.75,
+        174.0
+      ],
+      "quack": [
+        81.25,
+        174.0
+      ]
+    },
+    "hint_target": "sign",
+    "duck_path_note": {
+      "_note": "земля +40 уже в v6c geom; NEAR/STOP/FAR подключены",
+      "near": [
+        715,
+        478
+      ],
+      "stop": [
+        790,
+        465
+      ],
+      "far": [
+        865,
+        452
+      ]
+    }
+  },
+  "sing": {
+    "bg": "bg_room_day",
+    "face": "alya_closeup",
+    "lines": [
+      "u_sing_01",
+      "a_sing_03",
+      "a_sing_03"
+    ],
+    "loop": "u_sing_loop",
+    "hold_goal_sec": 2.0,
+    "after_hold": "u_sound",
+    "circle": "ui_circle_flat",
+    "waves": "ui_sound_waves",
+    "loop_fallback": "u_sound",
+    "sample": "u_sound",
+    "sample_fallback": "u_sound"
+  },
+  "words": {
+    "_note": "Звуковая полоска: перетащить красный кружок в 1-ю клетку. Подсказки руки — только после 20 с (C1).",
+    "bg": "bg_meadow",
+    "items": [
+      {
+        "pic": "pic_ukho",
+        "audio": "u_word_02",
+        "cells": 3
+      },
+      {
+        "pic": "pic_udochka",
+        "audio": "u_word_03",
+        "cells": 6
+      }
+    ],
+    "circle": "ui_circle_flat",
+    "hint_drag": "h_drag_01",
+    "card_size": [
+      280,
+      280
+    ],
+    "strip_y": 520,
+    "cell_size": [
+      70,
+      70
+    ]
+  },
+  "letter": {
+    "bg": "bg_desk",
+    "big": {
+      "center": [
+        396,
+        290
+      ],
+      "h": 300
+    },
+    "small": {
+      "center": [
+        675,
+        345
+      ],
+      "h": 190
+    },
+    "alya": {
+      "who": "alya",
+      "center": [
+        512,
+        592
+      ],
+      "size": [
+        218,
+        290
+      ],
+      "bob_px": 4
+    },
+    "hl": {
+      "color": "#FFD23C",
+      "alpha": 0.55,
+      "fade_sec": 0.15,
+      "glow": 1.5,
+      "front": true
+    },
+    "parts": {
+      "big": {
+        "left": {
+          "line": [
+            [
+              0.28,
+              0.12
+            ],
+            [
+              0.5,
+              0.55
+            ]
+          ],
+          "w": 0.11
+        },
+        "right": {
+          "line": [
+            [
+              0.72,
+              0.12
+            ],
+            [
+              0.5,
+              0.92
+            ]
+          ],
+          "w": 0.11
+        }
+      },
+      "small": {
+        "left": {
+          "line": [
+            [
+              0.3,
+              0.18
+            ],
+            [
+              0.5,
+              0.55
+            ]
+          ],
+          "w": 0.12
+        },
+        "right": {
+          "line": [
+            [
+              0.7,
+              0.18
+            ],
+            [
+              0.5,
+              0.95
+            ]
+          ],
+          "w": 0.12
+        }
+      }
+    },
+    "lines": {
+      "intro_seq": [
+        {
+          "audio": "u_letter_01",
+          "highlights": [
+            {
+              "part": "big",
+              "t_start": 1.5,
+              "t_end": 3.0
+            },
+            {
+              "part": "small",
+              "t_start": 3.2,
+              "t_end": 4.5
+            }
+          ]
+        }
+      ],
+      "tap_big": [
+        {
+          "audio": "u_sound",
+          "highlights": [
+            {
+              "part": "big",
+              "t_start": 0.0,
+              "t_end": 1.0
+            }
+          ]
+        }
+      ],
+      "tap_small": [
+        {
+          "audio": "u_sound",
+          "highlights": [
+            {
+              "part": "small",
+              "t_start": 0.0,
+              "t_end": 1.0
+            }
+          ]
+        }
+      ],
+      "outro": {
+        "audio": "u_sound",
+        "highlights": []
+      }
+    },
+    "idle_hint": {
+      "sec": 20,
+      "audio": "u_letter_01",
+      "text": "Нажми на любую букву!"
+    }
+  },
+  "letter_word": {
+    "bg": "bg_desk",
+    "items": [
+      {
+        "pic": "pic_utka",
+        "word": "Утка",
+        "audio": "u_word_01"
+      },
+      {
+        "pic": "pic_ukho",
+        "word": "Ухо",
+        "audio": "u_word_02"
+      },
+      {
+        "pic": "pic_ulei",
+        "word": "Улей",
+        "audio": "u_word_04"
+      }
+    ],
+    "intro": "u_letter_word_01",
+    "letter_h": 260,
+    "card_size": [
+      240,
+      240
+    ]
+  },
+  "write": {
+    "bg": "bg_desk",
+    "lines": [
+      "u_sound",
+      "u_sound"
+    ],
+    "done": "u_write_done",
+    "strokes": [
+      [
+        [
+          380,
+          160
+        ],
+        [
+          512,
+          420
+        ]
+      ],
+      [
+        [
+          644,
+          160
+        ],
+        [
+          512,
+          620
+        ]
+      ]
+    ],
+    "tolerance": 48,
+    "min_progress": 0.8,
+    "tolerance_junior": 70,
+    "width": 56
+  },
+  "memory": {
+    "bg": "bg_meadow",
+    "intro": "u_memory_01",
+    "rounds": [
+      {
+        "pairs": [
+          [
+            "letter_U",
+            "letter_U"
+          ],
+          [
+            "pic_utka",
+            "pic_utka"
+          ]
+        ],
+        "cols": 2
+      },
+      {
+        "pairs": [
+          [
+            "letter_U",
+            "letter_U"
+          ],
+          [
+            "letter_u",
+            "letter_u"
+          ],
+          [
+            "letter_A",
+            "letter_A"
+          ]
+        ],
+        "cols": 3
+      },
+      {
+        "pairs": [
+          [
+            "pic_utka",
+            "pic_utka"
+          ],
+          [
+            "pic_ukho",
+            "pic_ukho"
+          ],
+          [
+            "pic_udochka",
+            "pic_udochka"
+          ],
+          [
+            "pic_ulei",
+            "pic_ulei"
+          ],
+          [
+            "pic_aist",
+            "pic_aist"
+          ],
+          [
+            "pic_astra",
+            "pic_astra"
+          ]
+        ],
+        "cols": 4
+      }
+    ],
+    "card_size": [
+      180,
+      180
+    ],
+    "audio_map": {
+      "pic_utka": "u_word_01",
+      "pic_ukho": "u_word_02",
+      "pic_udochka": "u_word_03",
+      "pic_ulei": "u_word_04",
+      "letter_U": "u_sound",
+      "letter_u": "u_sound",
+      "letter_A": "a_aaa",
+      "pic_aist": "a_word_02",
+      "pic_astra": "a_word_04"
+    },
+    "letter_A_fallback": "a_find_03"
+  },
+  "read": {
+    "bg": "bg_forest_small",
+    "bg_home": "bg_room_evening",
+    "board_y": 620,
+    "track_y": 700,
+    "ay": {
+      "order": [
+        "А",
+        "У"
+      ],
+      "audio": "u_read_ay",
+      "label": "ау"
+    },
+    "ua": {
+      "order": [
+        "У",
+        "А"
+      ],
+      "audio": "u_read_ua",
+      "label": "уа"
+    },
+    "baby": "pic_baby_crib",
+    "bunny": "pic_bunny_forest"
+  },
+  "end": {
+    "bg": "bg_room_evening",
+    "host": "alya_half",
+    "host_at": {
+      "center": [
+        206.5,
+        551.5
+      ],
+      "size": [
+        693,
+        693
+      ],
+      "clip_bottom": 648
+    },
+    "lines": [
+      "u_end_01"
+    ],
+    "sticker": "reward_sticker_utka",
+    "sticker_at": {
+      "center": [
+        608,
+        318
+      ],
+      "size": [
+        320,
+        320
+      ]
+    },
+    "tap": {
+      "audio": "u_word_01",
+      "fallback": "u_sound",
+      "max_sec": 1.8
+    },
+    "album": {
+      "page": "reward_album_page_2x3_s11",
+      "alphabet": "reward_album_alphabet_2x3_s11",
+      "center": [
+        596.5,
+        423
+      ],
+      "size": [
+        519,
+        368
+      ],
+      "src_size": [
+        1038,
+        736
+      ],
+      "cells": [
+        [
+          29.5,
+          29.5,
+          143.4,
+          98.2
+        ]
+      ],
+      "sticker_cell": 0,
+      "fly_sec": 1.0,
+      "open_sec": 0.45,
+      "sparkles": true
+    },
+    "again": {
+      "pic": "ui_btn_again",
+      "center": [
+        638,
+        688
+      ],
+      "size": [
+        120,
+        120
+      ]
+    }
+  }
+}

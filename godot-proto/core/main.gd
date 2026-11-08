@@ -344,6 +344,9 @@ func show_letters() -> void:
 
 ## Вход в урок «А» с экрана букв: сразу сцена 1 (памятки s00 больше нет).
 func start_lesson() -> void:
+	# После Assets.reload_letter — пересобрать шаги из нового lesson.json
+	steps = Assets.lesson.get("steps", [])
+	completed.clear()
 	goto(0)
 
 func exit_to_letters() -> void:
@@ -639,7 +642,7 @@ func publish() -> void:
 		if is_instance_valid(c) and c.is_visible_in_tree():
 			var r: Rect2 = c.get_global_rect()
 			t[k] = [r.get_center().x, r.get_center().y]
-	var d := {"step": screen, "state": state, "targets": t, "hint_sec": idle_hint_sec,
+	var d := {"step": screen, "state": state, "letter_id": Assets.letter_id, "targets": t, "hint_sec": idle_hint_sec,
 		"exit_overlaps": _exit_overlaps(), "ui_overlaps": ui_overlaps() if test_mode else [], "sfx_counts": Voice.sfx_counts, "ui_rects": _ui_rects(),
 		"content_rect": [content_rect.position.x, content_rect.position.y, content_rect.size.x, content_rect.size.y],
 		"visible_rect": _r4(visible_rect()), "safe_rect": _r4(safe_rect()),

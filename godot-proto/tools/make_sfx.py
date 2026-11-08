@@ -3,6 +3,7 @@
 
   sfx_click        — щелчок механической клавиатуры (нажатие кнопок интерфейса), ~90 мс;
   sfx_train_clack  — перестук колёс «та-дам, та-дам» (паровозик въезжает / уезжает), ~2,2 с.
+  sfx_quack        — короткий утиный «кря» (сцена 1 урока «У»), ~0,55 с.
 
 Запуск:  python3 tools/make_sfx.py   → audio/common/<id>.ogg (нужен ffmpeg).
 Звукорежиссёр может заменить файлы своими с тем же именем (уровень res://audio/ важнее заглушек).
@@ -75,6 +76,26 @@ def train_clack():
     return b * fade * 0.55
 
 
+
+def quack():
+    """Утиный «кря» — свой синтез (CC0), без чужих сэмплов."""
+    dur = 0.55
+    b = np.zeros(int(dur * SR))
+    n = int(0.35 * SR)
+    t = np.arange(n) / SR
+    f0 = 380 * np.exp(-t * 6.0)
+    q = np.sin(2 * np.pi * np.cumsum(f0) / SR)
+    q += 0.45 * np.sin(2 * np.pi * np.cumsum(f0 * 2.1) / SR)
+    q += 0.25 * bandnoise(n, 600, 3500)
+    q *= env(n, 0.09) * (0.3 + 0.7 * np.minimum(1.0, t / 0.02))
+    place(b, q * 0.7, 0.0)
+    n2 = int(0.12 * SR)
+    t2 = np.arange(n2) / SR
+    f2 = 520 * np.exp(-t2 * 8)
+    q2 = np.sin(2 * np.pi * np.cumsum(f2) / SR) * env(n2, 0.04)
+    place(b, q2 * 0.55, 0.22)
+    return b
+
 def write_ogg(name, x):
     x = x / max(1.0, np.abs(x).max() / 0.89)
     pcm = (x * 32767).astype(np.int16)
@@ -92,3 +113,4 @@ def write_ogg(name, x):
 if __name__ == "__main__":
     write_ogg("sfx_click", click())
     write_ogg("sfx_train_clack", train_clack())
+    write_ogg("sfx_quack", quack())

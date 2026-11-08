@@ -5,8 +5,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 SITE="${1:-../site}"
 test -s build/index.html && test -s build/index.wasm && test -s build/index.pck
-rm -rf "$SITE" && mkdir -p "$SITE/lesson-a"
+rm -rf "$SITE" && mkdir -p "$SITE/lesson-a" "$SITE/lesson-u"
 (cd ../web-home && tar --exclude=./tools -cf - .) | tar -C "$SITE" -xf -
 cp -R build/. "$SITE/lesson-a/"
+# Урок «У» — тот же web-export; буква выбирается ?letter=u / ?lesson=u
+cp -R build/. "$SITE/lesson-u/"
 touch "$SITE/.nojekyll"
 echo "site: $(cd "$SITE" && pwd)"; (cd "$SITE" && find . -type f | sort)

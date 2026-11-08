@@ -6,7 +6,7 @@
 extends LessonStep
 
 const ALPHABET := "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
-const ACTIVE := "А"
+const ACTIVE := "АУ"
 const CUBE_COLORS := [
 	Color("#F6B9C0"),  # 0 розовый
 	Color("#F9CB9C"),  # 1 персик
@@ -44,7 +44,7 @@ func run() -> void:
 		var col := i % COLS + (1 if i >= 28 else 0)           # последний ряд из 5 — по центру
 		var pos := origin + Vector2(col * CUBE_STEP.x, (i / COLS) * CUBE_STEP.y)
 		var t := _cube(ch, pos, CUBE_COLORS[CUBE_ORDER[i]])
-		if ch == ACTIVE:
+		if ch in ACTIVE:
 			active = t
 	main.expose("letter_a", active)
 	pop_in(active)
@@ -63,7 +63,7 @@ func _layer(btn: Control, id: String, mod: Color) -> void:
 	btn.add_child(r)
 
 func _cube(ch: String, pos: Vector2, color: Color) -> Control:
-	var locked := ch != ACTIVE
+	var locked := ch not in ACTIVE
 	var btn := Button.new()
 	btn.name = "tile_" + Assets.TRANSLIT.get(ch.to_lower(), ch)
 	btn.focus_mode = Control.FOCUS_NONE
@@ -100,11 +100,15 @@ func _cube(ch: String, pos: Vector2, color: Color) -> Control:
 		if ch == "Б":
 			main.expose("letter_locked", btn)
 	else:
-		btn.pressed.connect(_start_lesson)
+		btn.pressed.connect(_start_lesson.bind(ch))
 	return btn
 
-func _start_lesson() -> void:
+func _start_lesson(ch: String = "А") -> void:
 	main.hint_stop()
-	main.log_event("letter", {"ch": ACTIVE})
+	main.log_event("letter", {"ch": ch})
 	Voice.sfx("sfx_start")
+	if ch == "У":
+		Assets.reload_letter("u")
+	elif ch == "А":
+		Assets.reload_letter("a")
 	main.start_lesson()

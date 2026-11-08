@@ -1,0 +1,31 @@
+# s01 s01_final_v6j koordinaty — 2026-11-01 14:42 Asia/Yekaterinburg
+ALYA_BB (1x) = [274.0, 244.0, 599.0, 768.0]
+SIGN_HOLD (1x) = [315.5, 579.5, 553.5, 738.5]
+figure_scale = 1.1832; figure_place_2x = [349,369]
+hold_scale = 0.9597; letter_ratio у/У = 0.687
+mouth_* place_2x = (311, 443)
+gaps_sign={'назад': 509.9, 'закрыть': 597.5, 'далее': 330.5, 'резерв': 203.5}
+gaps_alya={'назад': 209.0, 'закрыть': 347.6, 'далее': 285.0, 'резерв': 162.0}
+min_sign=203.5; min_alya=162.0
+
+=== v6j CHANGES ===
+Base = F2 from _v6h (face both eyes, bottom sarafan+sweater, hands no fringe).
+Duck = duck_bb pixels from v6g (same place + shadow).
+Sign asset placed fully into SIGN_HOLD covering cream cand_e rects.
+Fingers from v6h (flesh + dark outline dilated 1–2px) pasted ON TOP of sign.
+Below sign: unchanged v6h bottom (no mustard steps / black diagonals).
+F1/F3/F4, SIGN_HOLD, ALYA_BB, NAV gaps frozen.
+
+=== CHECKS ===
+CHECKS_OK=True
+(a) sign maxdiff=0.0 red_ratio=1.0 (need ≤3, ≥95%)
+(b) duck_maxdiff=0.0
+(c) outside_px_gt3 vs v6h=0
+(d) handL area1x=1996 inside_SH=976; handR 1973/1084
+    hand widths 1x L=44.0 R=44.0
+
+=== VISUAL READ ===
+f2_1x / face 2x: no grey right-eye oval contour (v6h face).
+hands/sign 2x: fingers on top of board ~25px 1x each side; both У/у fully visible.
+duck: present, matches v6g.
+bottom 2x: no mustard flat rects, no horizontal steps, no black diagonals.

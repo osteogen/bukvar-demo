@@ -1,0 +1,724 @@
+{
+  "revision": "s01_final_v6j",
+  "based_on": "v6h base F2 + duck from v6g + clean sign asset + v6h fingers on top; v6i rejected",
+  "nav_zones": {
+    "назад": [
+      0,
+      0,
+      112,
+      112
+    ],
+    "закрыть": [
+      918,
+      0,
+      1195,
+      106
+    ],
+    "далее": [
+      884,
+      628,
+      1195,
+      768
+    ],
+    "резерв": [
+      -171,
+      656,
+      112,
+      768
+    ]
+  },
+  "nav_source": "art/src/v3/scene1_final_geom.py ZONES; sketches/v3/safe_zones_note.md",
+  "trajectory_shift_vs_r3b": {
+    "dy": -40,
+    "dx": 0
+  },
+  "layout": {
+    "ALYA_H": 520,
+    "ALYA_H_2X": 1040,
+    "DUCK_H": 175,
+    "alya_bb": [
+      274.0,
+      244.0,
+      599.0,
+      768.0
+    ],
+    "alya_canvas_2x": 1093,
+    "SIGN_FULL": [
+      262,
+      169,
+      734,
+      599
+    ],
+    "SIGN_HOLD": [
+      315.5,
+      579.5,
+      553.5,
+      738.5
+    ],
+    "SIGN_HOLD_wh": [
+      238.0,
+      159.0
+    ],
+    "bg": {
+      "delivered_2x": [
+        2732,
+        1536
+      ],
+      "delivered_1x": [
+        1366,
+        768
+      ],
+      "center_4x3_2x": [
+        2048,
+        1536
+      ],
+      "center_source": "r3 bg_yard_1024 upscaled LANCZOS; wide sides from v3 with 32px blend"
+    },
+    "duck_shadow": true,
+    "ALYA_BB_F2": [
+      274.0,
+      244.0,
+      599.0,
+      768.0
+    ]
+  },
+  "pivots": {
+    "alya_pose_idle": {
+      "size": [
+        1093,
+        1093
+      ],
+      "scene_place_2x": [
+        311,
+        443
+      ],
+      "content_bbox_on_layer": [
+        229,
+        54,
+        904,
+        1093
+      ],
+      "shared_anchor_scene_2x": [
+        879,
+        1536
+      ],
+      "source": "alya_half_base.png upscale SC=1.3016 (840→1093), mouthless"
+    },
+    "alya_pose_sign": {
+      "size_tight": [
+        649,
+        1049
+      ],
+      "scene_place_tight_2x": [
+        548,
+        487
+      ],
+      "tight_bbox_2x": [
+        548,
+        487,
+        1197,
+        1536
+      ],
+      "scene_png": "alya/alya_pose_sign_scene.png",
+      "board_scene_2x": [
+        631,
+        1159,
+        1107,
+        1477
+      ],
+      "figure_scale": 1.1832426070325142,
+      "figure_place_2x": [
+        349,
+        369
+      ],
+      "hold_scale": 0.9589990484416748,
+      "source": "cand_e premul scale to idle eyes; tight mouth clear; column clothing extend; idle mouths",
+      "godot_letter_layer": "sign/ui_sign_u_hold.png",
+      "chosen_candidate": "cand_e",
+      "mouth_place_2x": [
+        311,
+        443
+      ]
+    },
+    "alya_mouths": {
+      "0": {
+        "layer_size": [
+          1093,
+          1093
+        ],
+        "bbox_on_layer": [
+          528,
+          414,
+          615,
+          448
+        ],
+        "center_on_layer": [
+          571.5,
+          431.0
+        ],
+        "scene_place_2x": [
+          311,
+          443
+        ],
+        "bbox_scene_2x": [
+          839,
+          857,
+          926,
+          891
+        ],
+        "opaque_px": 1447
+      },
+      "1": {
+        "layer_size": [
+          1093,
+          1093
+        ],
+        "bbox_on_layer": [
+          533,
+          417,
+          608,
+          455
+        ],
+        "center_on_layer": [
+          570.5,
+          436.0
+        ],
+        "scene_place_2x": [
+          311,
+          443
+        ],
+        "bbox_scene_2x": [
+          844,
+          860,
+          919,
+          898
+        ],
+        "opaque_px": 2255
+      },
+      "2": {
+        "layer_size": [
+          1093,
+          1093
+        ],
+        "bbox_on_layer": [
+          529,
+          417,
+          613,
+          490
+        ],
+        "center_on_layer": [
+          571.0,
+          453.5
+        ],
+        "scene_place_2x": [
+          311,
+          443
+        ],
+        "bbox_scene_2x": [
+          840,
+          860,
+          924,
+          933
+        ],
+        "opaque_px": 4810
+      },
+      "u": {
+        "layer_size": [
+          1093,
+          1093
+        ],
+        "bbox_on_layer": [
+          540,
+          407,
+          603,
+          465
+        ],
+        "center_on_layer": [
+          571.5,
+          436.0
+        ],
+        "scene_place_2x": [
+          311,
+          443
+        ],
+        "bbox_scene_2x": [
+          851,
+          850,
+          914,
+          908
+        ],
+        "opaque_px": 2864
+      }
+    },
+    "duck": {
+      "walk_a": {
+        "pivot_1x": {
+          "ground_x": 83.75,
+          "ground_y": 174.0
+        },
+        "bb_2x": [
+          2,
+          2,
+          333,
+          348
+        ],
+        "size_2x": [
+          335,
+          350
+        ]
+      },
+      "walk_b": {
+        "pivot_1x": {
+          "ground_x": 84.25,
+          "ground_y": 174.0
+        },
+        "bb_2x": [
+          2,
+          2,
+          335,
+          348
+        ],
+        "size_2x": [
+          337,
+          350
+        ]
+      },
+      "walk_c": {
+        "pivot_1x": {
+          "ground_x": 88.0,
+          "ground_y": 167.0
+        },
+        "bb_2x": [
+          14,
+          2,
+          338,
+          334
+        ],
+        "size_2x": [
+          340,
+          350
+        ]
+      },
+      "stand": {
+        "pivot_1x": {
+          "ground_x": 82.75,
+          "ground_y": 174.0
+        },
+        "bb_2x": [
+          2,
+          2,
+          329,
+          348
+        ],
+        "size_2x": [
+          331,
+          350
+        ]
+      },
+      "quack": {
+        "pivot_1x": {
+          "ground_x": 81.25,
+          "ground_y": 174.0
+        },
+        "bb_2x": [
+          2,
+          2,
+          323,
+          348
+        ],
+        "size_2x": [
+          325,
+          350
+        ]
+      }
+    },
+    "sign_hold": {
+      "bb": [
+        315,
+        475,
+        563,
+        641
+      ],
+      "pivot": [
+        439.0,
+        558.0
+      ]
+    },
+    "sign_full": {
+      "size_2x": [
+        944,
+        860
+      ],
+      "size_1x": [
+        472,
+        430
+      ],
+      "scene_place_1x": [
+        262,
+        262
+      ],
+      "scene_place_2x": [
+        524,
+        524
+      ],
+      "bb_1x": [
+        262,
+        262,
+        734,
+        692
+      ]
+    },
+    "duck_shadow": {
+      "size_2x": [
+        140,
+        40
+      ],
+      "place": "sx=cx*2-w/2, sy=gy*2-h*0.45 (same as F1/F3)"
+    }
+  },
+  "trajectory": {
+    "near": {
+      "cx": 715,
+      "gy": 478,
+      "face": "left",
+      "bb": [
+        632,
+        305,
+        798,
+        478
+      ],
+      "gaps": {
+        "назад": 554.7,
+        "закрыть": 232.4,
+        "далее": 172.9,
+        "резерв": 549.6
+      },
+      "clear_alya": 23.0
+    },
+    "stop": {
+      "cx": 790,
+      "gy": 465,
+      "face": "left",
+      "bb": [
+        708,
+        292,
+        872,
+        465
+      ],
+      "gaps": {
+        "назад": 622.6,
+        "закрыть": 191.6,
+        "далее": 163.4,
+        "резерв": 625.9
+      },
+      "clear_alya": 99.0
+    },
+    "far": {
+      "cx": 865,
+      "gy": 452,
+      "face": "right",
+      "bb": [
+        784,
+        286,
+        946,
+        452
+      ],
+      "gaps": {
+        "назад": 694.2,
+        "закрыть": 180.0,
+        "далее": 176.0,
+        "резерв": 702.3
+      },
+      "clear_alya": 175.0
+    },
+    "amplitude_x": 150,
+    "delta_y": 26,
+    "min_gap_nav": 163.4,
+    "min_clear_alya": 23.0
+  },
+  "frames": {
+    "f1": {
+      "alya_bb": [
+        270,
+        248,
+        609,
+        768
+      ],
+      "duck_bb": [
+        707,
+        292,
+        874,
+        465
+      ],
+      "gaps_alya": {
+        "назад": 208.5,
+        "закрыть": 340.1,
+        "далее": 275.0,
+        "резерв": 158.0
+      },
+      "gaps_duck": {
+        "назад": 621.6,
+        "закрыть": 191.1,
+        "далее": 163.3,
+        "резерв": 624.9
+      },
+      "clear_alya_duck": 98.0,
+      "layers": "pose_idle+mouth_u+duck_walk_b+shadow"
+    },
+    "f2": {
+      "alya_bb": [
+        274.0,
+        244.0,
+        599.0,
+        768.0
+      ],
+      "duck_bb": [
+        708,
+        292,
+        872,
+        465
+      ],
+      "sign_hold_bb": [
+        315.5,
+        579.5,
+        553.5,
+        738.5
+      ],
+      "sign_hold_wh": [
+        248,
+        166
+      ],
+      "gaps_alya": {
+        "назад": 209.0,
+        "закрыть": 347.6,
+        "далее": 285.0,
+        "резерв": 162.0
+      },
+      "gaps_duck": {
+        "назад": 622.6,
+        "закрыть": 191.6,
+        "далее": 163.4,
+        "резерв": 625.9
+      },
+      "gaps_sign_hold": {
+        "назад": 509.9,
+        "закрыть": 597.5,
+        "далее": 330.5,
+        "резерв": 203.5
+      },
+      "clear_alya_duck": 109.0,
+      "clear_duck_sign": 192.3,
+      "layers": "v6h_base+duck_v6g+sign_asset+fingers_v6h_on_top+mouth_*",
+      "mouth": "none (gen face offset)"
+    },
+    "f3": {
+      "alya_bb": [
+        270,
+        248,
+        609,
+        768
+      ],
+      "duck_bb": [
+        710,
+        292,
+        870,
+        465
+      ],
+      "gaps_alya": {
+        "назад": 208.5,
+        "закрыть": 340.1,
+        "далее": 275.0,
+        "резерв": 158.0
+      },
+      "gaps_duck": {
+        "назад": 624.5,
+        "закрыть": 192.1,
+        "далее": 163.6,
+        "резерв": 627.8
+      },
+      "clear_alya_duck": 101.0,
+      "layers": "pose_idle+mouth_0+duck_quack+shadow"
+    },
+    "f4": {
+      "sign_full_bb": [
+        262,
+        169,
+        734,
+        599
+      ],
+      "sign_full_wh": [
+        472,
+        430
+      ],
+      "gaps": {
+        "назад": 160.5,
+        "закрыть": 194.5,
+        "далее": 152.8,
+        "резерв": 160.5
+      },
+      "gap_metric": "euclidean_rect (scene1_final_geom.rect_gap / hypot when dx&dy>0)",
+      "layers": "bg+ui_sign_u_full",
+      "note": "v6c: y=169 (vertically centered); v6b y=262 was axis-gap mistake"
+    }
+  },
+  "pose_match_notes": {
+    "face_hair_collar_sarafan": "idle from half_base upscale; sign from v3 F2 extract. Head/face pixels in overlap match after mouth stamp (diff≈0 on opaque face overlap). Sign pose alpha edge slightly harsher (bg-subtract matte) vs idle half AA.",
+    "recommend_crossfade_s": 0.15,
+    "arms": "intentionally different (idle down vs sign raised+board) — whole-pose swap"
+  },
+  "package_excludes": [
+    "alya_body*",
+    "alya_arms_*"
+  ],
+  "package_includes_alya": [
+    "alya_mouth_0.png",
+    "alya_mouth_0_1x.png",
+    "alya_mouth_1.png",
+    "alya_mouth_1_1x.png",
+    "alya_mouth_2.png",
+    "alya_mouth_2_1x.png",
+    "alya_mouth_u.png",
+    "alya_mouth_u_1x.png",
+    "alya_pose_idle.png",
+    "alya_pose_idle_1x.png",
+    "alya_pose_idle_scene.png",
+    "alya_pose_sign.png",
+    "alya_pose_sign_1x.png",
+    "alya_pose_sign_scene.png"
+  ],
+  "letter_metrics": {
+    "source": "art/sketches/v3/s01_nest_r18/s01_nest_r18_scene_1x.png (scene 1 урока А)",
+    "A_height_px": 262,
+    "a_height_px": 180,
+    "Aa_ratio_body_to_cap": 0.687,
+    "vowel_color": "#D93A2B",
+    "note": "NOT tile_a (those are cubes ~0.91); main scene letters ~0.687",
+    "full_sign": {
+      "U_height_px": 223,
+      "u_body_height_px": 153,
+      "u_total_with_descender": 227,
+      "u_descender_below_baseline_px": 74,
+      "ratio_u_body_to_U": 0.6861,
+      "shared_baseline_y_2x": 502
+    },
+    "hold_sign": {
+      "U_height_px": 105,
+      "u_body_height_px": 72,
+      "u_descender_below_baseline_px": 35,
+      "ratio_u_body_to_U": 0.6857,
+      "shared_baseline_y_2x": 200
+    }
+  },
+  "gap_metric": {
+    "name": "euclidean_rect",
+    "formula": "if dx>0 and dy>0: sqrt(dx^2+dy^2); elif one zero: other; else negative overlap",
+    "source": "art/src/v3/scene1_final_geom.py rect_gap / build gap_rect"
+  },
+  "sign_hold_gaps": {
+    "назад": 509.9,
+    "закрыть": 597.5,
+    "далее": 330.5,
+    "резерв": 203.5
+  },
+  "sign_full_gaps": {
+    "назад": 160.5,
+    "закрыть": 194.5,
+    "далее": 152.8,
+    "резерв": 160.5
+  },
+  "created": "2026-11-01 14:42 Asia/Yekaterinburg",
+  "zone": "Asia/Yekaterinburg",
+  "qa_v6e": {
+    "shoulder_flatness_L": 0.0,
+    "shoulder_flatness_R": 0.0,
+    "hands_alpha_min": 255,
+    "hands_rgb_approx": [
+      245,
+      181,
+      127
+    ],
+    "white_seams": 0,
+    "sign_hold_gaps": {
+      "назад": 415.9,
+      "закрыть": 512.0,
+      "далее": 321.0,
+      "резерв": 203.6
+    },
+    "sign_full_gaps": {
+      "назад": 160.5,
+      "закрыть": 194.5,
+      "далее": 152.8,
+      "резерв": 160.5
+    }
+  },
+  "qa_v6f": {
+    "method": "GenerateImage 6 candidates; cand_e; matte; align to SIGN_HOLD; NO idle head graft; NO procedural sleeves",
+    "chosen": "cand_e",
+    "honest_fail_notes": [
+      "Idle-head graft left ghost taller head / floating hair — abandoned",
+      "Full gen keeps continuous arms but face sits ~218px higher than idle → F1→F2 jump",
+      "Letters = ui_sign_u_hold pixel-identical to v6c (ring brownish 0%)",
+      "Best alternate candidates: cand_e, cand_b, cand_f on contact sheet"
+    ],
+    "rights": "all generated; refs alya_pose_idle + F1 only"
+  },
+  "gaps_f2_sign_hold": {
+    "назад": 509.9,
+    "закрыть": 597.5,
+    "далее": 330.5,
+    "резерв": 203.5
+  },
+  "gaps_f2_alya": {
+    "назад": 209.0,
+    "закрыть": 347.6,
+    "далее": 285.0,
+    "резерв": 162.0
+  },
+  "qa_v6i": {
+    "CHECKS_OK": true,
+    "ok_a": true,
+    "maxdiff_sign": 0.0,
+    "red_ratio": 1.0,
+    "red_f2": 3915,
+    "red_clean": 3915,
+    "ok_b": true,
+    "duck_maxdiff": 0.0,
+    "ok_c": true,
+    "darkL": 270,
+    "darkR": 242,
+    "userR": 242,
+    "bottom_mean": [
+      117.32202380952381,
+      73.98869047619047,
+      45.85565476190476
+    ],
+    "bottom_std": [
+      4.497207143847283,
+      3.367013046689305,
+      3.0303520422317454
+    ],
+    "fringeL": 0,
+    "fringeR": 0,
+    "ok_d": true,
+    "outside_px_gt3": 190
+  },
+  "qa_v6j": {
+    "CHECKS_OK": true,
+    "ok_a": true,
+    "maxdiff_sign": 0.0,
+    "red_ratio": 1.0,
+    "red_f2": 3932,
+    "red_clean": 3932,
+    "ok_b": true,
+    "duck_maxdiff": 0.0,
+    "ok_c": true,
+    "outside_px_gt3": 0,
+    "ok_d": true,
+    "handL_area1x": 1996,
+    "handL_inside": 976,
+    "handR_area1x": 1973,
+    "handR_inside": 1084,
+    "handL_w1x": 44.0,
+    "handR_w1x": 44.0
+  }
+}
