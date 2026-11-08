@@ -2,7 +2,8 @@ name: Deploy site (HTML home + Godot lesson)
 
 # Сайт на GitHub Pages:
 #   /            — лёгкая HTML-главная с алфавитом (папка web-home/ в корне репозитория, ~45 КБ, без Godot)
-#   /lesson-a/   — веб-экспорт Godot (godot-proto/), грузится только после тапа по «А»
+#   /lesson-a/   — веб-экспорт Godot (godot-proto/), грузится после тапа по «А»
+#   /lesson-u/   — тот же веб-экспорт; буква «У» выбирается по пути (и по ?letter=u)
 
 on:
   push:
@@ -68,26 +69,31 @@ jobs:
           # своя оболочка загрузки (web/shell.html), а не стандартная с логотипом Godot
           grep -q 'id="status-bar"' build/index.html
 
-      - name: Assemble site (home at root, lesson in lesson-a/)
+      - name: Assemble site (home at root, lessons in lesson-a/ and lesson-u/)
         run: |
           set -euo pipefail
           rm -rf site
-          mkdir -p site/lesson-a
+          mkdir -p site/lesson-a site/lesson-u
           test -s web-home/index.html
           # главная: всё из web-home/, кроме служебной папки tools/
           tar -C web-home --exclude=./tools -cf - . | tar -C site -xf -
+          # один веб-экспорт на оба урока: буква — из пути страницы (/lesson-u/) или из ?letter=
           cp -R godot-proto/build/. site/lesson-a/
+          cp -R godot-proto/build/. site/lesson-u/
           touch site/.nojekyll
           test -s site/index.html
           test -s site/lesson-a/index.html
           test -s site/lesson-a/index.wasm
           test -s site/lesson-a/index.pck
+          test -s site/lesson-u/index.html
+          test -s site/lesson-u/index.wasm
+          test -s site/lesson-u/index.pck
           # на главной не должно быть ссылок на тяжёлые файлы Godot
           if grep -nE '\.(wasm|pck)' site/index.html; then echo "home page must not reference Godot files"; exit 1; fi
           echo "Site contents:"
           find site -type f -printf '%s\t%p\n' | sort -k2
-          echo "Home page size (bytes, without lesson-a/):"
-          find site -path site/lesson-a -prune -o -type f -printf '%s\n' | awk '{s+=$1} END {print s}'
+          echo "Home page size (bytes, without lesson-a/ and lesson-u/):"
+          find site \( -path site/lesson-a -o -path site/lesson-u \) -prune -o -type f -printf '%s\n' | awk '{s+=$1} END {print s}'
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5

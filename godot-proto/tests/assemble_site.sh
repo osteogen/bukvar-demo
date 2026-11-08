@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Собирает сайт так же, как .github/workflows/pages.yml: корень = web-home/ (без tools/), lesson-a/ = веб-экспорт Godot.
+# Собирает сайт так же, как .github/workflows/pages.yml: корень = web-home/ (без tools/),
+# lesson-a/ и lesson-u/ = один и тот же веб-экспорт Godot.
 # Запуск из godot-proto/:  bash tests/assemble_site.sh [папка-сайта]   (по умолчанию ../site; build/ должен быть уже экспортирован)
 set -euo pipefail
 cd "$(dirname "$0")/.."

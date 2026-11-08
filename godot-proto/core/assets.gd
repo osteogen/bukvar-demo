@@ -48,10 +48,27 @@ func _ready() -> void:
 	_load_settings()
 	if not params.has("letter") and params.has("lesson"):
 		params["letter"] = params["lesson"]
+	# /lesson-u/ на сайте — тот же экспорт, что /lesson-a/; без ?letter= буква берётся из пути.
+	if not params.has("letter"):
+		var from_path := _letter_from_web_path()
+		if from_path != "":
+			params["letter"] = from_path
 	letter_id = String(params.get("letter", "a")).validate_filename()
 	lesson = _load_json("res://data/lesson_%s/lesson.json" % letter_id)
 	lines = _load_json("res://data/common/lines.json")
 	lines.merge(_load_json("res://data/lesson_%s/lines.json" % letter_id), true)
+
+## Буква урока по адресу страницы, если в запросе нет letter/lesson. /lesson-a/ остаётся «а» по умолчанию.
+func _letter_from_web_path() -> String:
+	if not OS.has_feature("web"):
+		return ""
+	var path = JavaScriptBridge.eval("location.pathname", true)
+	if typeof(path) != TYPE_STRING:
+		return ""
+	var p := String(path)
+	if "/lesson-u" in p or p.ends_with("lesson-u"):
+		return "u"
+	return ""
 
 func _read_params() -> void:
 	if not OS.has_feature("web"):
