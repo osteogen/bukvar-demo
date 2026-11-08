@@ -164,10 +164,12 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
     b.type = "button"; b.dataset.letter = ch;
     var s = document.createElement("span"); s.textContent = ch;
     b.appendChild(s); letters.appendChild(b); cubes.push(b);
+    if (LESSONS[ch]) b.dataset.lesson = LESSONS[ch];
     if (ch === "А") { b.id = "cube-a"; cubeA = b; }
+    if (LESSONS[ch]) c_on(b);   // «А» → lesson-a/, «У» → lesson-u/; закрытая в режиме последовательности — «тук»
     else {
       if (ch === "Б") cubeLocked = b;   // цель автотеста: буква без урока
-      b.addEventListener("pointerdown", lockedTap);   // урока пока нет (или буква закрыта) — «тук» + покачивание
+      b.addEventListener("pointerdown", lockedTap);   // урока пока нет — «тук» + покачивание
     }
   }
   // какие буквы открыты: по умолчанию (незарегистрированный пользователь) — все; с настройкой «по последовательности» —
@@ -302,21 +304,27 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
     try { actx.resume().then(function () { if (knockPending) { knockPending = false; knockNow(); } }, function () {}); } catch (e) {}
   }
   document.addEventListener("pointerup", unlockAudio, true); document.addEventListener("touchend", unlockAudio, true);
-  c_on(cubeA);
   function c_on(a) {
     // отклик — сразу на касание; переход — когда палец отпущен на кубике (click не ждём: на части планшетов он запаздывает)
     var down = false;
-    a.addEventListener("pointerdown", function () { if (state !== "leaving") { down = true; a.classList.add("press"); } });
-    a.addEventListener("pointerup", function () { if (down) { down = false; go(); } });
+    a.addEventListener("pointerdown", function (e) {
+      if (state === "leaving") return;
+      if (a.classList.contains("locked")) { lockedTap(e); return; }
+      down = true; a.classList.add("press");
+    });
+    a.addEventListener("pointerup", function () { if (down) { down = false; go(a); } });
     a.addEventListener("pointerleave", function () { down = false; if (state !== "leaving") a.classList.remove("press"); });
     a.addEventListener("pointercancel", function () { down = false; if (state !== "leaving") a.classList.remove("press"); });
-    a.addEventListener("click", go);   // клавиатура / программный клик
+    a.addEventListener("click", function () { go(a); });   // клавиатура / программный клик
   }
-  function go() {
-    if (state === "leaving") return;
+  function go(a) {
+    if (state === "leaving" || (a && a.classList.contains("locked"))) return;
     state = "leaving"; publish();
-    cubeA.classList.remove("press"); cubeA.classList.add("go"); stage.classList.add("leaving");
-    setTimeout(function () { location.href = lessonHref; }, 160);
+    var el = a || cubeA;
+    el.classList.remove("press"); el.classList.add("go"); stage.classList.add("leaving");
+    var base = (el.dataset && el.dataset.lesson) || LESSON;
+    var href = base + (lq.toString() ? "?" + lq.toString() : "");
+    setTimeout(function () { location.href = href; }, 160);
   }
   // возврат кнопкой «назад» (страница из bfcache) — снова ждём тап
   window.addEventListener("pageshow", function (e) {
