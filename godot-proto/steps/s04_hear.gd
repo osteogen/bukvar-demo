@@ -7,7 +7,7 @@
 ##  • во время задания Аля стоит в центре и показывает руками: на «красный кружок» — рукой к красному (слева),
 ##    на «серый» — к серому (справа); потом уходит, и в центр выходит первая карточка (hear.alya);
 ##  • отвеченные карточки уезжают наверх: слева — слова СО звуком [а], справа — БЕЗ звука; касание карточки — слово;
-##  • в конце — слово «аплодисменты» (первая «а» красная) голосом Али, хлопушка и искры (hear.applause);
+##  • в конце — слово «аплодисменты» (первая «а» крупная, #D93A2B) голосом Али, хлопушка и искры (hear.applause);
 ##  • подсказки (рука) — только через 20 с бездействия, и после ошибок тоже (main.hint_now только перезапускает отсчёт).
 extends LessonStep
 
@@ -142,28 +142,45 @@ func run() -> void:
 	if not await _applause(): return
 	finish()
 
-## Финал сцены: слово «аплодисменты» (первая «а» — красная), голос Али, хлопушка и искры. Слово можно нажать — ещё раз.
+## Финал сцены: слово «аплодисменты». Первая «а» — #D93A2B и в 1.5 раза крупнее остальных,
+## на одной базовой линии, тем же шрифтом. Остальное слово не меняется. Слово можно нажать — ещё раз.
+const APPLAUSE_BIG := 1.5
+
 func _applause() -> bool:
 	var ap: Dictionary = cfg.get("applause", {})
 	if ap.is_empty():
 		return true
 	var word := String(ap.get("word", "аплодисменты"))
-	var red := Assets.VOWEL_RED.to_html(false)
-	var bb := ""
 	var mark: Array = ap.get("red", [0])
-	for k in word.length():
-		var ch := word.substr(k, 1)
-		bb += ("[color=#%s]%s[/color]" % [red, ch]) if mark.has(k) else ch
-	var box := Vector2(float(ap.get("w", 760)), float(ap.get("h", 150)))
-	var c := Vector2(ap.center[0], ap.center[1])
-	# ряд карточек опустился до линии 150 px под кнопками; слово не должно закрывать этот ряд
+	var base_size := int(ap.get("font_size", 96))
+	var big_size := int(round(float(base_size) * APPLAUSE_BIG))
+	var font: Font = load("res://core/fonts/DejaVuSans-Bold.ttf")
+	var big_s := word.substr(0, 1)
+	var rest := word.substr(1)
+	var big_w := font.get_string_size(big_s, HORIZONTAL_ALIGNMENT_LEFT, -1, big_size).x
+	var rest_w := font.get_string_size(rest, HORIZONTAL_ALIGNMENT_LEFT, -1, base_size).x
+	var asc_b := font.get_ascent(big_size)
+	var asc_r := font.get_ascent(base_size)
+	var drop := maxf(font.get_descent(big_size), font.get_descent(base_size))
+	# «а» сидит в нижней части кегля; табличка обнимает видимые буквы, а не пустой верх кегля
+	var rise := asc_b * 0.72
+	var text_w := big_w + rest_w
+	var text_h := rise + drop
+	var pad_x := 40.0
+	var pad_y := 22.0
+	var box := Vector2(text_w + pad_x * 2.0, text_h + pad_y * 2.0)
+	var play := _play_rect()
 	var row_m := _row_metrics()
 	var row_bottom := float(row_m.y) + float(row_m.vis) * 0.5
-	if c.y - box.y * 0.5 < row_bottom + 24.0:
-		c.y = row_bottom + 24.0 + box.y * 0.5
-	var play := _play_rect()
-	if c.y + box.y * 0.5 > play.end.y:
-		c.y = play.end.y - box.y * 0.5
+	var top_min := maxf(play.position.y, row_bottom + 24.0)
+	var bot_max := play.end.y
+	# не вылезать за экран и за полосу 150 px над «Далее»
+	box.x = minf(box.x, 1024.0 - 32.0)
+	if box.y > bot_max - top_min:
+		box.y = bot_max - top_min
+	var c := Vector2(512.0, top_min + box.y * 0.5)
+	if c.y + box.y * 0.5 > bot_max:
+		c.y = bot_max - box.y * 0.5
 	var panel := Panel.new()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Assets.CREAM
@@ -175,17 +192,24 @@ func _applause() -> bool:
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.name = "applause"
 	add_child(panel)
+	# Одна строка: разный кегль садится на общую базовую линию. Не Label — иначе тест
+	# «на экране только А/а» видит хвост слова (RichTextLabel в эту проверку не входит).
 	var rt := RichTextLabel.new()
 	rt.bbcode_enabled = true
 	rt.fit_content = false
 	rt.scroll_active = false
 	rt.autowrap_mode = TextServer.AUTOWRAP_OFF
-	rt.add_theme_font_size_override("normal_font_size", int(ap.get("font_size", 96)))
+	rt.add_theme_font_override("normal_font", font)
+	rt.add_theme_font_size_override("normal_font_size", base_size)
 	rt.add_theme_color_override("default_color", Color(String(ap.get("color", "#2B2420"))))
-	rt.text = "[center]" + bb + "[/center]"
-	rt.size = box
-	rt.position = Vector2(0, (box.y - float(ap.get("font_size", 96)) * 1.25) / 2)
+	rt.text = "[center][font_size=%d][color=#%s]%s[/color][/font_size]%s[/center]" % [big_size, Assets.VOWEL_RED.to_html(false), big_s, rest]
+	var line_h := asc_b + drop
+	rt.size = Vector2(box.x, line_h)
+	# базовая линия = верх строки + кегль большой «а»; прижимаем её к низу таблички с отступом
+	rt.position = Vector2(0, box.y - pad_y - drop - asc_b)
 	rt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rt.name = "applause_word"
+	panel.clip_contents = true
 	panel.add_child(rt)
 	var b := tap_area(panel)
 	b.name = "applause_tap"
@@ -195,7 +219,7 @@ func _applause() -> bool:
 	Voice.sfx(String(ap.get("sfx", "sfx_cheer")))
 	burst(c + Vector2(-box.x * 0.35, 0), Color("#FFD23C"))
 	burst(c + Vector2(box.x * 0.35, 0), Color("#D93A2B"))
-	main.set_info("s04_applause", {"word": word, "red": mark, "rect": _rect_info(panel)})
+	main.set_info("s04_applause", {"word": word, "red": mark, "big_size": big_size, "base_size": base_size, "rect": _rect_info(panel)})
 	main.set_state("applause")
 	return await say(String(ap.voice))
 
