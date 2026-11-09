@@ -266,10 +266,16 @@ try {
   { const s = await waitFor((s) => s.info.s04_applause && s.info.s04_row, "s04: аплодисменты", 30000);
     const ap = s.info.s04_applause;
     if (ap.word !== "аплодисменты" || JSON.stringify(ap.red) !== "[0]") throw new Error("s04: финал не «аплодисменты» с красной первой «а»: " + JSON.stringify(ap));
-    for (const [x, y, w, h, has] of s.info.s04_row) {
-      if (y + h / 2 > 250) throw new Error("s04: ряд карточек не вверху: " + y);
-      if (has ? x + w / 2 > 512 : x + w / 2 < 512) throw new Error("s04: карточка не в своём ряду: " + JSON.stringify([x, w, has]));
-    }
+    const row = s.info.s04_row;
+    if (row.length !== 5) throw new Error("s04: в ряду не 5 карточек: " + row.length);
+    const cs = row.map(([x, y, w, h]) => [x + w / 2, y + h / 2, w, h]);
+    if (cs.some((c) => Math.abs(c[1] - cs[0][1]) > 2)) throw new Error("s04: ряд не на одной высоте " + JSON.stringify(cs.map((c) => Math.round(c[1]))));
+    if (cs.some((c) => Math.abs(c[2] - cs[0][2]) > 2 || Math.abs(c[3] - cs[0][3]) > 2)) throw new Error("s04: разный размер карточек ряда");
+    const xs = cs.map((c) => c[0]);
+    const gaps = xs.slice(1).map((x, i) => x - xs[i]);
+    if (gaps.some((g) => Math.abs(g - gaps[0]) > 3)) throw new Error("s04: неравные промежутки " + gaps.map(Math.round));
+    const mid = (xs[0] + xs[xs.length - 1]) / 2;
+    if (Math.abs(mid - s.stage_center[0]) > 3) throw new Error("s04: ряд не по центру " + Math.round(mid) + " vs " + Math.round(s.stage_center[0]));
     await sleep(300); await shot("s04-hear-applause"); }
   await waitFor(state("done"), "s04 done"); await sleep(300); await shot("s04-hear-done");
   { const s = await bk(); const ok0 = s.sfx_counts.sfx_ok || 0; await tap("row_card_0"); await sleep(600);

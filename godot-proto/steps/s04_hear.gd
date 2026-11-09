@@ -116,13 +116,16 @@ func run() -> void:
 			tn.tween_property(pic, "rotation", 0.0, 0.15)
 		if not await praise(): return
 		main.expose("pic", null)
-		# ряд отвеченных карточек — по центру сцены (центр ряда = 512), правее зоны «назад» и левее зоны крестика
-		# (DESIGN_RULES.md, §2); следующая карточка снова встаёт в центр игрового поля (_card_place)
-		var row := _row_center(bool(it.has), _side_count(bool(it.has)))
+		# один ровный ряд: одинаковый размер и y, равный шаг, ряд по центру 1024.
+		# Следующая карточка снова встаёт в центр игрового поля (_card_place).
+		var row_m := _row_metrics()
+		var row := _row_slot(i)
+		var sc := float(row_m.scale)
 		var tm := pic.create_tween().set_parallel()
 		_last_row_tw = tm
-		tm.tween_property(pic, "position", row - pic.pivot_offset - (pic.size / 2 - pic.pivot_offset) * ROW_SCALE, 0.4)   # центр карточки после масштаба (вокруг pivot) точно в row
-		tm.tween_property(pic, "scale", Vector2(ROW_SCALE, ROW_SCALE), 0.4)
+		tm.tween_property(pic, "position", row - pic.pivot_offset - (pic.size / 2 - pic.pivot_offset) * sc, 0.4)   # центр карточки после масштаба (вокруг pivot) точно в row
+		tm.tween_property(pic, "scale", Vector2(sc, sc), 0.4)
+		pic.set_meta("row_scale", sc)
 		pic.set_meta("in_row", true)
 		pic.set_meta("row_i", i)
 		pic.set_meta("has", bool(it.has))
@@ -153,6 +156,14 @@ func _applause() -> bool:
 		bb += ("[color=#%s]%s[/color]" % [red, ch]) if mark.has(k) else ch
 	var box := Vector2(float(ap.get("w", 760)), float(ap.get("h", 150)))
 	var c := Vector2(ap.center[0], ap.center[1])
+	# ряд карточек опустился до линии 150 px под кнопками; слово не должно закрывать этот ряд
+	var row_m := _row_metrics()
+	var row_bottom := float(row_m.y) + float(row_m.vis) * 0.5
+	if c.y - box.y * 0.5 < row_bottom + 24.0:
+		c.y = row_bottom + 24.0 + box.y * 0.5
+	var play := _play_rect()
+	if c.y + box.y * 0.5 > play.end.y:
+		c.y = play.end.y - box.y * 0.5
 	var panel := Panel.new()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Assets.CREAM
@@ -189,8 +200,6 @@ func _applause() -> bool:
 	return await say(String(ap.voice))
 
 var _last_row_tw: Tween
-const ROW_SCALE := 0.45
-const ROW_STEP := 165.0
 var row_cards: Array = []
 var word_taps := 0
 
@@ -221,22 +230,27 @@ func _card_place() -> Array:
 	side = minf(side, 300.0)
 	return [center, floorf(side)]
 
-## Ряды наверху (hear.rows): слева — слова СО звуком [а] (от левого края к центру), справа — БЕЗ звука.
-## Между рядами — зазор по центру; ряды правее зоны «назад» и левее крестика (DESIGN_RULES.md, §2).
-func _row_center(has: bool, k: int) -> Vector2:
-	var r: Dictionary = cfg.get("rows", {})
-	var step := float(r.get("step", 145))
-	var y := float(r.get("y", 120))
-	if has:
-		return Vector2(float(r.get("yes_x0", 200)) + k * step, y)
-	return Vector2(float(r.get("no_x0", 680)) + k * step, y)
+## Один ряд из 5 карточек (порядок ответов): один размер, одна высота, равный шаг центров,
+## середина ряда на x=512. Рамка не заходит в полосу 150 px вокруг кнопок навигации.
+## Старая раскладка (две группы: «со звуком» от x=200 и «без звука» от x=680, шаг 145, y=120)
+## давала щель 190 px между группами и подходила к «назад»/крестику ближе 150 px.
+const ROW_COUNT := 5
+const ROW_GAP := 20.0
 
-func _side_count(has: bool) -> int:
-	var n := 0
-	for c in row_cards:
-		if bool(c.get_meta("has")) == has:
-			n += 1
-	return n
+func _row_metrics() -> Dictionary:
+	var play := _play_rect()
+	var base: float = float(_card_place()[1])
+	var frame := 1.0 + 2.0 * CARD_FRAME_PAD
+	var half := minf(512.0 - play.position.x, play.end.x - 512.0)
+	var max_w := half * 2.0
+	var vis := (max_w - float(ROW_COUNT - 1) * ROW_GAP) / float(ROW_COUNT)
+	var scale := vis / (base * frame)
+	return {"n": ROW_COUNT, "scale": scale, "step": vis + ROW_GAP, "y": play.position.y + vis * 0.5, "vis": vis}
+
+func _row_slot(i: int) -> Vector2:
+	var m := _row_metrics()
+	var x := 512.0 + (float(i) - float(ROW_COUNT - 1) * 0.5) * float(m.step)
+	return Vector2(x, float(m.y))
 
 ## Касание карточки: текущая — повтор слова (как раньше, через picked); в ряду — Аля говорит слово карточки
 ## и карточка чуть подпрыгивает. На ответ это не влияет и ничего не подтверждает.
@@ -247,9 +261,10 @@ func _on_card(pic: TextureButton) -> void:
 	word_taps += 1
 	main.set_info("s04_word_taps", word_taps)
 	main.set_info("s04_word_last", String(pic.get_meta("word_audio")))
+	var sc := float(pic.get_meta("row_scale", 1.0))
 	var tw := pic.create_tween()
-	tw.tween_property(pic, "scale", Vector2(ROW_SCALE, ROW_SCALE) * 1.15, 0.12)
-	tw.tween_property(pic, "scale", Vector2(ROW_SCALE, ROW_SCALE), 0.18)
+	tw.tween_property(pic, "scale", Vector2(sc, sc) * 1.15, 0.12)
+	tw.tween_property(pic, "scale", Vector2(sc, sc), 0.18)
 	tap_say(String(pic.get_meta("word_audio")))   # очередь голоса: не перебивает Алю, повторные касания не копятся
 
 func _rect_info(c: Control) -> Array:

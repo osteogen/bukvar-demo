@@ -74,8 +74,8 @@ try {
           notes.push(`${vp} s01: полёт без перекрытий, «Далее» на экране, касания аиста и «а» работают`);
         }
       }
-      // 2) s04 «на слух»: каждая карточка по центру; отвеченные — в два ряда вверху (со звуком слева, без — справа),
-      //    на одной высоте; касание карточки в ряду говорит слово и ничего не подтверждает
+      // 2) s04 «на слух»: каждая карточка по центру; отвеченные — один ровный ряд (одна высота, равный шаг, по центру);
+      //    касание карточки в ряду говорит слово и ничего не подтверждает
       { const ans = ["yes", "no", "yes", "no", "yes"]; let y0 = null;
         await open("s04_hear");
         for (let i = 0; i < 5; i++) {
@@ -90,8 +90,14 @@ try {
         }
         const s = await waitFor((s) => s.state === "done" && s.info.s04_row, "s04 done", 40000);
         const row = s.info.s04_row; const [cx] = s.stage_center;
-        for (const [x, , cw, , has] of row) if (has ? x + cw / 2 > cx : x + cw / 2 < cx) throw new Error(`${vp} s04: карточка не в своём ряду ${JSON.stringify(row.map((r) => r.map((v) => typeof v === "number" ? Math.round(v) : v)))}`);
-        if (new Set(row.map(([, y, , ch]) => Math.round(y + ch / 2))).size !== 1) throw new Error(`${vp} s04: карточки рядов на разной высоте`);
+        if (row.length !== 5) throw new Error(`${vp} s04: в ряду не 5 карточек`);
+        const cs = row.map(([x, y, w, h]) => [x + w / 2, y + h / 2, w, h]);
+        if (cs.some((c) => !near(c[1], cs[0][1], 2))) throw new Error(`${vp} s04: ряд не на одной высоте`);
+        if (cs.some((c) => !near(c[2], cs[0][2], 2) || !near(c[3], cs[0][3], 2))) throw new Error(`${vp} s04: разный размер карточек ряда`);
+        const xs = cs.map((c) => c[0]);
+        const gaps = xs.slice(1).map((x, i) => x - xs[i]);
+        if (gaps.some((g) => !near(g, gaps[0], 3))) throw new Error(`${vp} s04: неравные промежутки ${gaps.map(Math.round)}`);
+        if (!near((xs[0] + xs[xs.length - 1]) / 2, cx, 3)) throw new Error(`${vp} s04: ряд не по центру`);
         await sampleOverlaps(`${vp} s04 ряды`, 2, 300);
         const ok0 = (s.sfx_counts || {}).sfx_ok || 0;
         await tapT("row_card_0"); await sleep(700); await tapT("row_card_3"); await sleep(700);
@@ -100,7 +106,7 @@ try {
         if (s2.info.s04_word_last !== "a_hear_05") throw new Error(`${vp} s04: карточка «дом» сказала ${s2.info.s04_word_last}`);
         if (s2.state !== "done" || ((s2.sfx_counts || {}).sfx_ok || 0) !== ok0) throw new Error(`${vp} s04: касание карточки в ряду что-то подтвердило`);
         await page.screenshot({ path: path.join(SHOTS, `${vp}-s04-rows.png`) });
-        notes.push(`${vp} s04: 5 карточек по центру, ряды вверху, касания ряда — слово, без подтверждения`); }
+        notes.push(`${vp} s04: 5 карточек по центру, один ровный ряд, касания ряда — слово, без подтверждения`); }
       // 2б) s05 паровозик: рельсы от края до края экрана (плитка без растяжения); поезд въезжает целиком из-за края,
       //     уезжает целиком за другой край; во время езды кнопки ничего не перекрывают
       { let s = await open("s05_words");
