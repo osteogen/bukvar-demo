@@ -68,7 +68,8 @@ func run() -> void:
 	var items: Array = cfg.items
 	for i in items.size():
 		var it: Dictionary = items[i]
-		var pic := add_pic(it.pic, Vector2(512, 300), Vector2(300, 300))
+		var place := _card_place()
+		var pic := add_pic(it.pic, place[0], Vector2(place[1], place[1]))
 		add_card_frame(pic)   # большая рамка сцены 4
 		pic.pressed.connect(_on_card.bind(pic))
 		pic.set_meta("word_audio", String(it.get("word_audio", it.voice)))
@@ -116,7 +117,7 @@ func run() -> void:
 		if not await praise(): return
 		main.expose("pic", null)
 		# ряд отвеченных карточек — по центру сцены (центр ряда = 512), правее зоны «назад» и левее зоны крестика
-		# (DESIGN_RULES.md, §2); следующая карточка снова встаёт в центр (512, 300)
+		# (DESIGN_RULES.md, §2); следующая карточка снова встаёт в центр игрового поля (_card_place)
 		var row := _row_center(bool(it.has), _side_count(bool(it.has)))
 		var tm := pic.create_tween().set_parallel()
 		_last_row_tw = tm
@@ -192,6 +193,33 @@ const ROW_SCALE := 0.45
 const ROW_STEP := 165.0
 var row_cards: Array = []
 var word_taps := 0
+
+## Игровое поле 1024×768, из которого вычтено 150 px вокруг кнопок навигации
+## («назад» 72 в (12,12), крестик 72 в (940,12), «Далее» 100 в (912,656)).
+## Картинка слова — по центру этого поля по вертикали и по центру сцены по горизонтали (512),
+## вместе с рамкой (pad 0.06) не ближе 150 px к кнопкам. Раньше центр был (512, 300), размер 300:
+## карточка висела выше середины поля.
+const NAV_CLEAR := 150.0
+const CARD_FRAME_PAD := 0.06
+
+func _play_rect() -> Rect2:
+	var back := Rect2(Vector2(12, 12), Vector2(72, 72))
+	var exit_r := Rect2(Vector2(1024.0 - 12.0 - 72.0, 12), Vector2(72, 72))
+	var next_r := Rect2(Vector2(1024.0 - 12.0 - 100.0, 768.0 - 12.0 - 100.0), Vector2(100, 100))
+	var x0 := back.end.x + NAV_CLEAR
+	var y0 := maxf(back.end.y, exit_r.end.y) + NAV_CLEAR
+	var x1 := minf(exit_r.position.x, next_r.position.x) - NAV_CLEAR
+	var y1 := next_r.position.y - NAV_CLEAR
+	return Rect2(Vector2(x0, y0), Vector2(x1 - x0, y1 - y0))
+
+## [центр, сторона кнопки-картинки]. Рамка add_card_frame выступает на CARD_FRAME_PAD с каждой стороны.
+func _card_place() -> Array:
+	var play := _play_rect()
+	var center := Vector2(512.0, play.get_center().y)
+	var room := Vector2(minf(center.x - play.position.x, play.end.x - center.x), minf(center.y - play.position.y, play.end.y - center.y))
+	var side := minf(room.x, room.y) * 2.0 / (1.0 + 2.0 * CARD_FRAME_PAD)
+	side = minf(side, 300.0)
+	return [center, floorf(side)]
 
 ## Ряды наверху (hear.rows): слева — слова СО звуком [а] (от левого края к центру), справа — БЕЗ звука.
 ## Между рядами — зазор по центру; ряды правее зоны «назад» и левее крестика (DESIGN_RULES.md, §2).
