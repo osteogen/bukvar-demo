@@ -228,24 +228,30 @@ try {
   reqs.length = 0;
   await page.goto(`${BASE}/?test=1&hint_sec=1`, { waitUntil: "load" });
   await until(home, (s) => s.state === "wait_letter", "home ready");
-  { const s = await home(), k0 = s.knocks || 0; await tapAt(s.targets.letter_locked); await sleep(120);
-    ok(await page.evaluate(() => document.querySelector('.cube.nolesson.wobble[data-letter="Б"]') !== null), "«Б» (урока нет) не качнулась");
-    const a = await home(); ok(a.knocks === k0 + 1, "закрытая «Б» без «тук»: " + JSON.stringify([k0, a.knocks]));
-    await sleep(300);
-    // троттлинг: второй тап через ≈40 мс не даёт нового «тук», через 250 мс — даёт
-    await page.touchscreen.tap(...s.targets.letter_locked); await sleep(40); await page.touchscreen.tap(...s.targets.letter_locked); await sleep(60);
+  { const open = await page.evaluate(() => {
+      const b = document.querySelector('[data-letter="Б"]');
+      const m = document.querySelector('[data-letter="М"]');
+      return { nolesson: document.querySelectorAll(".cube.nolesson").length,
+        b: b && b.dataset.letterId, m: m && m.dataset.letterId,
+        bLocked: b && b.classList.contains("locked") };
+    });
+    ok(open.nolesson === 0 && open.b === "b" && open.m === "m" && !open.bLocked, "мини-уроки не открыты: " + JSON.stringify(open));
+    const s = await home(), k0 = s.knocks || 0;
+    await tapAt(s.targets.buttons[0]); await sleep(120);
+    const a = await home(); ok(a.knocks === k0 + 1, "закрытый раздел без «тук»: " + JSON.stringify([k0, a.knocks]));
+    await page.touchscreen.tap(...s.targets.buttons[0]); await sleep(40); await page.touchscreen.tap(...s.targets.buttons[0]); await sleep(60);
     const b = await home(); ok(b.knocks === a.knocks + 1, "«тук» не ограничен 200 мс: " + JSON.stringify([a.knocks, b.knocks]));
-    await sleep(250); await page.touchscreen.tap(...s.targets.letter_locked); await sleep(60);
+    await sleep(250); await page.touchscreen.tap(...s.targets.buttons[0]); await sleep(60);
     const c = await home(); ok(c.knocks === b.knocks + 1, "повторный «тук» через 250 мс не прозвучал");
-    console.log(`закрытая «Б»: «тук» + покачивание; троттлинг 200 мс работает (knocks ${k0}→${c.knocks}, AudioContext: ${c.audio_state})`);
-    await sleep(600); ok(page.url().startsWith(`${BASE}/?`), "закрытая «Б» куда-то увела"); }
+    console.log(`все 33 буквы с уроком; «тук» раздела троттлится (knocks ${k0}→${c.knocks})`);
+    ok(page.url().startsWith(`${BASE}/?`), "главная ушла"); }
   { const t0 = Date.now();
     while (Date.now() - t0 < 22000) {
       const s = await home(); ok(!s.targets.hint_hand, "на главной появилась рука-подсказка");
       ok(!(await page.evaluate(() => [...document.querySelectorAll("img")].some((i) => /hand/.test(i.src) && i.offsetWidth))), "на главной видна картинка руки");
       await sleep(500); }
     console.log("главная: 22 с без касаний — руки-подсказки нет"); }
-  passed.push("home: Б качается, руки нет");
+  passed.push("home: все буквы с уроком, руки нет");
   // 4б) «i» → страница сведений (общая для всех уроков) → крестик / «назад» → буквы; на телефоне 390×844 и планшете
   for (const [w, h] of [[390, 844], [1024, 768], [820, 1180]]) {
     await page.setViewport({ width: w, height: h, hasTouch: true, isMobile: w < 600 });

@@ -1,12 +1,17 @@
-## ГЛАВНЫЙ экран (открывается при запуске): 33 кубика-буквы по алфавиту. Активна только «А» (тап — урок «А»:
-## сразу s02; экрана-памятки s00 больше нет), остальные «закрыты» (приглушённые, без прозрачности), на тап покачиваются.
-## Сюда ведут крестик (s01–s10) и «домой» в s10. Крестика здесь нет — это дом. Первое касание здесь включает звук (iOS Safari).
+## Экран букв внутри Godot (не веб: веб открывает web-home). Тап по букве открывает её урок:
+## А и У — полные уроки, остальные 31 — короткий ознакомительный урок из data/lesson_<id>.
 ## Кубики — финальные файлы иллюстратора (палитра 2 «мягкая радуга», art/common/ui/ui_cube_dlya_koda.txt):
 ## слой ui_cube_tint (красится modulate цветом клетки) + поверх ui_cube_face (не красится) + буква на лицевой грани.
 extends LessonStep
 
 const ALPHABET := "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
-const ACTIVE := "АУ"
+## id урока. Э и Е не делят один код: в TRANSLIT обе дали бы «e», а сценарий различает e и eh, Ь/Ъ — soft/hard.
+const LESSON_ID := {
+	"А": "a", "У": "u", "М": "m", "Х": "h", "О": "o", "Ш": "sh", "Р": "r", "С": "s", "Ы": "y",
+	"Л": "l", "Н": "n", "К": "k", "П": "p", "Т": "t", "В": "v", "З": "z", "Ж": "zh", "Ь": "soft",
+	"И": "i", "Е": "e", "Д": "d", "Б": "b", "Г": "g", "Й": "j", "Ч": "ch", "Э": "eh", "Ё": "yo",
+	"Я": "ya", "Ю": "yu", "Ц": "ts", "Щ": "sch", "Ф": "f", "Ъ": "hard",
+}
 const CUBE_COLORS := [
 	Color("#F6B9C0"),  # 0 розовый
 	Color("#F9CB9C"),  # 1 персик
@@ -44,7 +49,7 @@ func run() -> void:
 		var col := i % COLS + (1 if i >= 28 else 0)           # последний ряд из 5 — по центру
 		var pos := origin + Vector2(col * CUBE_STEP.x, (i / COLS) * CUBE_STEP.y)
 		var t := _cube(ch, pos, CUBE_COLORS[CUBE_ORDER[i]])
-		if ch in ACTIVE:
+		if ch == "А":
 			active = t
 	main.expose("letter_a", active)
 	pop_in(active)
@@ -63,7 +68,7 @@ func _layer(btn: Control, id: String, mod: Color) -> void:
 	btn.add_child(r)
 
 func _cube(ch: String, pos: Vector2, color: Color) -> Control:
-	var locked := ch not in ACTIVE
+	var locked := not LESSON_ID.has(ch)
 	var btn := Button.new()
 	btn.name = "tile_" + Assets.TRANSLIT.get(ch.to_lower(), ch)
 	btn.focus_mode = Control.FOCUS_NONE
@@ -107,8 +112,5 @@ func _start_lesson(ch: String = "А") -> void:
 	main.hint_stop()
 	main.log_event("letter", {"ch": ch})
 	Voice.sfx("sfx_start")
-	if ch == "У":
-		Assets.reload_letter("u")
-	elif ch == "А":
-		Assets.reload_letter("a")
+	Assets.reload_letter(String(LESSON_ID.get(ch, "a")))
 	main.start_lesson()

@@ -56,6 +56,7 @@ func _ready() -> void:
 	letter_id = String(params.get("letter", "a")).validate_filename()
 	lesson = _load_json("res://data/lesson_%s/lesson.json" % letter_id)
 	lines = _load_json("res://data/common/lines.json")
+	lines.merge(_load_json("res://data/common/intro_lines.json"), true)
 	lines.merge(_load_json("res://data/lesson_%s/lines.json" % letter_id), true)
 
 ## Буква урока по адресу страницы, если в запросе нет letter/lesson. /lesson-a/ остаётся «а» по умолчанию.
@@ -172,4 +173,5 @@ func reload_letter(id: String) -> void:
 	letter_id = String(id).validate_filename()
 	lesson = _load_json("res://data/lesson_%s/lesson.json" % letter_id)
 	lines = _load_json("res://data/common/lines.json")
+	lines.merge(_load_json("res://data/common/intro_lines.json"), true)
 	lines.merge(_load_json("res://data/lesson_%s/lines.json" % letter_id), true)

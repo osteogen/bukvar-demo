@@ -363,12 +363,14 @@ func exit_to_letters() -> void:
 	if current:
 		current.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		host.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	set_info("exit_bye", BYE_LINE)
+	# Короткий урок прощается репликой c_exit из сценария. Уроки А и У остаются на c_bye_01.
+	var bye := "c_exit" if Assets.lesson.has("intro") else BYE_LINE
+	set_info("exit_bye", bye)
 	set_state("exit_bye")
 	var t0 := Time.get_ticks_msec()
-	var has_audio := Voice._stream(BYE_LINE) != null
-	if has_audio or Assets.line_text(BYE_LINE) != "":
-		await Voice.say(BYE_LINE, BYE_MAX_SEC)
+	var has_audio := Voice._stream(bye) != null
+	if has_audio or Assets.line_text(bye) != "":
+		await Voice.say(bye, BYE_MAX_SEC)
 	if not has_audio:
 		await get_tree().create_timer(0.3).timeout
 	set_info("exit_bye_ms", Time.get_ticks_msec() - t0)
