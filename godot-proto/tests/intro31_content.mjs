@@ -98,4 +98,21 @@ for (const rel of ["art/lesson_j/pic_yogurt.png", "art/lesson_ch/pic_chai.png", 
 for (const id of ["j", "ch", "eh"]) {
   if (fs.existsSync(path.join(ROOT, "audio", "lesson_" + id))) throw new Error("появилась озвучка " + id);
 }
+const yo = JSON.parse(fs.readFileSync(path.join(ROOT, "data/lesson_yo/lesson.json"), "utf8"));
+const ya = JSON.parse(fs.readFileSync(path.join(ROOT, "data/lesson_ya/lesson.json"), "utf8"));
+const yu = JSON.parse(fs.readFileSync(path.join(ROOT, "data/lesson_yu/lesson.json"), "utf8"));
+if (yo.intro.scenes[0].tex !== "pic_el" || yo.intro.scenes[0].from !== "e") throw new Error("Ё: ёлка не из урока Е");
+if (yo.intro.scenes[1].kind !== "two_dots" || yo.intro.scenes[1].rest_after !== true) throw new Error("Ё: нет двух звуков и перерыва");
+if (yo.intro.scenes[2].kind !== "choose_trace" || yo.intro.scenes[2].cards.map((c) => c.text).join(",") !== "ло,лё" || yo.intro.scenes[2].cards[1].track !== true) throw new Error("Ё: не ло/лё");
+if (yo.intro.scenes[3].kind !== "text" || yo.intro.scenes[3].choices.join(",") !== "нёс,нос") throw new Error("Ё: не текст нёс/нос");
+if (ya.intro.scenes[0].tex !== "pic_yak" || ya.intro.scenes[2].cards.map((c) => c.text).join(",") !== "ма,мя") throw new Error("Я: носитель или слоги");
+if (ya.intro.scenes[3].kind !== "picture" || ya.intro.scenes[3].word !== "мяч" || ya.intro.scenes[3].choices.map((c) => c.tex).join(",") !== "pic_myach,pic_kot_sit") throw new Error("Я: не мяч/кот");
+if (yu.intro.scenes[0].tex !== "pic_yula" || yu.intro.scenes[2].cards.map((c) => c.text).join(",") !== "лу,лю") throw new Error("Ю: носитель или слоги");
+if (yu.intro.scenes[3].kind !== "picture" || yu.intro.scenes[3].word !== "люк" || yu.intro.scenes[3].choices.map((c) => c.tex).join(",") !== "pic_lyuk,pic_vaza") throw new Error("Ю: не люк/ваза");
+for (const rel of ["art/lesson_ya/pic_yak.png", "art/lesson_ya/pic_myach.png", "art/lesson_yu/pic_yula.png", "art/lesson_yu/pic_lyuk.png", "art/lesson_e/pic_el.png", "art/lesson_z/pic_vaza.png"]) {
+  if (!fs.existsSync(path.join(ROOT, rel))) throw new Error("нет " + rel);
+}
+for (const id of ["yo", "ya", "yu"]) {
+  if (fs.existsSync(path.join(ROOT, "audio", "lesson_" + id))) throw new Error("появилась озвучка " + id);
+}
 console.log(`OK intro31 content: ${ORDER.length} букв, ${scenes} сцен, ${ids.length} id, ${unique.size} уникальных текстов`);
