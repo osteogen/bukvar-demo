@@ -81,4 +81,21 @@ for (const rel of ["art/lesson_b/pic_busy.png", "art/lesson_b/pic_byk.png", "art
 for (const id of ["d", "b", "g"]) {
   if (fs.existsSync(path.join(ROOT, "audio", "lesson_" + id))) throw new Error("появилась озвучка " + id);
 }
+const j = JSON.parse(fs.readFileSync(path.join(ROOT, "data/lesson_j/lesson.json"), "utf8"));
+const ch = JSON.parse(fs.readFileSync(path.join(ROOT, "data/lesson_ch/lesson.json"), "utf8"));
+const eh = JSON.parse(fs.readFileSync(path.join(ROOT, "data/lesson_eh/lesson.json"), "utf8"));
+if (j.intro.scenes[0].tex !== "pic_yogurt" || j.intro.scenes[1].slots !== 2 || j.intro.scenes[1].correct !== 2) throw new Error("Й: носитель или позиция 2");
+if (j.intro.scenes[2].cards[0].text !== "ай" || j.intro.scenes[3].kind !== "text" || j.intro.scenes[3].choices.join(",") !== "май,мак") throw new Error("Й: не текст май/мак");
+if (ch.intro.scenes[0].tex !== "pic_chai" || ch.intro.scenes[1].slots !== 3 || ch.intro.scenes[1].correct !== 1) throw new Error("Ч: носитель или 3 позиции");
+if (ch.intro.scenes[2].cards[0].text !== "чу" || ch.intro.scenes[3].kind !== "picture" || ch.intro.scenes[3].word !== "чай") throw new Error("Ч: не чай");
+if (ch.intro.scenes[3].choices.map((c) => c.tex).join(",") !== "pic_chai,pic_sup" || ch.intro.scenes[3].choices[1].from !== "p") throw new Error("Ч: картинки");
+if (eh.intro.letter !== "Э" || eh.big !== "Э" || eh.intro.scenes[0].tex !== "pic_emu") throw new Error("Э: не буква Э или нет эму");
+if (eh.intro.scenes[1].slots !== 2 || eh.intro.scenes[1].correct !== 1 || eh.intro.scenes[2].cards[0].text !== "эх") throw new Error("Э: не эх");
+if (eh.intro.scenes[3].kind !== "text" || eh.intro.scenes[3].choices.join(",") !== "эх,ох") throw new Error("Э: не текст эх/ох");
+for (const rel of ["art/lesson_j/pic_yogurt.png", "art/lesson_ch/pic_chai.png", "art/lesson_eh/pic_emu.png", "art/lesson_p/pic_sup.png"]) {
+  if (!fs.existsSync(path.join(ROOT, rel))) throw new Error("нет " + rel);
+}
+for (const id of ["j", "ch", "eh"]) {
+  if (fs.existsSync(path.join(ROOT, "audio", "lesson_" + id))) throw new Error("появилась озвучка " + id);
+}
 console.log(`OK intro31 content: ${ORDER.length} букв, ${scenes} сцен, ${ids.length} id, ${unique.size} уникальных текстов`);
