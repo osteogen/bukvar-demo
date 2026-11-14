@@ -1,6 +1,6 @@
 ## Короткий ознакомительный урок одной буквы. Четыре сцены из lesson.json → intro.scenes.
 ## Тексты и id реплик — только из сценария. Нет файла звука: Voice.say всё равно завершается по dur, тупика нет.
-## Рисунки предметов — геометрические черновики в коде (не утверждённая графика, не чужой стиль).
+## Рисунки предметов — спрайт из сцены (tex), иначе геометрический черновик в коде. Буквы и слова рисует шрифт урока.
 extends LessonStep
 
 @export var scene_no := 1
@@ -342,11 +342,17 @@ func _meet(intro: Dictionary, sc: Dictionary) -> void:
 	var big := String(intro.get("letter", ""))
 	var small := big.to_lower()
 	if _ill:
-		# Носитель в верхней трети: рамка из m/layout_handoff.json, картинка без подписи.
-		carrier = _button(Rect2(437, 152, 150, 100), "carrier", Color("#FFF9EE"), 16)
+		# Общая рамка М/Х/О/Ш. У Р и С в lesson.json свой fit из layout_handoff: предмет крупнее, низ всё ещё на y=252.
+		var fit: Array = sc.get("fit", [])
+		var box := Rect2(437, 152, 150, 100)
+		var fill := Color("#FFF9EE")
+		if fit.size() == 4:
+			box = Rect2(float(fit[0]), float(fit[1]), float(fit[2]), float(fit[3]))
+			fill = Color(0, 0, 0, 0)
+		carrier = _button(box, "carrier", fill, 16)
 		var carrier_id := String(sc.get("tex", ""))
-		# Мышь широкая и уже подогнана кадрированием. Остальные предметы целиком, без обрезки помпона и лап.
-		_paint(carrier, carrier_id, carrier_id == "pic_myshka")
+		# Мышь и широкий сом заполняют рамку (обрезается только прозрачный край). Остальные предметы целиком.
+		_paint(carrier, carrier_id, carrier_id == "pic_myshka" or bool(sc.get("cover", false)))
 	else:
 		carrier = _button(_r(0.18, 0.0, 0.64, 0.46), "carrier", Color("#FFF9EE"), 22)
 		_motif(String(sc.get("motif", "")), carrier)

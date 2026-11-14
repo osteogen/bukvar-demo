@@ -21,6 +21,7 @@ const errors = [];
 let browser, page;
 
 const LETTERS = ["m","h","o","sh","r","s","y","l","n","k","p","t","v","z","zh","soft","i","e","d","b","g","j","ch","eh","yo","ya","yu","ts","sch","f","hard"];
+const ILL = ["m", "h", "o", "sh", "r", "s"];
 const SHOT = { m: "consonant-m", e: "iotated-e", soft: "sign-soft" };
 
 const bk = async () => page.evaluate(() => window.__bk || {}).catch(() => ({}));
@@ -149,7 +150,7 @@ async function playScene(id) {
       await tap("ear");
       await waitFor((s) => s.state === "wait_choice", "модель съел");
     }
-    if ((kind === "picture" || kind === "text") && ["m", "h", "o", "sh"].includes(id)) {
+    if ((kind === "picture" || kind === "text") && ILL.includes(id)) {
       await tap("pick_bad");
       await waitFor((s) => s.state === "wait_choice", "неверный выбор прошёл");
     }
@@ -163,7 +164,7 @@ async function lesson(id) {
   await page.goto(url, { waitUntil: "load", timeout: 120000 });
   for (let n = 1; n <= 4; n++) {
     await waitFor((s) => s.step === "intro_s" + n && s.letter_id === id, "сцена " + n + " " + id, 90000);
-    if (["m", "h", "o", "sh"].includes(id)) {
+    if (ILL.includes(id)) {
       const ready = n === 1 ? (s) => s.state === "wait_letter" && s.targets.letter_big : (s) => s.state && s.state.startsWith("wait");
       await waitFor(ready, "кадр " + id + " " + n);
       await page.waitForFunction(() => !document.getElementById("status"), { timeout: 5000 }).catch(() => {});
@@ -179,7 +180,7 @@ async function lesson(id) {
   }
   const end = await bk();
   if (!end.targets.again || !end.targets.sticker) throw new Error(id + ": нет наклейки или «Ещё раз»");
-  if (["m", "h", "o", "sh"].includes(id)) await page.screenshot({ path: path.join(SHOTS, id + "-play-s4-done.png") });
+  if (ILL.includes(id)) await page.screenshot({ path: path.join(SHOTS, id + "-play-s4-done.png") });
   else if (SHOT[id]) await page.screenshot({ path: path.join(SHOTS, SHOT[id] + "-s4.png") });
   if (id === "m") {
     await tap("again");
@@ -191,17 +192,19 @@ async function lesson(id) {
 
 async function spacing() {
   await page.setViewport({ width: 1024, height: 768, deviceScaleFactor: 1 });
-  await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&letter=m&step=intro_s1`, { waitUntil: "load" });
-  const s = await waitFor((s) => s.state === "wait_letter" && s.info.item_rects, "раскладка м", 90000);
-  const btns = s.ui_rects || {};
-  for (const it of s.info.item_rects) {
-    if (it[2] < 2 || it[3] < 2) continue;
-    for (const name of ["back", "exit", "next"]) {
-      const g = gap(it, btns[name]);
-      if (g < 150) throw new Error(`м: «${it[4]}» ближе 150 px к ${name}: ${g.toFixed(0)}`);
+  for (const id of ["m", "r", "s"]) {
+    await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&letter=${id}&step=intro_s1`, { waitUntil: "load" });
+    const s = await waitFor((s) => s.state === "wait_letter" && s.info.item_rects && s.letter_id === id, "раскладка " + id, 90000);
+    const btns = s.ui_rects || {};
+    for (const it of s.info.item_rects) {
+      if (it[2] < 2 || it[3] < 2) continue;
+      for (const name of ["back", "exit", "next"]) {
+        const g = gap(it, btns[name]);
+        if (g < 150) throw new Error(`${id}: «${it[4]}» ближе 150 px к ${name}: ${g.toFixed(0)}`);
+      }
     }
+    console.log("OK spacing", id, "1024×768, предметов", s.info.item_rects.length);
   }
-  console.log("OK spacing 1024×768, предметов", s.info.item_rects.length);
 }
 
 async function responsive(size) {
