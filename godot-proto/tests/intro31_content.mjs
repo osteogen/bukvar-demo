@@ -65,4 +65,20 @@ if (!hard.hard_tap.text.includes("нет зву́ка")) throw new Error("Ъ у�
 const e = JSON.parse(fs.readFileSync(path.join(ROOT, "data/lesson_e/lesson.json"), "utf8"));
 if (e.intro.scenes[1].kind !== "two_dots" || e.intro.scenes[2].kind !== "choose_trace") throw new Error("Е не двумя блоками");
 if (fs.readdirSync(path.join(ROOT, "audio")).some((n) => n.startsWith("lesson_m"))) throw new Error("появилась синтезированная озвучка");
+const d = JSON.parse(fs.readFileSync(path.join(ROOT, "data/lesson_d/lesson.json"), "utf8"));
+const b = JSON.parse(fs.readFileSync(path.join(ROOT, "data/lesson_b/lesson.json"), "utf8"));
+const g = JSON.parse(fs.readFileSync(path.join(ROOT, "data/lesson_g/lesson.json"), "utf8"));
+if (d.intro.scenes[0].tex !== "pic_dom" || d.intro.scenes[0].from !== "e") throw new Error("Д: дом не из урока Е");
+if (d.intro.scenes[1].kind !== "locate" || d.intro.scenes[2].cards.length !== 1 || d.intro.scenes[2].cards[0].text !== "да") throw new Error("Д: не «да»");
+if (d.intro.scenes[3].word !== "дом" || d.intro.scenes[3].choices.map((c) => c.tex).join(",") !== "pic_dom,pic_zont") throw new Error("Д: картинки");
+if (b.intro.scenes[0].tex !== "pic_busy" || b.intro.scenes[2].cards[0].text !== "ба" || b.intro.scenes[3].word !== "бык") throw new Error("Б: сценарий");
+if (b.intro.scenes[3].choices.map((c) => c.tex).join(",") !== "pic_byk,pic_kot_sit") throw new Error("Б: картинки");
+if (g.intro.scenes[0].tex !== "pic_gus" || g.intro.scenes[2].cards[0].text !== "гу" || g.intro.scenes[3].word !== "гу\u0301си") throw new Error("Г: сценарий");
+if (g.intro.scenes[3].choices[0].tex !== "pic_gusi" || g.intro.scenes[3].choices[1].tex !== "pic_busy") throw new Error("Г4: нужен pic_gusi, не одиночный pic_gus");
+for (const rel of ["art/lesson_b/pic_busy.png", "art/lesson_b/pic_byk.png", "art/lesson_g/pic_gus.png", "art/lesson_g/pic_gusi.png", "art/lesson_e/pic_dom.png"]) {
+  if (!fs.existsSync(path.join(ROOT, rel))) throw new Error("нет " + rel);
+}
+for (const id of ["d", "b", "g"]) {
+  if (fs.existsSync(path.join(ROOT, "audio", "lesson_" + id))) throw new Error("появилась озвучка " + id);
+}
 console.log(`OK intro31 content: ${ORDER.length} букв, ${scenes} сцен, ${ids.length} id, ${unique.size} уникальных текстов`);
