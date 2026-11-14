@@ -24,6 +24,8 @@ const MUSTARD := Color("#E2B42E")
 const CORAL := Color("#E07A4E")
 ## Экран букв (menu/letters_menu): согласные — синие (только буквы, не кнопки), ь/ъ — тёмные, подложки — кремовые.
 const CONSONANT_BLUE := Color("#2F6DB5")
+## Мягкий согласный в конкретном слове: перед ь или е/ё/и/ю/я. Ж и Ш остаются синими.
+const SOFT_GREEN := Color("#3FA34D")
 const DARK := Color("#3C3228")
 const CREAM := Color("#F7F0DE")
 const VOWELS := "аеёиоуыэюя"

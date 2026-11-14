@@ -21,7 +21,7 @@ const errors = [];
 let browser, page;
 
 const LETTERS = ["m","h","o","sh","r","s","y","l","n","k","p","t","v","z","zh","soft","i","e","d","b","g","j","ch","eh","yo","ya","yu","ts","sch","f","hard"];
-const ILL = ["m", "h", "o", "sh", "r", "s", "y", "l", "n", "k", "p", "t", "v", "z", "zh"];
+const ILL = ["m", "h", "o", "sh", "r", "s", "y", "l", "n", "k", "p", "t", "v", "z", "zh", "soft", "i", "e"];
 const SHOT = { m: "consonant-m", e: "iotated-e", soft: "sign-soft" };
 
 const bk = async () => page.evaluate(() => window.__bk || {}).catch(() => ({}));
@@ -116,11 +116,18 @@ async function playScene(id) {
     await waitFor((s) => s.state === "wait_dots" && s.targets.dots_2, "две точки");
     await tap("dots_1");
     await waitFor((s) => s.state === "wait_dots", "одна точка прошла как верная");
+    if (id === "e") await page.screenshot({ path: path.join(SHOTS, "e-play-s2-dots.png") });
     await tap("dots_2");
   } else if (kind === "choose_trace") {
     await tap("card_0");
     await waitFor((s) => (s.info.heard || 0) >= 1, "слог 1");
     await tap("card_1");
+    await waitFor((s) => (s.info.heard || 0) >= 2 && s.state === "wait_syll", "оба слога, выбор ещё впереди");
+    await tap("card_0");
+    await waitFor((s) => s.state === "wait_syll", "ла не открыла дорожку");
+    await tap("card_1");
+    await waitFor((s) => s.state === "wait_trace" && s.info.sounds === 2, "выбрано ле, два звука");
+    if (id === "e") await page.screenshot({ path: path.join(SHOTS, "e-play-s3-trace.png") });
     for (let attempt = 0; attempt < 3; attempt++) {
       const s = await waitFor((s) => s.state === "wait_trace" && s.targets.track_l, "дорожка слога");
       await drag(s.targets.track_l, s.targets.track_r);
@@ -176,7 +183,16 @@ async function lesson(id) {
     }
     const done = await playScene(id);
     if ((done.ui_overlaps || []).length) throw new Error(id + " s" + n + " перекрытия: " + done.ui_overlaps.join(", "));
+    if (id === "e" && n === 2 && !done.info.rest) throw new Error("е: после двух звуков нет перерыва");
     if (n < 4) await tap("next");
+    if (id === "e" && n === 2) {
+      await waitFor((s) => s.step === "intro_s3" && s.letter_id === "e", "е3 после перерыва");
+      const back = (await bk()).ui_rects.back;
+      await press(back[0] + back[2] / 2, back[1] + back[3] / 2);
+      await waitFor((s) => s.step === "intro_s2" && s.targets && s.targets.next, "возврат к пройденной е2");
+      await tap("next");
+      await waitFor((s) => s.step === "intro_s3" && s.letter_id === "e", "снова е3");
+    }
   }
   const end = await bk();
   if (!end.targets.again || !end.targets.sticker) throw new Error(id + ": нет наклейки или «Ещё раз»");
@@ -192,7 +208,7 @@ async function lesson(id) {
 
 async function spacing() {
   await page.setViewport({ width: 1024, height: 768, deviceScaleFactor: 1 });
-  for (const id of ["m", "r", "s", "y", "l", "n", "k", "p", "t", "v", "z", "zh"]) {
+  for (const id of ["m", "r", "s", "y", "l", "n", "k", "p", "t", "v", "z", "zh", "soft", "i", "e"]) {
     await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&letter=${id}&step=intro_s1`, { waitUntil: "load" });
     const s = await waitFor((s) => s.state === "wait_letter" && s.info.item_rects && s.letter_id === id, "раскладка " + id, 90000);
     const btns = s.ui_rects || {};

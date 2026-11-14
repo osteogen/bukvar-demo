@@ -86,12 +86,18 @@ func _next_hit() -> String:
 		return ""
 	return String(_hits.pop_front())
 
-func _ink(ch: String) -> Color:
+func _ink(ch: String, nxt := "") -> Color:
 	var base := ch.substr(0, 1).to_lower()
 	if base in ["ь", "ъ"]:
 		return Assets.DARK
 	if Assets.VOWELS.contains(base):
 		return Assets.VOWEL_RED
+	# Ж/Ш не смягчаются, в том числе перед и. Остальные — только перед ь или смягчающей гласной этого слова.
+	if base in ["ж", "ш"]:
+		return Assets.CONSONANT_BLUE
+	var n := nxt.substr(0, 1).to_lower()
+	if n in ["ь", "и", "е", "ё", "ю", "я"]:
+		return Assets.SOFT_GREEN
 	return Assets.CONSONANT_BLUE
 
 func _style(fill: Color, radius: int) -> StyleBoxFlat:
@@ -212,7 +218,7 @@ func _glyphs_of(text: String) -> PackedStringArray:
 			i += 1
 	return out
 
-func _word(text: String, px: int, rect: Rect2) -> Control:
+func _word(text: String, px: int, rect: Rect2, hide_last := false) -> Control:
 	var box := Control.new()
 	box.name = "word"
 	box.position = rect.position
@@ -232,19 +238,37 @@ func _word(text: String, px: int, rect: Rect2) -> Control:
 	total += gap * maxf(0, parts.size() - 1)
 	var x := maxf(0.0, (rect.size.x - total) / 2.0)
 	for i in parts.size():
-		var lab := Label.new()
-		lab.text = parts[i]
-		lab.position = Vector2(x, 0)
-		lab.size = Vector2(widths[i], rect.size.y)
-		lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		lab.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		lab.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		lab.add_theme_font_size_override("font_size", px)
-		lab.add_theme_color_override("font_color", _ink(parts[i]))
-		box.add_child(lab)
-		_glyphs.append(lab)
+		var nxt := parts[i + 1] if i + 1 < parts.size() else ""
+		var slot := Rect2(Vector2(x, 0), Vector2(widths[i], rect.size.y))
+		var hidden := hide_last and i == parts.size() - 1
+		if hidden:
+			box.set_meta("hidden_slot", slot)
+			box.set_meta("hidden_text", parts[i])
+			box.set_meta("hidden_px", px)
+			box.set_meta("hidden_next", nxt)
+		else:
+			_glyphs.append(_glyph_label(box, parts[i], nxt, slot, px))
 		x += widths[i] + gap
 	return box
+
+func _glyph_label(box: Control, text: String, nxt: String, slot: Rect2, px: int) -> Label:
+	var lab := Label.new()
+	lab.text = text
+	lab.position = slot.position
+	lab.size = slot.size
+	lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lab.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lab.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lab.add_theme_font_size_override("font_size", px)
+	lab.add_theme_color_override("font_color", _ink(text, nxt))
+	box.add_child(lab)
+	return lab
+
+func _reveal_last(box: Control) -> void:
+	if box == null or not box.has_meta("hidden_slot"):
+		return
+	var slot: Rect2 = box.get_meta("hidden_slot")
+	_glyphs.append(_glyph_label(box, String(box.get_meta("hidden_text")), String(box.get_meta("hidden_next")), slot, int(box.get_meta("hidden_px"))))
 
 func _track(rect: Rect2) -> Control:
 	var t := Control.new()
@@ -389,12 +413,28 @@ func _locate(sc: Dictionary) -> void:
 	var n := int(sc.get("slots", 2))
 	var correct := int(sc.get("correct", 1))
 	main.set_info("correct", correct)
-	if String(sc.get("kind", "")) == "soft_hear":
-		var pic := _button(_r(0.28, 0.0, 0.44, 0.42), "pic", Color("#FFF9EE"), 18)
-		_motif(String(sc.get("motif", "конь")), pic)
 	var ear: Button
 	var slots: Array[Button] = []
-	if _ill and n == 2:
+	if String(sc.get("kind", "")) == "soft_hear":
+		if _ill:
+			var fit: Array = sc.get("fit", [385, 145, 280, 178])
+			var pic := _button(Rect2(float(fit[0]), float(fit[1]), float(fit[2]), float(fit[3])), "pic", Color(0, 0, 0, 0), 16)
+			_paint(pic, String(sc.get("tex", "")), false)
+			# Конь: три звука, отдельной позиции для ь нет. Рамка ниже картинки.
+			ear = _ear(Rect2(278, 370, 80, 80), "ear")
+			slots.append(_slot(Rect2(402, 369, 92, 92), "slot_1"))
+			slots.append(_slot(Rect2(522, 369, 92, 92), "slot_2"))
+			slots.append(_slot(Rect2(642, 369, 92, 92), "slot_3"))
+		else:
+			var plain := _button(_r(0.28, 0.0, 0.44, 0.42), "pic", Color("#FFF9EE"), 18)
+			_motif(String(sc.get("motif", "конь")), plain)
+			ear = _ear(_r(0.0, 0.34, 0.2, 0.4), "ear")
+			var gap0 := 0.04
+			var w0 := (0.74 - gap0 * (n - 1)) / n
+			for i in n:
+				var x0 := 0.24 + i * (w0 + gap0)
+				slots.append(_slot(_r(x0, 0.28, w0, 0.5), "slot_%d" % (i + 1)))
+	elif _ill and n == 2:
 		ear = _ear(Rect2(270, 336, 80, 80), "ear")
 		slots.append(_slot(Rect2(405, 325, 110, 110), "slot_1"))
 		slots.append(_slot(Rect2(590, 325, 110, 110), "slot_2"))
@@ -530,6 +570,8 @@ func _two_dots(intro: Dictionary, sc: Dictionary) -> void:
 			_answered = true
 			main.hint_stop()
 			await say("c_success")
+			if bool(sc.get("rest_after", false)):
+				main.set_info("rest", true)
 			finish()
 			if bool(sc.get("rest_after", false)):
 				await say("c_rest")
@@ -560,33 +602,77 @@ func _choose_trace(sc: Dictionary) -> void:
 	if not await say(String(sc.get("line", ""))):
 		return
 	var heard := {}
-	var target: Dictionary = {}
+	var target_i := -1
 	for i in cards.size():
 		var card: Dictionary = cards[i]
-		var b := _button(_r(0.04 + i * 0.5, 0.02, 0.44, 0.48), "card_%d" % i, Color("#FFF9EE"), 16)
+		var rect := Rect2(290 + i * 250, 250, 190, 150) if _ill else _r(0.04 + i * 0.5, 0.02, 0.44, 0.48)
+		var b := _button(rect, "card_%d" % i, Color("#FFF9EE"), 16)
+		if _ill:
+			_paint(b, "ui_intro_card", true)
 		_word_on(b, String(card.get("text", "")), 48)
 		main.expose("card_%d" % i, b)
 		if bool(card.get("track", false)):
-			target = card
-			_track(_r(0.08 + i * 0.5, 0.62, 0.36, 0.3))
+			target_i = i
 	main.set_state("wait_syll")
-	while not dead and heard.size() < cards.size():
+	var chosen := false
+	while not dead and not chosen:
 		var h := await _next_hit()
 		if h == "":
 			return
-		if h.begins_with("card_"):
-			var i := int(h.trim_prefix("card_"))
-			await say(String((cards[i] as Dictionary).get("audio", "")))
-			heard[h] = true
-			main.set_info("heard", heard.size())
+		if not h.begins_with("card_"):
+			continue
+		var i := int(h.trim_prefix("card_"))
+		var ready := heard.size() >= cards.size()
+		await say(String((cards[i] as Dictionary).get("audio", "")))
+		heard[h] = true
+		main.set_info("heard", heard.size())
+		if not ready:
+			if heard.size() >= cards.size():
+				_hits.clear()
+			continue
+		if i == target_i:
+			chosen = true
+		else:
+			var bad := get_node_or_null(h) as Control
+			if bad:
+				shake(bad)
+			await say("c_retry")
+	if dead or target_i < 0:
+		return
+	main.set_info("sounds", 2)
+	if _ill:
+		_sound_mark(Rect2(570, 405, 56, 56))
+		_sound_mark(Rect2(650, 405, 56, 56))
+		_track(Rect2(540, 477, 190, 55))
+	else:
+		var host := get_node_or_null("card_%d" % target_i) as Control
+		if host:
+			_sound_mark(Rect2(host.position.x + 24, host.position.y + host.size.y - 36, 28, 28))
+			_sound_mark(Rect2(host.position.x + 64, host.position.y + host.size.y - 36, 28, 28))
+		_track(_r(0.08 + target_i * 0.5, 0.62, 0.36, 0.3))
+	main.set_state("wait_trace")
 	if dead or not await _await_trace():
 		return
 	_answered = true
 	main.hint_stop()
 	await say("c_success")
-	if target:
-		pass
 	finish()
+
+func _sound_mark(rect: Rect2) -> void:
+	var c := Control.new()
+	c.position = rect.position
+	c.size = rect.size
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(c)
+	_keep(c)
+	if _ill:
+		_paint(c, "ui_intro_slot", true)
+		return
+	var d := ColorRect.new()
+	d.color = Color("#D9CDB4")
+	d.set_anchors_preset(Control.PRESET_FULL_RECT)
+	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.add_child(d)
 
 func _word_on(host: Control, text: String, px: int) -> void:
 	var lab := Label.new()
@@ -623,7 +709,7 @@ func _word_on(host: Control, text: String, px: int) -> void:
 		g.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		g.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		g.add_theme_font_size_override("font_size", px)
-		g.add_theme_color_override("font_color", _ink(parts[i]))
+		g.add_theme_color_override("font_color", _ink(parts[i], parts[i + 1] if i + 1 < parts.size() else ""))
 		row.add_child(g)
 		x += widths[i] + gap
 
@@ -715,27 +801,34 @@ func _soft_sign(sc: Dictionary) -> void:
 	if not await say(String(sc.get("line", ""))):
 		return
 	var word := String(sc.get("word", "конь"))
-	_word(word, 64, _r(0.08, 0.02, 0.62, 0.36))
+	var box := _word(word, 86, Rect2(250, 250, 400, 110), true)
 	var curtain := ColorRect.new()
 	curtain.name = "curtain"
 	curtain.color = Color("#E4D3B0")
-	curtain.position = _r(0.5, 0.04, 0.16, 0.32).position
-	curtain.size = _r(0.5, 0.04, 0.16, 0.32).size
 	curtain.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var slot: Rect2 = box.get_meta("hidden_slot", Rect2(300, 0, 50, 110))
+	# Шторка закрывает всю клетку последнего знака. Сам знак ещё не нарисован.
+	curtain.position = box.position + slot.position - Vector2(6, 0)
+	curtain.size = Vector2(slot.size.x + 12, box.size.y)
+	curtain.z_index = 5
 	add_child(curtain)
 	_keep(curtain)
 	for i in 3:
-		var d := ColorRect.new()
-		d.color = Color("#D9CDB4")
-		d.position = _r(0.12 + i * 0.16, 0.4, 0.08, 0.1).position
-		d.size = Vector2(16, 16)
-		d.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(d)
+		if _ill:
+			_sound_mark(Rect2(353 + i * 81, 370, 70, 70))
+		else:
+			var d := ColorRect.new()
+			d.color = Color("#D9CDB4")
+			d.position = _r(0.12 + i * 0.16, 0.4, 0.08, 0.1).position
+			d.size = Vector2(16, 16)
+			d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			add_child(d)
 	var opts: Array = sc.get("options", [])
 	for i in opts.size():
 		var ch := String(opts[i])
 		var id := "pick_ok" if ch == String(sc.get("correct", "ь")) else "pick_bad"
-		_letter_btn(ch, 64, _r(0.62, 0.02 + i * 0.22, 0.32, 0.2), id)
+		var opt := Rect2(680, 240 + i * 125, 90, 90) if _ill else _r(0.62, 0.02 + i * 0.22, 0.32, 0.2)
+		_letter_btn(ch, 64, opt, id)
 		main.expose(id, get_node_or_null(id) as Control)
 	main.set_state("wait_sign")
 	while not dead and not _answered:
@@ -748,8 +841,9 @@ func _soft_sign(sc: Dictionary) -> void:
 				shake(bad)
 			await say("c_retry")
 		elif h == "pick_ok":
+			_reveal_last(box)
 			curtain.visible = false
-			_track(_r(0.06, 0.62, 0.88, 0.3))
+			_track(Rect2(310, 470, 420, 70) if _ill else _r(0.06, 0.62, 0.88, 0.3))
 			main.hint_stop()
 			if not await _await_trace():
 				return
