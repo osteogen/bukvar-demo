@@ -115,4 +115,23 @@ for (const rel of ["art/lesson_ya/pic_yak.png", "art/lesson_ya/pic_myach.png", "
 for (const id of ["yo", "ya", "yu"]) {
   if (fs.existsSync(path.join(ROOT, "audio", "lesson_" + id))) throw new Error("появилась озвучка " + id);
 }
+const ts = JSON.parse(fs.readFileSync(path.join(ROOT, "data/lesson_ts/lesson.json"), "utf8"));
+const sch = JSON.parse(fs.readFileSync(path.join(ROOT, "data/lesson_sch/lesson.json"), "utf8"));
+const f = JSON.parse(fs.readFileSync(path.join(ROOT, "data/lesson_f/lesson.json"), "utf8"));
+const hardLesson = JSON.parse(fs.readFileSync(path.join(ROOT, "data/lesson_hard/lesson.json"), "utf8"));
+if (ts.intro.scenes[3].word !== "ца́пля" || ts.intro.scenes[3].choices.map((c) => c.tex).join(",") !== "pic_tsaplya,pic_utka") throw new Error("Ц: не цапля/утка");
+if (ts.intro.scenes[2].cards[0].text !== "цу" || ts.intro.scenes[1].slots !== 2) throw new Error("Ц: не цу");
+if (sch.intro.scenes[3].word !== "щу́ка" || sch.intro.scenes[3].choices.map((c) => c.tex).join(",") !== "pic_schuka,pic_som") throw new Error("Щ: не щука/сом");
+if (sch.intro.scenes[2].cards[0].text !== "щу") throw new Error("Щ: не щу");
+if (f.intro.scenes[3].word !== "фа́ра" || f.intro.scenes[3].choices.map((c) => c.tex).join(",") !== "pic_fara,pic_zont") throw new Error("Ф: не фара/зонт");
+if (f.intro.scenes[2].cards[0].text !== "фа") throw new Error("Ф: не фа");
+if (hardLesson.intro.scenes[1].kind !== "hard_pair" || hardLesson.intro.scenes[1].cards.map((c) => c.text).join(",") !== "сел,съел") throw new Error("Ъ: не сел→съел");
+if (hardLesson.intro.scenes[2].kind !== "hard_compare" || hardLesson.intro.scenes[2].cards.map((c) => c.text).join(",") !== "лю,лью" || hardLesson.intro.scenes[2].cards[1].dots !== 3) throw new Error("Ъ: не лю→лью");
+if (hardLesson.intro.scenes[3].kind !== "hard_sign" || hardLesson.intro.scenes[3].choices.join(",") !== "ъ,е" || hardLesson.intro.scenes[3].word !== "съел") throw new Error("Ъ: не ъ/е");
+for (const rel of ["art/lesson_ts/pic_tsaplya.png", "art/lesson_ts/pic_utka.png", "art/lesson_sch/pic_schuka.png", "art/lesson_f/pic_fara.png", "art/lesson_hard/pic_kot_eat.png", "art/lesson_hard/pic_child_pouring.png", "art/lesson_s/pic_som.png", "art/lesson_k/pic_kot_sit.png"]) {
+  if (!fs.existsSync(path.join(ROOT, rel))) throw new Error("нет " + rel);
+}
+for (const id of ["ts", "sch", "f", "hard"]) {
+  if (fs.existsSync(path.join(ROOT, "audio", "lesson_" + id))) throw new Error("появилась озвучка " + id);
+}
 console.log(`OK intro31 content: ${ORDER.length} букв, ${scenes} сцен, ${ids.length} id, ${unique.size} уникальных текстов`);

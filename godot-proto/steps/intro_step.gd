@@ -93,10 +93,10 @@ func _ink(ch: String, nxt := "") -> Color:
 		return Assets.DARK
 	if Assets.VOWELS.contains(base):
 		return Assets.VOWEL_RED
-	# Ж/Ш не смягчаются, в том числе перед и. Й и Ч мягкие всегда, даже одни и перед а/у.
-	if base in ["ж", "ш"]:
+	# Ж/Ш/Ц не смягчаются. Й, Ч и Щ мягкие всегда, даже одни и перед а/у.
+	if base in ["ж", "ш", "ц"]:
 		return Assets.CONSONANT_BLUE
-	if base in ["й", "ч"]:
+	if base in ["й", "ч", "щ"]:
 		return Assets.SOFT_GREEN
 	var n := nxt.substr(0, 1).to_lower()
 	if n in ["ь", "и", "е", "ё", "ю", "я"]:
@@ -856,7 +856,151 @@ func _soft_sign(sc: Dictionary) -> void:
 			finish()
 			return
 
+func _hide_all(nodes: Array) -> void:
+	for n in nodes:
+		if is_instance_valid(n):
+			(n as CanvasItem).visible = false
+
+func _pic_box(rect: Rect2, tex_id: String, from_letter: String) -> Control:
+	var c := Control.new()
+	c.position = rect.position
+	c.size = rect.size
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(c)
+	_keep(c)
+	_paint(c, tex_id, false, from_letter)
+	return c
+
+func _text_card(rect: Rect2, text: String, id: String, px := 48) -> Button:
+	var b := _button(rect, id, Color(0, 0, 0, 0), 16)
+	_paint(b, "ui_intro_card", true)
+	_word_on(b, text, px)
+	return b
+
+func _pair_frame(tex_id: String, from_letter: String, pic: Rect2, text: String, card: Rect2, ear_id: String, ear: Rect2) -> Array:
+	var nodes: Array = []
+	nodes.append(_pic_box(pic, tex_id, from_letter))
+	nodes.append(_text_card(card, text, "look_" + ear_id))
+	nodes.append(_ear(ear, ear_id))
+	return nodes
+
+func _await_named(id: String, line: String) -> bool:
+	while not dead:
+		var h := await _next_hit()
+		if h == "":
+			return false
+		if h == id:
+			await say(line)
+			return true
+	return false
+
+func _hard_pair_ill(sc: Dictionary) -> void:
+	var cards: Array = sc.get("cards", [])
+	if cards.size() < 2 or not await say(String(sc.get("line", ""))):
+		return
+	var first: Dictionary = cards[0]
+	var second: Dictionary = cards[1]
+	var phase := _pair_frame("pic_kot_sit", "k", Rect2(382, 100, 260, 188), String(first.get("text", "")), Rect2(417, 340, 190, 150), "hear_0", Rect2(477, 490, 70, 70))
+	main.set_state("wait_hear")
+	if not await _await_named("hear_0", String(first.get("audio", ""))):
+		return
+	main.set_info("heard", 1)
+	_hide_all(phase)
+	phase = _pair_frame("pic_kot_eat", "", Rect2(382, 100, 260, 188), String(second.get("text", "")), Rect2(417, 340, 190, 150), "hear_1", Rect2(477, 490, 70, 70))
+	main.set_state("wait_hear")
+	if not await _await_named("hear_1", String(second.get("audio", ""))):
+		return
+	main.set_info("heard", 2)
+	_hide_all(phase)
+	_pic_box(Rect2(300, 125, 170, 210), "pic_kot_sit", "k")
+	_pic_box(Rect2(550, 125, 170, 210), "pic_kot_eat", "")
+	var bad := _text_card(Rect2(290, 365, 190, 135), String(first.get("text", "")), "pick_bad")
+	var ok := _text_card(Rect2(540, 365, 190, 135), String(second.get("text", "")), "pick_ok")
+	var e0 := _ear(Rect2(350, 520, 70, 70), "hear_0")
+	var e1 := _ear(Rect2(600, 520, 70, 70), "hear_1")
+	main.expose("pick_bad", bad)
+	main.expose("pick_ok", ok)
+	main.expose("hear_0", e0)
+	main.expose("hear_1", e1)
+	main.set_state("wait_pick")
+	while not dead and not _answered:
+		var h := await _next_hit()
+		if h == "":
+			return
+		if h == "hear_0":
+			await say(String(first.get("audio", "")))
+		elif h == "hear_1":
+			await say(String(second.get("audio", "")))
+		elif h == "pick_ok":
+			_answered = true
+			main.hint_stop()
+			await say("c_success")
+			finish()
+			return
+		elif h == "pick_bad":
+			shake(bad)
+			await say("c_retry")
+
+func _hard_compare_ill(sc: Dictionary) -> void:
+	var cards: Array = sc.get("cards", [])
+	if cards.size() < 2 or not await say(String(sc.get("line", ""))):
+		return
+	var left: Dictionary = cards[0]
+	var right: Dictionary = cards[1]
+	var lyu := _text_card(Rect2(290, 210, 190, 130), String(left.get("text", "")), "hear_0")
+	var lyyu := _text_card(Rect2(540, 210, 190, 130), String(right.get("text", "")), "hear_1")
+	_pic_box(Rect2(550, 350, 180, 150), "pic_child_pouring", "")
+	_sound_mark(Rect2(555, 520, 48, 48))
+	_sound_mark(Rect2(615, 520, 48, 48))
+	_sound_mark(Rect2(675, 520, 48, 48))
+	main.expose("hear_0", lyu)
+	main.expose("hear_1", lyyu)
+	main.set_state("wait_hear")
+	main.set_info("heard", 0)
+	var stage := 0
+	while not dead and not _answered:
+		var h := await _next_hit()
+		if h == "":
+			return
+		if h == "hear_0":
+			if stage == 0:
+				stage = 1
+				main.set_info("heard", 1)
+				_hits.clear()
+				await say(String(left.get("audio", "")))
+				_hits.clear()
+			elif stage == 1:
+				await say(String(left.get("audio", "")))
+			else:
+				shake(lyu)
+				await say("c_retry")
+		elif h == "hear_1":
+			if stage == 0:
+				shake(lyyu)
+			elif stage == 1:
+				stage = 2
+				main.set_info("heard", 2)
+				main.set_info("sounds", 3)
+				main.expose("pick_bad", lyu)
+				main.expose("pick_ok", lyyu)
+				main.set_state("wait_pick")
+				_hits.clear()
+				await say(String(right.get("audio", "")))
+				_hits.clear()
+			else:
+				_answered = true
+				main.hint_stop()
+				await say("c_success")
+				finish()
+				return
+
 func _hard_cards(sc: Dictionary) -> void:
+	if _ill and String(sc.get("kind", "")) == "hard_pair":
+		await _hard_pair_ill(sc)
+		return
+	if _ill and String(sc.get("kind", "")) == "hard_compare":
+		await _hard_compare_ill(sc)
+		return
 	var cards: Array = sc.get("cards", [])
 	var correct := String(sc.get("correct", ""))
 	if not await say(String(sc.get("line", ""))):
@@ -929,6 +1073,9 @@ func _hard_cards(sc: Dictionary) -> void:
 			await say("c_retry")
 
 func _hard_sign(intro: Dictionary, sc: Dictionary) -> void:
+	if _ill:
+		await _hard_sign_ill(intro, sc)
+		return
 	if not await say(String(sc.get("line", ""))):
 		return
 	_word(String(sc.get("word", "")), 56, _r(0.22, 0.0, 0.7, 0.32))
@@ -967,6 +1114,50 @@ func _hard_sign(intro: Dictionary, sc: Dictionary) -> void:
 			finish()
 			return
 		if h == "pick_bad" and heard:
+			var bad := get_node_or_null("pick_bad") as Control
+			if bad:
+				shake(bad)
+			await say("c_retry")
+
+func _hard_sign_ill(intro: Dictionary, sc: Dictionary) -> void:
+	if not await say(String(sc.get("line", ""))):
+		return
+	_word(String(sc.get("word", "")), 64, Rect2(360, 220, 360, 90))
+	_ear(Rect2(270, 231, 70, 70), "ear")
+	var choices: Array = sc.get("choices", [])
+	var correct := String(sc.get("correct", "ъ"))
+	var order := _order(choices.size(), "hard4")
+	for pos in order.size():
+		var src: int = order[pos]
+		var ch := String(choices[src])
+		var id := "pick_ok" if ch == correct else "pick_bad"
+		var b := _text_card(Rect2(280 + pos * 250, 340, 210, 210), ch, id, 96)
+		main.expose(id, b)
+	var heard := false
+	main.set_state("wait_model")
+	while not dead and not _answered:
+		var h := await _next_hit()
+		if h == "":
+			return
+		if not heard and (h == "ear" or h.begins_with("pick_")):
+			await say(String(sc.get("model", "")))
+			heard = true
+			main.set_state("wait_choice")
+			continue
+		if h == "ear":
+			await say(String(sc.get("model", "")))
+		elif h == "pick_ok" and heard:
+			_answered = true
+			main.hint_stop()
+			await say("c_success")
+			_clear_task()
+			_sticker(intro)
+			_again()
+			main.set_info("rest", true)
+			finish()
+			await say("c_rest")
+			return
+		elif h == "pick_bad" and heard:
 			var bad := get_node_or_null("pick_bad") as Control
 			if bad:
 				shake(bad)
