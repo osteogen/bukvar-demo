@@ -27,7 +27,8 @@ func run() -> void:
 		return
 	var sc: Dictionary = scenes[scene_no - 1]
 	var carrier_tex := String(scenes[0].get("tex", ""))
-	_ill = carrier_tex != "" and Assets.tex("ui_intro_ear", false) != null and Assets.tex(carrier_tex, false) != null
+	var carrier_from := String(scenes[0].get("from", ""))
+	_ill = carrier_tex != "" and Assets.tex("ui_intro_ear", false) != null and _tex_of(carrier_tex, carrier_from) != null
 	main.set_info("illustrated", _ill)
 	main.set_info("m_art", _ill and String(Assets.letter_id) == "m")
 	main.set_info("intro_kind", String(sc.get("kind", "")))
@@ -376,7 +377,7 @@ func _meet(intro: Dictionary, sc: Dictionary) -> void:
 		carrier = _button(box, "carrier", fill, 16)
 		var carrier_id := String(sc.get("tex", ""))
 		# Мышь и широкий сом заполняют рамку (обрезается только прозрачный край). Остальные предметы целиком.
-		_paint(carrier, carrier_id, carrier_id == "pic_myshka" or bool(sc.get("cover", false)))
+		_paint(carrier, carrier_id, carrier_id == "pic_myshka" or bool(sc.get("cover", false)), String(sc.get("from", "")))
 	else:
 		carrier = _button(_r(0.18, 0.0, 0.64, 0.46), "carrier", Color("#FFF9EE"), 22)
 		_motif(String(sc.get("motif", "")), carrier)
