@@ -21,7 +21,7 @@ const errors = [];
 let browser, page;
 
 const LETTERS = ["m","h","o","sh","r","s","y","l","n","k","p","t","v","z","zh","soft","i","e","d","b","g","j","ch","eh","yo","ya","yu","ts","sch","f","hard"];
-const ILL = ["m", "h", "o", "sh", "r", "s", "y", "l", "n", "k", "p", "t", "v", "z", "zh", "soft", "i", "e", "d", "b", "g", "j", "ch", "eh", "yo", "ya", "yu"];
+const ILL = ["m", "h", "o", "sh", "r", "s", "y", "l", "n", "k", "p", "t", "v", "z", "zh", "soft", "i", "e", "d", "b", "g", "j", "ch", "eh", "yo", "ya", "yu", "ts", "sch", "f", "hard"];
 const SHOT = { m: "consonant-m", e: "iotated-e", soft: "sign-soft" };
 
 const bk = async () => page.evaluate(() => window.__bk || {}).catch(() => ({}));
@@ -145,6 +145,13 @@ async function playScene(id) {
       if ((await bk()).state !== "wait_trace") break;
     }
   } else if (kind === "hard_pair" || kind === "hard_compare") {
+    if (kind === "hard_compare") {
+      const earlyTarget = await waitFor((s) => s.targets && s.targets.hear_1, "лью");
+      await press(earlyTarget.targets.hear_1[0], earlyTarget.targets.hear_1[1]);
+      await sleep(500);
+      const early = await bk();
+      if ((early.info.heard || 0) !== 0 || early.state !== "wait_hear") throw new Error("лью раньше лю засчиталось");
+    }
     await tap("hear_0");
     await waitFor((s) => (s.info.heard || 0) >= 1 && s.targets.hear_1, "второй образец");
     await tap("hear_1");
@@ -184,6 +191,8 @@ async function lesson(id) {
     const done = await playScene(id);
     if ((done.ui_overlaps || []).length) throw new Error(id + " s" + n + " перекрытия: " + done.ui_overlaps.join(", "));
     if (["e", "yo", "ya", "yu"].includes(id) && n === 2 && !done.info.rest) throw new Error(id + ": после двух звуков нет перерыва");
+    if (id === "hard" && n === 4 && !done.info.rest) throw new Error("ъ: после выбора нет отдыха");
+    if (id === "hard" && n === 4 && !done.targets.next) throw new Error("ъ: после отдыха нет «Далее»");
     if (n < 4) await tap("next");
     if (["e", "yo", "ya", "yu"].includes(id) && n === 2) {
       await waitFor((s) => s.step === "intro_s3" && s.letter_id === id, id + "3 после перерыва");
@@ -192,6 +201,14 @@ async function lesson(id) {
       await waitFor((s) => s.step === "intro_s2" && s.targets && s.targets.next, "возврат к пройденной " + id + "2");
       await tap("next");
       await waitFor((s) => s.step === "intro_s3" && s.letter_id === id, "снова " + id + "3");
+    }
+    if (id === "hard" && n === 2) {
+      await waitFor((s) => s.step === "intro_s3" && s.letter_id === "hard", "ъ3 после сел/съел");
+      const back = (await bk()).ui_rects.back;
+      await press(back[0] + back[2] / 2, back[1] + back[3] / 2);
+      await waitFor((s) => s.step === "intro_s2" && s.targets && s.targets.next, "возврат к пройденной ъ2");
+      await tap("next");
+      await waitFor((s) => s.step === "intro_s3" && s.letter_id === "hard", "снова ъ3");
     }
   }
   const end = await bk();
@@ -208,7 +225,7 @@ async function lesson(id) {
 
 async function spacing() {
   await page.setViewport({ width: 1024, height: 768, deviceScaleFactor: 1 });
-  for (const id of ["m", "r", "s", "y", "l", "n", "k", "p", "t", "v", "z", "zh", "soft", "i", "e", "d", "b", "g", "j", "ch", "eh", "yo", "ya", "yu"]) {
+  for (const id of ["m", "r", "s", "y", "l", "n", "k", "p", "t", "v", "z", "zh", "soft", "i", "e", "d", "b", "g", "j", "ch", "eh", "yo", "ya", "yu", "ts", "sch", "f", "hard"]) {
     await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&letter=${id}&step=intro_s1`, { waitUntil: "load" });
     const s = await waitFor((s) => s.state === "wait_letter" && s.info.item_rects && s.letter_id === id, "раскладка " + id, 90000);
     const btns = s.ui_rects || {};
@@ -250,13 +267,23 @@ try {
     await spacing();
     await responsive([844, 390]);
     await responsive([390, 844]);
-    for (const id of ["h", "sh", "d", "b", "g", "j", "ch", "eh", "yo", "ya", "yu"]) {
+    for (const id of ["h", "sh", "d", "b", "g", "j", "ch", "eh", "yo", "ya", "yu", "ts", "sch", "f"]) {
+
       for (const size of [[844, 390], [390, 844]]) {
         await page.setViewport({ width: size[0], height: size[1], deviceScaleFactor: 1 });
         await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&letter=${id}&step=intro_s4`, { waitUntil: "load" });
         const s = await waitFor((s) => s.state === "wait_choice" && s.targets.pick_ok && s.letter_id === id, id + " " + size.join("x"), 90000);
         if ((s.ui_overlaps || []).length) throw new Error(id + " " + size.join("x") + " перекрытия: " + s.ui_overlaps.join(", "));
         console.log("OK layout", id, size.join("×"));
+      }
+    }
+    for (const size of [[844, 390], [390, 844]]) {
+      await page.setViewport({ width: size[0], height: size[1], deviceScaleFactor: 1 });
+      for (const step of ["intro_s2", "intro_s4"]) {
+        await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&letter=hard&step=${step}`, { waitUntil: "load" });
+        const s = await waitFor((s) => s.letter_id === "hard" && s.step === step && s.state && s.state.startsWith("wait") && s.targets.exit, "ъ " + step + " " + size.join("x"), 90000);
+        if ((s.ui_overlaps || []).length) throw new Error("ъ " + step + " " + size.join("x") + " перекрытия: " + s.ui_overlaps.join(", "));
+        console.log("OK layout hard", step, size.join("×"));
       }
     }
   }
