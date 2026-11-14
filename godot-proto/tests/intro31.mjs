@@ -21,7 +21,7 @@ const errors = [];
 let browser, page;
 
 const LETTERS = ["m","h","o","sh","r","s","y","l","n","k","p","t","v","z","zh","soft","i","e","d","b","g","j","ch","eh","yo","ya","yu","ts","sch","f","hard"];
-const ILL = ["m", "h", "o", "sh", "r", "s", "y", "l", "n", "k", "p", "t"];
+const ILL = ["m", "h", "o", "sh", "r", "s", "y", "l", "n", "k", "p", "t", "v", "z", "zh"];
 const SHOT = { m: "consonant-m", e: "iotated-e", soft: "sign-soft" };
 
 const bk = async () => page.evaluate(() => window.__bk || {}).catch(() => ({}));
@@ -192,7 +192,7 @@ async function lesson(id) {
 
 async function spacing() {
   await page.setViewport({ width: 1024, height: 768, deviceScaleFactor: 1 });
-  for (const id of ["m", "r", "s", "y", "l", "n", "k", "p", "t"]) {
+  for (const id of ["m", "r", "s", "y", "l", "n", "k", "p", "t", "v", "z", "zh"]) {
     await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&letter=${id}&step=intro_s1`, { waitUntil: "load" });
     const s = await waitFor((s) => s.state === "wait_letter" && s.info.item_rects && s.letter_id === id, "раскладка " + id, 90000);
     const btns = s.ui_rects || {};
