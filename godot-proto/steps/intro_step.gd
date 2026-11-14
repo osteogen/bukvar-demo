@@ -342,7 +342,7 @@ func _meet(intro: Dictionary, sc: Dictionary) -> void:
 	var big := String(intro.get("letter", ""))
 	var small := big.to_lower()
 	if _ill:
-		# Общая рамка М/Х/О/Ш. У Р и С в lesson.json свой fit из layout_handoff: предмет крупнее, низ всё ещё на y=252.
+		# Общая рамка М/Х/О/Ш. Если в сцене есть fit, рамка из layout_handoff этой буквы.
 		var fit: Array = sc.get("fit", [])
 		var box := Rect2(437, 152, 150, 100)
 		var fill := Color("#FFF9EE")
