@@ -398,6 +398,12 @@ func _locate(sc: Dictionary) -> void:
 		ear = _ear(Rect2(270, 336, 80, 80), "ear")
 		slots.append(_slot(Rect2(405, 325, 110, 110), "slot_1"))
 		slots.append(_slot(Rect2(590, 325, 110, 110), "slot_2"))
+	elif _ill and n == 3:
+		# Три одинаковые позиции К/П/Т: нужная последняя. Рамка из layout_handoff.
+		ear = _ear(Rect2(245, 336, 70, 70), "ear")
+		slots.append(_slot(Rect2(350, 325, 105, 105), "slot_1"))
+		slots.append(_slot(Rect2(490, 325, 105, 105), "slot_2"))
+		slots.append(_slot(Rect2(630, 325, 105, 105), "slot_3"))
 	else:
 		ear = _ear(_r(0.0, 0.34, 0.2, 0.4), "ear")
 		var gap := 0.04
