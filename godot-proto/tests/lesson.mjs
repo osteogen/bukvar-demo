@@ -504,8 +504,12 @@ try {
   await homeReady("крестик → главная");
   if (new URL(page.url()).pathname !== "/") throw new Error("крестик привёл не на главную: " + page.url());
   await sleep(500); await shot("letters-menu");
-  { const h = await home(); await tapXY(h.targets.letter_locked); await sleep(600);
-    if (new URL(page.url()).pathname !== "/") throw new Error("закрытая буква «Б» открыла урок"); }
+  { const open = await page.evaluate(() => {
+      const b = document.querySelector('[data-letter="Б"]');
+      return !!(b && b.dataset.letterId === "b" && !b.classList.contains("nolesson") && !b.classList.contains("locked"));
+    });
+    if (!open) throw new Error("«Б» не открыта как короткий урок");
+    if (new URL(page.url()).pathname !== "/") throw new Error("после крестика ушли с главной"); }
   await homeToLesson();
   console.log("повторный вход в «А»: сразу s01");
   // крестик посреди урока (аист ещё летит): s01 → главная → «А» → s01

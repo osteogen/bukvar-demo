@@ -124,8 +124,11 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
 (function () {
   "use strict";
   var ALPHABET = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ";
-  // буквы, у которых уже есть урок (остальные открыты, но на касание — тихий «тук» + покачивание)
+  // А и У — полные уроки. Остальные 31 — короткий урок в том же экспорте, буква через ?letter=.
+  // Коды совпадают со сценарием: Э = eh (не e), Ь = soft, Ъ = hard.
+  var INTRO = { "М": "m", "Х": "h", "О": "o", "Ш": "sh", "Р": "r", "С": "s", "Ы": "y", "Л": "l", "Н": "n", "К": "k", "П": "p", "Т": "t", "В": "v", "З": "z", "Ж": "zh", "Ь": "soft", "И": "i", "Е": "e", "Д": "d", "Б": "b", "Г": "g", "Й": "j", "Ч": "ch", "Э": "eh", "Ё": "yo", "Я": "ya", "Ю": "yu", "Ц": "ts", "Щ": "sch", "Ф": "f", "Ъ": "hard" };
   var LESSONS = { "А": "lesson-a/", "У": "lesson-u/" };
+  Object.keys(INTRO).forEach(function (ch) { LESSONS[ch] = "lesson-a/"; });
   // порядок изучения букв: по Воскресенской, позиции 3–5 — М, Х, О (руководство 1948 г., решение заказчика 26.10.2026).
   // Ь сначала как знак мягкости, потом — разделительный вместе с Ъ. Тот же порядок — в info.html.
   var STUDY_ORDER = ["А", "У", "М", "Х", "О", "Ш", "Р", "С", "Ы", "Л", "Н", "К", "П", "Т", "В", "З", "Ж", "Ь", "И", "Е", "Д", "Б",
@@ -165,12 +168,11 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
     var s = document.createElement("span"); s.textContent = ch;
     b.appendChild(s); letters.appendChild(b); cubes.push(b);
     if (LESSONS[ch]) b.dataset.lesson = LESSONS[ch];
+    if (INTRO[ch]) b.dataset.letterId = INTRO[ch];
     if (ch === "А") { b.id = "cube-a"; cubeA = b; }
-    if (LESSONS[ch]) c_on(b);   // «А» → lesson-a/, «У» → lesson-u/; закрытая в режиме последовательности — «тук»
-    else {
-      if (ch === "Б") cubeLocked = b;   // цель автотеста: буква без урока
-      b.addEventListener("pointerdown", lockedTap);   // урока пока нет — «тук» + покачивание
-    }
+    if (ch === "Б") cubeLocked = b;   // цель автотеста: закрытая в режиме последовательности
+    if (LESSONS[ch]) c_on(b);   // урок есть; в режиме последовательности закрытая буква — «тук»
+    else b.addEventListener("pointerdown", lockedTap);
   }
   // какие буквы открыты: по умолчанию (незарегистрированный пользователь) — все; с настройкой «по последовательности» —
   // пройденные + следующая по STUDY_ORDER (пока прогресс не сохраняется → открыта только «А»)
@@ -323,7 +325,10 @@ body { position: fixed; inset: 0; touch-action: manipulation; -webkit-user-selec
     var el = a || cubeA;
     el.classList.remove("press"); el.classList.add("go"); stage.classList.add("leaving");
     var base = (el.dataset && el.dataset.lesson) || LESSON;
-    var href = base + (lq.toString() ? "?" + lq.toString() : "");
+    var q2 = new URLSearchParams(lq.toString());
+    if (el.dataset && el.dataset.letterId) q2.set("letter", el.dataset.letterId);
+    else q2.delete("letter");
+    var href = base + (q2.toString() ? "?" + q2.toString() : "");
     setTimeout(function () { location.href = href; }, 160);
   }
   // возврат кнопкой «назад» (страница из bfcache) — снова ждём тап
