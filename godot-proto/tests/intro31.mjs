@@ -163,7 +163,12 @@ async function lesson(id) {
   await page.goto(url, { waitUntil: "load", timeout: 120000 });
   for (let n = 1; n <= 4; n++) {
     await waitFor((s) => s.step === "intro_s" + n && s.letter_id === id, "сцена " + n + " " + id, 90000);
-    if (SHOT[id] && n === 1) {
+    if (id === "m") {
+      const ready = n === 1 ? (s) => s.state === "wait_letter" && s.targets.letter_big : (s) => s.state && s.state.startsWith("wait");
+      await waitFor(ready, "кадр м " + n);
+      await page.waitForFunction(() => !document.getElementById("status"), { timeout: 5000 }).catch(() => {});
+      await page.screenshot({ path: path.join(SHOTS, "m-play-s" + n + ".png") });
+    } else if (SHOT[id] && n === 1) {
       await waitFor((s) => s.state === "wait_letter" && s.targets.letter_big, "кадр знакомства");
       await page.waitForFunction(() => !document.getElementById("status"), { timeout: 5000 }).catch(() => {});
       await page.screenshot({ path: path.join(SHOTS, SHOT[id] + "-s1.png") });
@@ -174,7 +179,8 @@ async function lesson(id) {
   }
   const end = await bk();
   if (!end.targets.again || !end.targets.sticker) throw new Error(id + ": нет наклейки или «Ещё раз»");
-  if (SHOT[id]) await page.screenshot({ path: path.join(SHOTS, SHOT[id] + "-s4.png") });
+  if (id === "m") await page.screenshot({ path: path.join(SHOTS, "m-play-s4-done.png") });
+  else if (SHOT[id]) await page.screenshot({ path: path.join(SHOTS, SHOT[id] + "-s4.png") });
   if (id === "m") {
     await tap("again");
     await waitFor((s) => s.step === "intro_s4" && s.state && s.state.startsWith("wait"), "Ещё раз");
