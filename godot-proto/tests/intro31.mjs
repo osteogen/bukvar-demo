@@ -149,9 +149,9 @@ async function playScene(id) {
       await tap("ear");
       await waitFor((s) => s.state === "wait_choice", "модель съел");
     }
-    if (kind === "picture" && id === "m") {
+    if ((kind === "picture" || kind === "text") && ["m", "h", "o", "sh"].includes(id)) {
       await tap("pick_bad");
-      await waitFor((s) => s.state === "wait_choice", "неверная картинка прошла");
+      await waitFor((s) => s.state === "wait_choice", "неверный выбор прошёл");
     }
     await tap("pick_ok");
   } else throw new Error("неизвестный вид " + kind);
@@ -163,11 +163,11 @@ async function lesson(id) {
   await page.goto(url, { waitUntil: "load", timeout: 120000 });
   for (let n = 1; n <= 4; n++) {
     await waitFor((s) => s.step === "intro_s" + n && s.letter_id === id, "сцена " + n + " " + id, 90000);
-    if (id === "m") {
+    if (["m", "h", "o", "sh"].includes(id)) {
       const ready = n === 1 ? (s) => s.state === "wait_letter" && s.targets.letter_big : (s) => s.state && s.state.startsWith("wait");
-      await waitFor(ready, "кадр м " + n);
+      await waitFor(ready, "кадр " + id + " " + n);
       await page.waitForFunction(() => !document.getElementById("status"), { timeout: 5000 }).catch(() => {});
-      await page.screenshot({ path: path.join(SHOTS, "m-play-s" + n + ".png") });
+      await page.screenshot({ path: path.join(SHOTS, id + "-play-s" + n + ".png") });
     } else if (SHOT[id] && n === 1) {
       await waitFor((s) => s.state === "wait_letter" && s.targets.letter_big, "кадр знакомства");
       await page.waitForFunction(() => !document.getElementById("status"), { timeout: 5000 }).catch(() => {});
@@ -179,7 +179,7 @@ async function lesson(id) {
   }
   const end = await bk();
   if (!end.targets.again || !end.targets.sticker) throw new Error(id + ": нет наклейки или «Ещё раз»");
-  if (id === "m") await page.screenshot({ path: path.join(SHOTS, "m-play-s4-done.png") });
+  if (["m", "h", "o", "sh"].includes(id)) await page.screenshot({ path: path.join(SHOTS, id + "-play-s4-done.png") });
   else if (SHOT[id]) await page.screenshot({ path: path.join(SHOTS, SHOT[id] + "-s4.png") });
   if (id === "m") {
     await tap("again");
@@ -231,6 +231,15 @@ try {
     await spacing();
     await responsive([844, 390]);
     await responsive([390, 844]);
+    for (const id of ["h", "sh"]) {
+      for (const size of [[844, 390], [390, 844]]) {
+        await page.setViewport({ width: size[0], height: size[1], deviceScaleFactor: 1 });
+        await page.goto(`http://127.0.0.1:${PORT}/lesson-a/index.html?test=1&fast=1&letter=${id}&step=intro_s4`, { waitUntil: "load" });
+        const s = await waitFor((s) => s.state === "wait_choice" && s.targets.pick_ok && s.letter_id === id, id + " " + size.join("x"), 90000);
+        if ((s.ui_overlaps || []).length) throw new Error(id + " " + size.join("x") + " перекрытия: " + s.ui_overlaps.join(", "));
+        console.log("OK layout", id, size.join("×"));
+      }
+    }
   }
   const bad = errors.filter((e) => !/favicon|Download the React DevTools|wasm streaming/i.test(e));
   if (bad.length) throw new Error("ошибки страницы:\n" + bad.slice(0, 8).join("\n"));

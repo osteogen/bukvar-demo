@@ -9,7 +9,7 @@ extends LessonStep
 const PLAY := Rect2(250, 248, 500, 248)
 const INK := Color("#3C3228")
 
-var _m_art := false
+var _ill := false
 var _hits: Array[String] = []
 var _answered := false
 var _traced := false
@@ -26,8 +26,10 @@ func run() -> void:
 		finish()
 		return
 	var sc: Dictionary = scenes[scene_no - 1]
-	_m_art = String(Assets.letter_id) == "m" and Assets.tex("pic_myshka", false) != null and Assets.tex("pic_mama", false) != null
-	main.set_info("m_art", _m_art)
+	var carrier_tex := String(scenes[0].get("tex", ""))
+	_ill = carrier_tex != "" and Assets.tex("ui_intro_ear", false) != null and Assets.tex(carrier_tex, false) != null
+	main.set_info("illustrated", _ill)
+	main.set_info("m_art", _ill and String(Assets.letter_id) == "m")
 	main.set_info("intro_kind", String(sc.get("kind", "")))
 	main.set_info("intro_letter", String(intro.get("letter", "")))
 	main.set_info("art", String(intro.get("art", "")))
@@ -146,7 +148,7 @@ func _motif(seed: String, parent: Control) -> void:
 
 func _ear(rect: Rect2, id: String) -> Button:
 	var b := _round_btn(rect, id)
-	if _m_art:
+	if _ill:
 		_paint(b, "ui_intro_ear", true)
 	else:
 		var mark := EarMark.new()
@@ -158,7 +160,7 @@ func _ear(rect: Rect2, id: String) -> Button:
 
 func _slot(rect: Rect2, id: String) -> Button:
 	var b := _round_btn(rect, id)
-	if _m_art:
+	if _ill:
 		_paint(b, "ui_intro_slot", true)
 		return b
 	var sb := _style(Color("#EFE4CC"), int(minf(rect.size.x, rect.size.y) / 2.0))
@@ -173,8 +175,17 @@ func _quiet(b: Button) -> void:
 	for st in ["normal", "hover", "pressed", "focus"]:
 		b.add_theme_stylebox_override(st, sb)
 
-func _paint(host: Control, tex_id: String, cover := false) -> void:
-	var tex := Assets.tex(tex_id, false)
+func _tex_of(tex_id: String, from_letter: String = "") -> Texture2D:
+	if from_letter != "":
+		for tier in ["res://art/", "res://art_provisional/", "res://art_placeholder/"]:
+			var path := "%slesson_%s/%s.png" % [tier, from_letter, tex_id]
+			if ResourceLoader.exists(path):
+				return load(path)
+		return null
+	return Assets.tex(tex_id, false)
+
+func _paint(host: Control, tex_id: String, cover := false, from_letter: String = "") -> void:
+	var tex := _tex_of(tex_id, from_letter)
 	if tex == null:
 		return
 	var r := TextureRect.new()
@@ -243,7 +254,7 @@ func _track(rect: Rect2) -> Control:
 	t.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(t)
 	_keep(t)
-	if _m_art:
+	if _ill:
 		_paint(t, "ui_intro_track", true)
 	else:
 		var road := ColorRect.new()
@@ -254,14 +265,14 @@ func _track(rect: Rect2) -> Control:
 		t.add_child(road)
 	var left := ColorRect.new()
 	left.name = "track_l"
-	left.color = Color(0, 0, 0, 0) if _m_art else Color("#C8962A")
+	left.color = Color(0, 0, 0, 0) if _ill else Color("#C8962A")
 	left.position = Vector2(0, rect.size.y * 0.2)
 	left.size = Vector2(rect.size.y * 0.6, rect.size.y * 0.6)
 	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	t.add_child(left)
 	var right := ColorRect.new()
 	right.name = "track_r"
-	right.color = Color(0, 0, 0, 0) if _m_art else Color("#C8962A")
+	right.color = Color(0, 0, 0, 0) if _ill else Color("#C8962A")
 	right.position = Vector2(rect.size.x - rect.size.y * 0.6, rect.size.y * 0.2)
 	right.size = left.size
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -330,17 +341,19 @@ func _meet(intro: Dictionary, sc: Dictionary) -> void:
 	var ls: Button
 	var big := String(intro.get("letter", ""))
 	var small := big.to_lower()
-	if _m_art:
+	if _ill:
 		# Носитель в верхней трети: рамка из m/layout_handoff.json, картинка без подписи.
 		carrier = _button(Rect2(437, 152, 150, 100), "carrier", Color("#FFF9EE"), 16)
-		_paint(carrier, "pic_myshka", true)
+		var carrier_id := String(sc.get("tex", ""))
+		# Мышь широкая и уже подогнана кадрированием. Остальные предметы целиком, без обрезки помпона и лап.
+		_paint(carrier, carrier_id, carrier_id == "pic_myshka")
 	else:
 		carrier = _button(_r(0.18, 0.0, 0.64, 0.46), "carrier", Color("#FFF9EE"), 22)
 		_motif(String(sc.get("motif", "")), carrier)
 	main.expose("carrier", carrier)
 	if not await say(String(sc.get("line", ""))):
 		return
-	if _m_art:
+	if _ill:
 		lb = _letter_btn(big, 100, Rect2(304, 335, 190, 177), "letter_big")
 		ls = _letter_btn(small, 92, Rect2(530, 335, 190, 177), "letter_small")
 		_quiet(lb)
@@ -375,7 +388,7 @@ func _locate(sc: Dictionary) -> void:
 		_motif(String(sc.get("motif", "конь")), pic)
 	var ear: Button
 	var slots: Array[Button] = []
-	if _m_art and n == 2:
+	if _ill and n == 2:
 		ear = _ear(Rect2(270, 336, 80, 80), "ear")
 		slots.append(_slot(Rect2(405, 325, 110, 110), "slot_1"))
 		slots.append(_slot(Rect2(590, 325, 110, 110), "slot_2"))
@@ -428,7 +441,7 @@ func _drop(names: Array) -> void:
 func _show_card(text: String, audio: String) -> void:
 	_drop(["syll", "track", "ear", "word"])
 	var lab: Control
-	if _m_art:
+	if _ill:
 		lab = _word(text, 72, Rect2(390, 320, 280, 100))
 		_ear(Rect2(274, 285, 64, 64), "ear")
 		_track(Rect2(310, 430, 420, 75))
@@ -607,7 +620,7 @@ func _pick(intro: Dictionary, sc: Dictionary) -> void:
 	var answer := String(sc.get("answer", ""))
 	if not await say(String(sc.get("line", ""))):
 		return
-	if _m_art and kind == "picture":
+	if _ill and (kind == "picture" or kind == "text"):
 		_ear(Rect2(270, 231, 70, 70), "ear")
 	else:
 		_ear(_r(0.0, 0.0, 0.18, 0.28), "ear")
@@ -616,28 +629,32 @@ func _pick(intro: Dictionary, sc: Dictionary) -> void:
 	var correct_at := order.find(0)
 	main.set_info("correct_at", correct_at)
 	if kind == "picture":
-		if _m_art:
+		if _ill:
 			_word(String(sc.get("word", "")), 64, Rect2(360, 230, 360, 90))
 		else:
 			_word(String(sc.get("word", "")), 54, _r(0.22, 0.0, 0.74, 0.3))
 	for pos in order.size():
 		var src: int = order[pos]
 		var id := "pick_ok" if src == 0 else "pick_bad"
-		var rect := Rect2(280 + pos * 250, 340, 210, 210) if _m_art and kind == "picture" else (_r(0.04 + pos * 0.5, 0.38, 0.44, 0.58) if kind == "picture" else _r(0.04 + pos * 0.5, 0.4, 0.44, 0.52))
+		var framed := _ill and (kind == "picture" or kind == "text")
+		var rect := Rect2(280 + pos * 250, 340, 210, 210) if framed else (_r(0.04 + pos * 0.5, 0.38, 0.44, 0.58) if kind == "picture" else _r(0.04 + pos * 0.5, 0.4, 0.44, 0.52))
 		var b := _button(rect, id, Color("#FFF9EE"), 18)
 		if kind == "picture":
 			var choice: Dictionary = choices[src]
 			var tex_id := String(choice.get("tex", ""))
-			if _m_art and tex_id != "":
+			if _ill and tex_id != "":
 				_paint(b, "ui_intro_card", true)
 				var inset := Control.new()
 				inset.position = Vector2(16, 16)
 				inset.size = b.size - Vector2(32, 32)
 				inset.mouse_filter = Control.MOUSE_FILTER_IGNORE
 				b.add_child(inset)
-				_paint(inset, tex_id, false)
+				_paint(inset, tex_id, false, String(choice.get("from", "")))
 			else:
 				_motif(String(choice.get("seed", "")), b)
+		elif framed:
+			_paint(b, "ui_intro_card", true)
+			_word_on(b, String(choices[src]), 64)
 		else:
 			_word_on(b, String(choices[src]), 48)
 		main.expose(id, b)
@@ -854,7 +871,7 @@ func _clear_task() -> void:
 func _sticker(intro: Dictionary) -> void:
 	var host: Button
 	var big := String(intro.get("letter", ""))
-	if _m_art:
+	if _ill:
 		host = _button(Rect2(370, 270, 280, 154), "sticker", Color(0, 0, 0, 0), 18)
 		_paint(host, "ui_intro_sticker", true)
 		_word_on(host, big + " " + big.to_lower(), 64)
@@ -872,7 +889,7 @@ func _again() -> void:
 	var b: Button
 	var lab := Label.new()
 	lab.text = "Ещё раз"
-	if _m_art:
+	if _ill:
 		b = _button(Rect2(650, 438, 80, 80), "again", Assets.MUSTARD, 40)
 		_paint(b, "ui_intro_again", true)
 		lab.position = Vector2(610, 522)
