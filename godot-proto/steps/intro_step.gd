@@ -93,9 +93,11 @@ func _ink(ch: String, nxt := "") -> Color:
 		return Assets.DARK
 	if Assets.VOWELS.contains(base):
 		return Assets.VOWEL_RED
-	# Ж/Ш не смягчаются, в том числе перед и. Остальные — только перед ь или смягчающей гласной этого слова.
+	# Ж/Ш не смягчаются, в том числе перед и. Й и Ч мягкие всегда, даже одни и перед а/у.
 	if base in ["ж", "ш"]:
 		return Assets.CONSONANT_BLUE
+	if base in ["й", "ч"]:
+		return Assets.SOFT_GREEN
 	var n := nxt.substr(0, 1).to_lower()
 	if n in ["ь", "и", "е", "ё", "ю", "я"]:
 		return Assets.SOFT_GREEN
