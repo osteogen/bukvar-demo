@@ -274,9 +274,32 @@ func pop_in(n: CanvasItem, delay := 0.0) -> void:
 	tw.tween_property(n, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 func pulse(n: CanvasItem, times := 2) -> void:
+	# Возврат к масштабу, который был до отклика. Повторные касания не копят размер
+	# и не оставляют карточку увеличенной (уменьшенные картинки внизу s05).
+	if n.has_meta("pulse_tween"):
+		var prev = n.get_meta("pulse_tween")
+		if prev != null and is_instance_valid(prev):
+			prev.kill()
+	var home: Vector2 = n.scale
+	if n.has_meta("pulse_home"):
+		home = n.get_meta("pulse_home")
+		n.scale = home
+	else:
+		n.set_meta("pulse_home", home)
 	var tw := n.create_tween().set_loops(times)
-	tw.tween_property(n, "scale", Vector2(1.12, 1.12), 0.2)
-	tw.tween_property(n, "scale", Vector2.ONE, 0.2)
+	n.set_meta("pulse_tween", tw)
+	n.set_meta("pulse_home", home)
+	tw.tween_property(n, "scale", home * 1.12, 0.2)
+	tw.tween_property(n, "scale", home, 0.2)
+	tw.finished.connect(_pulse_done.bind(n, tw, home))
+
+func _pulse_done(n: CanvasItem, tw: Tween, home: Vector2) -> void:
+	if not is_instance_valid(n):
+		return
+	n.scale = home
+	if n.has_meta("pulse_tween") and n.get_meta("pulse_tween") == tw:
+		n.remove_meta("pulse_home")
+		n.remove_meta("pulse_tween")
 
 ## Ошибка без наказания: предмет покачивается и плавно возвращается на своё место (без красных крестиков).
 ## home — исходная позиция; если не задана, берётся meta "home" или текущая.

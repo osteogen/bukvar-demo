@@ -251,8 +251,15 @@ func _card_to_cell(pic: TextureButton, i: int, it: Dictionary) -> void:
 		pic.pressed.disconnect(c.callable)
 	pic.remove_meta("word_card")
 	pic.set_meta("cell_card", it.word)
+	if pic.has_meta("pulse_tween"):
+		var prev = pic.get_meta("pulse_tween")
+		if prev != null and is_instance_valid(prev):
+			prev.kill()
+	pic.remove_meta("pulse_home")
+	pic.remove_meta("pulse_tween")
 	var inner := cell.size.x * 0.86
 	var k := inner / pic.size.x
+	pic.set_meta("rest_scale", k)
 	var to := cell.position + cell.size / 2 - pic.size / 2
 	var tw := pic.create_tween().set_parallel()
 	tw.tween_property(pic, "position", to, 0.6).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
@@ -263,7 +270,15 @@ func _card_to_cell(pic: TextureButton, i: int, it: Dictionary) -> void:
 	pic.pressed.connect(func():
 		animate_frames(pic, it.pic)
 		tap_say(voice)
-		main.set_info("s05_cell_tap", it.word))
+		main.set_info("s05_cell_tap", it.word)
+		var gen := int(pic.get_meta("tap_gen", 0)) + 1
+		pic.set_meta("tap_gen", gen)
+		var rest := float(pic.get_meta("rest_scale", pic.scale.x))
+		get_tree().create_timer(1.05).timeout.connect(func() -> void:
+			if not is_instance_valid(pic) or int(pic.get_meta("tap_gen", 0)) != gen:
+				return
+			main.set_info("s05_cell_scale", pic.scale.x)
+			main.set_info("s05_cell_rest", rest)))
 	main.expose("cell_card%d" % i, pic)
 
 # ---------- конец: буквы на рельсах ----------

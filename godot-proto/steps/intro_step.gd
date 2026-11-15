@@ -387,12 +387,12 @@ func _meet(intro: Dictionary, sc: Dictionary) -> void:
 	if not await say(String(sc.get("line", ""))):
 		return
 	if _ill:
-		lb = _letter_btn(big, 100, Rect2(304, 335, 190, 177), "letter_big")
-		ls = _letter_btn(small, 92, Rect2(530, 335, 190, 177), "letter_small")
+		lb = _letter_btn(big, 128, Rect2(304, 335, 190, 177), "letter_big")
+		ls = _letter_btn(small, 118, Rect2(530, 335, 190, 177), "letter_small")
 		_quiet(lb)
 		_quiet(ls)
 	else:
-		var px := 78
+		var px := 100
 		lb = _letter_btn(big, px, _r(0.12, 0.52, 0.36, 0.46), "letter_big")
 		ls = _letter_btn(small, int(px * 0.7), _r(0.52, 0.52, 0.34, 0.46), "letter_small")
 	main.expose("letter_big", lb)
@@ -497,11 +497,11 @@ func _show_card(text: String, audio: String) -> void:
 	_drop(["syll", "track", "ear", "word"])
 	var lab: Control
 	if _ill:
-		lab = _word(text, 72, Rect2(390, 320, 280, 100))
+		lab = _word(text, 96, Rect2(360, 292, 360, 124))
 		_ear(Rect2(274, 285, 64, 64), "ear")
 		_track(Rect2(310, 430, 420, 75))
 	else:
-		lab = _word(text, 72, _r(0.1, 0.08, 0.8, 0.42))
+		lab = _word(text, 92, _r(0.1, 0.08, 0.8, 0.42))
 		_ear(_r(0.0, 0.08, 0.18, 0.32), "ear")
 		_track(_r(0.08, 0.62, 0.84, 0.3))
 	lab.name = "syll"
@@ -530,7 +530,7 @@ func _trace(sc: Dictionary) -> void:
 
 func _two_dots(intro: Dictionary, sc: Dictionary) -> void:
 	var big := String(intro.get("letter", ""))
-	_letter_btn(big, 84, _r(0.3, 0.0, 0.4, 0.4), "letter_big")
+	_letter_btn(big, 108, _r(0.3, 0.0, 0.4, 0.4), "letter_big")
 	var ears: Array = sc.get("ears", [])
 	_ear(_r(0.12, 0.46, 0.28, 0.42), "ear_1")
 	_ear(_r(0.6, 0.46, 0.28, 0.42), "ear_2")
@@ -612,7 +612,7 @@ func _choose_trace(sc: Dictionary) -> void:
 		var b := _button(rect, "card_%d" % i, Color("#FFF9EE"), 16)
 		if _ill:
 			_paint(b, "ui_intro_card", true)
-		_word_on(b, String(card.get("text", "")), 48)
+		_word_on(b, String(card.get("text", "")), 64)
 		main.expose("card_%d" % i, b)
 		if bool(card.get("track", false)):
 			target_i = i
@@ -731,9 +731,9 @@ func _pick(intro: Dictionary, sc: Dictionary) -> void:
 	main.set_info("correct_at", correct_at)
 	if kind == "picture":
 		if _ill:
-			_word(String(sc.get("word", "")), 64, Rect2(360, 230, 360, 90))
+			_word(String(sc.get("word", "")), 88, Rect2(330, 198, 440, 128))
 		else:
-			_word(String(sc.get("word", "")), 54, _r(0.22, 0.0, 0.74, 0.3))
+			_word(String(sc.get("word", "")), 72, _r(0.22, 0.0, 0.74, 0.3))
 	for pos in order.size():
 		var src: int = order[pos]
 		var id := "pick_ok" if src == 0 else "pick_bad"
@@ -755,9 +755,9 @@ func _pick(intro: Dictionary, sc: Dictionary) -> void:
 				_motif(String(choice.get("seed", "")), b)
 		elif framed:
 			_paint(b, "ui_intro_card", true)
-			_word_on(b, String(choices[src]), 64)
+			_word_on(b, String(choices[src]), 84)
 		else:
-			_word_on(b, String(choices[src]), 48)
+			_word_on(b, String(choices[src]), 64)
 		main.expose(id, b)
 	main.set_state("wait_choice")
 	var ok := get_node_or_null("pick_ok") as Control
@@ -804,7 +804,7 @@ func _soft_sign(sc: Dictionary) -> void:
 	if not await say(String(sc.get("line", ""))):
 		return
 	var word := String(sc.get("word", "конь"))
-	var box := _word(word, 86, Rect2(250, 250, 400, 110), true)
+	var box := _word(word, 104, Rect2(210, 214, 470, 140), true)
 	var curtain := ColorRect.new()
 	curtain.name = "curtain"
 	curtain.color = Color("#E4D3B0")
@@ -831,7 +831,7 @@ func _soft_sign(sc: Dictionary) -> void:
 		var ch := String(opts[i])
 		var id := "pick_ok" if ch == String(sc.get("correct", "ь")) else "pick_bad"
 		var opt := Rect2(680, 240 + i * 125, 90, 90) if _ill else _r(0.62, 0.02 + i * 0.22, 0.32, 0.2)
-		_letter_btn(ch, 64, opt, id)
+		_letter_btn(ch, 76, opt, id)
 		main.expose(id, get_node_or_null(id) as Control)
 	main.set_state("wait_sign")
 	while not dead and not _answered:
@@ -871,7 +871,7 @@ func _pic_box(rect: Rect2, tex_id: String, from_letter: String) -> Control:
 	_paint(c, tex_id, false, from_letter)
 	return c
 
-func _text_card(rect: Rect2, text: String, id: String, px := 48) -> Button:
+func _text_card(rect: Rect2, text: String, id: String, px := 60) -> Button:
 	var b := _button(rect, id, Color(0, 0, 0, 0), 16)
 	_paint(b, "ui_intro_card", true)
 	_word_on(b, text, px)
@@ -1011,7 +1011,7 @@ func _hard_cards(sc: Dictionary) -> void:
 		var b := _button(_r(0.04 + i * 0.5, 0.06, 0.44, 0.7), "card_%d" % i, Color("#FFF9EE"), 16)
 		if String(sc.get("kind", "")) == "hard_pair" and i == 1:
 			b.visible = false
-		_word_on(b, String(card.get("text", "")), 40)
+		_word_on(b, String(card.get("text", "")), 52)
 		if String(card.get("motif", "")) != "":
 			var chip := Control.new()
 			chip.position = Vector2(16, b.size.y * 0.55)
@@ -1078,7 +1078,7 @@ func _hard_sign(intro: Dictionary, sc: Dictionary) -> void:
 		return
 	if not await say(String(sc.get("line", ""))):
 		return
-	_word(String(sc.get("word", "")), 56, _r(0.22, 0.0, 0.7, 0.32))
+	_word(String(sc.get("word", "")), 72, _r(0.22, 0.0, 0.7, 0.32))
 	_ear(_r(0.0, 0.0, 0.2, 0.34), "ear")
 	var choices: Array = sc.get("choices", [])
 	var correct := String(sc.get("correct", "ъ"))
@@ -1087,7 +1087,7 @@ func _hard_sign(intro: Dictionary, sc: Dictionary) -> void:
 		var src: int = order[pos]
 		var ch := String(choices[src])
 		var id := "pick_ok" if ch == correct else "pick_bad"
-		_letter_btn(ch, 72, _r(0.08 + pos * 0.48, 0.42, 0.4, 0.5), id)
+		_letter_btn(ch, 92, _r(0.08 + pos * 0.48, 0.42, 0.4, 0.5), id)
 		main.expose(id, get_node_or_null(id) as Control)
 	var heard := false
 	main.set_state("wait_model")
@@ -1122,7 +1122,7 @@ func _hard_sign(intro: Dictionary, sc: Dictionary) -> void:
 func _hard_sign_ill(intro: Dictionary, sc: Dictionary) -> void:
 	if not await say(String(sc.get("line", ""))):
 		return
-	_word(String(sc.get("word", "")), 64, Rect2(360, 220, 360, 90))
+	_word(String(sc.get("word", "")), 88, Rect2(330, 196, 440, 128))
 	_ear(Rect2(270, 231, 70, 70), "ear")
 	var choices: Array = sc.get("choices", [])
 	var correct := String(sc.get("correct", "ъ"))
@@ -1131,7 +1131,7 @@ func _hard_sign_ill(intro: Dictionary, sc: Dictionary) -> void:
 		var src: int = order[pos]
 		var ch := String(choices[src])
 		var id := "pick_ok" if ch == correct else "pick_bad"
-		var b := _text_card(Rect2(280 + pos * 250, 340, 210, 210), ch, id, 96)
+		var b := _text_card(Rect2(280 + pos * 250, 340, 210, 210), ch, id, 120)
 		main.expose(id, b)
 	var heard := false
 	main.set_state("wait_model")
@@ -1174,7 +1174,7 @@ func _sticker(intro: Dictionary) -> void:
 	if _ill:
 		host = _button(Rect2(370, 270, 280, 154), "sticker", Color(0, 0, 0, 0), 18)
 		_paint(host, "ui_intro_sticker", true)
-		_word_on(host, big + " " + big.to_lower(), 64)
+		_word_on(host, big + " " + big.to_lower(), 84)
 	else:
 		host = _button(_r(0.22, 0.08, 0.56, 0.62), "sticker", Color("#FFF9EE"), 28)
 		var sb := _style(Color("#FFF9EE"), 28)
@@ -1182,7 +1182,7 @@ func _sticker(intro: Dictionary) -> void:
 		sb.set_border_width_all(8)
 		for st in ["normal", "hover", "pressed", "focus"]:
 			host.add_theme_stylebox_override(st, sb)
-		_word_on(host, big + " " + big.to_lower(), 64)
+		_word_on(host, big + " " + big.to_lower(), 84)
 	main.expose("sticker", host)
 
 func _again() -> void:

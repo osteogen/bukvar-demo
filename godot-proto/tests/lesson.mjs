@@ -329,7 +329,12 @@ try {
     await tap("ride_tap_big"); await sleep(400);
     if ((await bk()).info.s05_letter_tap !== "А") throw new Error("s05: касание буквы на рельсах не сработало");
     await waitFor(state("done"), "s05 done", 30000);
-    await tap("cell_card2"); await sleep(400);
+    await tap("cell_card2"); await sleep(200);
+    await tap("cell_card2"); await sleep(80);
+    await tap("cell_card2");
+    const settled = await waitFor((s) => s.info && s.info.s05_cell_scale != null && Math.abs(s.info.s05_cell_scale - s.info.s05_cell_rest) < 0.04, "s05 cell scale", 5000);
+    if (settled.info.s05_cell_rest > 0.9) throw new Error("s05: ячейка не уменьшила карточку: " + settled.info.s05_cell_rest);
+    if (Math.abs(settled.info.s05_cell_scale - 1) < 0.08) throw new Error("s05: карточка осталась увеличенной " + JSON.stringify(settled.info.s05_cell_scale));
     if ((await bk()).info.s05_cell_tap !== order[2]) throw new Error("s05: касание карточки в ячейке не дало слово");
     if (!(await bk()).targets.next) throw new Error("s05: нет «Далее» в конце");
     console.log(`s05: порядок ${order.join(", ")}; перестук ${s.sfx_counts.sfx_train_clack}; буквы на рельсах ${JSON.stringify(s.info.s05_letters_in.map((p) => p.map(Math.round)))}; ячейки нажимаются`); }
